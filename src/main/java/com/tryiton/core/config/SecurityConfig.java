@@ -43,6 +43,7 @@ public class SecurityConfig {
 
         // CSRF, 세션, 기본 로그인 비활성화
         http.csrf(csrf -> csrf.disable());
+        http.headers(headers -> headers.frameOptions(frame -> frame.disable()));
         http.formLogin(login -> login.disable());
         http.httpBasic(basic -> basic.disable());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
