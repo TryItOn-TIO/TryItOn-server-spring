@@ -1,19 +1,16 @@
 package com.tryiton.core.member.dto;
 
-import com.tryiton.core.member.entity.Member;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@AllArgsConstructor
 public class SigninResponseDto {
-    private String nickname;
+    private String username;
     private String email;
+    private String accessToken;
 
-    public static SigninResponseDto from(Member member) {
-        return new SigninResponseDto(
-            member.getNickname(),
-            member.getEmail()
-        );
+    public SigninResponseDto(String username, String email, String accessToken) {
+        this.username = username;
+        this.email = email;
+        this.accessToken = accessToken;
     }
 }

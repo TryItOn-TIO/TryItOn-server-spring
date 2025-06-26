@@ -1,7 +1,8 @@
 package com.tryiton.core.auth;
 
-import com.tryiton.core.auth.oauth.handler.CustomOAuth2SuccessHandler;
-import com.tryiton.core.auth.oauth.service.CustomOAuth2UserService;
+import com.tryiton.core.auth.jwt.JwtUtil;
+import com.tryiton.core.auth.jwt.handler.JwtAuthFilter;
+import com.tryiton.core.auth.jwt.service.CustomUserDetailService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -11,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
@@ -19,16 +21,16 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final CustomOAuth2UserService oAuth2UserService;
+    private final AuthenticationConfiguration authenticationConfiguration;
+    private  final JwtUtil jwtUtil;
+    private final CustomUserDetailService customUserDetailService;
 
-    public SecurityConfig(CustomOAuth2UserService oAuth2UserService,
-        CustomOAuth2SuccessHandler successHandler) {
-        this.oAuth2UserService = oAuth2UserService;
-        this.successHandler = successHandler;
+    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JwtUtil jwtUtil,
+        CustomUserDetailService customUserDetailService) {
+        this.authenticationConfiguration = authenticationConfiguration;
+        this.jwtUtil = jwtUtil;
+        this.customUserDetailService = customUserDetailService;
     }
-
-    private final CustomOAuth2SuccessHandler successHandler;
-
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -63,6 +65,8 @@ public class SecurityConfig {
 
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
+            .requestMatchers("/**").permitAll() // 로그인 이전 테스트를 위하여 임시로 모든 권한 제한 해제
+            /*
             .requestMatchers(
                 "/", "/api/auth/**", "/h2-console/**",
                 "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
@@ -70,14 +74,25 @@ public class SecurityConfig {
             .requestMatchers("/admin/**").hasRole("ADMIN")
             .requestMatchers("/api/mypage/**").hasAnyRole("ADMIN", "USER") // api white list 추가
             .anyRequest().authenticated()
+             */
         );
+//
+//        // OAuth 로그인
+//        http.oauth2Login(oauth -> oauth
+//            .loginPage("/login")
+//            .userInfoEndpoint(user -> user.userService(oAuth2UserService))
+//            .successHandler(successHandler)
+//        );
 
-        // OAuth 로그인
-        http.oauth2Login(oauth -> oauth
-            .loginPage("/login")
-            .userInfoEndpoint(user -> user.userService(oAuth2UserService))
-            .successHandler(successHandler)
-        );
+//        SigninFilter signinFilter = new SigninFilter(authenticationManager(authenticationConfiguration), jwtUtil);
+//        signinFilter.setFilterProcessesUrl("/api/auth/signin");
+
+        // JWT 인증 필터
+        JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtUtil, customUserDetailService);
+
+        http
+//            .addFilterAt(signinFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
