@@ -1,7 +1,5 @@
 package com.tryiton.core.member.entity;
 
-import com.tryiton.core.common.enums.AuthProvider;
-import com.tryiton.core.common.enums.UserRole;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -33,7 +31,7 @@ public class Member {
 
     // Role
     private UserRole role;
-    
+
     // google or email
     private AuthProvider provider;
 

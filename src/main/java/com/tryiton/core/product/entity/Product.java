@@ -1,0 +1,79 @@
+package com.tryiton.core.product.entity;
+
+import com.tryiton.core.common.BaseTimeEntity;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Product extends BaseTimeEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "product_id")
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @Column(nullable = false, length = 150)
+    private String productName;
+
+    @Column(nullable = false, length = 600)
+    private String img1;
+
+    private String img2;
+    private String img3;
+    private String img4;
+    private String img5;
+
+    @Column(length = 1500)
+    private String content;
+
+    private int price;
+    private int sale;
+
+    private String brand;
+
+    private boolean deleted;
+
+    @Column(name = "wishlist_count")
+    private int wishlistCount;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductVariant> variants = new ArrayList<>();
+
+    @Builder
+    public Product(Category category, String productName, String img1, String img2, String img3,
+        String img4, String img5, String content, int price, int sale, String brand) {
+        this.category = category;
+        this.productName = productName;
+        this.img1 = img1;
+        this.img2 = img2;
+        this.img3 = img3;
+        this.img4 = img4;
+        this.img5 = img5;
+        this.content = content;
+        this.price = price;
+        this.sale = sale;
+        this.brand = brand;
+        this.deleted = false;
+        this.wishlistCount = 0;
+    }
+}
