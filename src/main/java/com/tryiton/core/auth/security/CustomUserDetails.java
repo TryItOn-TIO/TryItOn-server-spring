@@ -1,4 +1,4 @@
-package com.tryiton.core.auth.jwt;
+package com.tryiton.core.auth.security;
 
 import com.tryiton.core.member.entity.Member;
 import org.springframework.security.core.GrantedAuthority;

@@ -9,12 +9,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Getter
-@Setter
+@Builder
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Profile {
     @Id
     private Long userId;
@@ -29,10 +34,10 @@ public class Profile {
     private Style preferredStyle;
 
     @Column(name = "height")
-    private Integer height;  // cm
+    private Integer height;
 
     @Column(name = "weight")
-    private Integer weight;  // kg
+    private Integer weight;
 
     @Column(name = "shoe_size")
     private Integer shoeSize;

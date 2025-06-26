@@ -5,6 +5,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.auth.oauth.dto.GoogleInfoDto;
@@ -24,6 +25,7 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -40,20 +42,26 @@ public class AuthService {
         this.clientId = clientId;
     }
 
-    // Google OAuth 토큰을 검증하고 사용자 정보를 반환합니다.
+    // client id 검증
+    @PostConstruct
+    public void validateClientId() {
+        if (clientId == null || clientId.trim().isEmpty()) {
+            throw new IllegalStateException("Google Client ID가 설정되지 않았습니다.");
+        }
+    }
+
+    // OAuth 토큰을 검증하여 사용자 정보 반환
     public GoogleInfoDto authenticate(String token) {
         return extractUserInfoFromToken(token);
     }
 
-    // 토큰에서 Google 사용자 정보를 추출합니다.
+    // 토큰에서 Google 사용자 정보 추출
     private GoogleInfoDto extractUserInfoFromToken(String token) {
         try {
             log.info("Verifying Google ID token");
             log.info("Client ID: {}", clientId);
-            
-            if (clientId == null || clientId.trim().isEmpty()) {
-                throw new BusinessException("Google Client ID가 설정되지 않았습니다.");
-            }
+
+            validateClientId();
             
             GoogleIdTokenVerifier verifier = createGoogleIdTokenVerifier();
             // 토큰 검증
@@ -79,14 +87,14 @@ public class AuthService {
         }
     }
 
-    // Payload를 GoogleInfoDto로 변환합니다.
+    // Payload를 GoogleInfoDto로 변환
     private GoogleInfoDto convertPayloadToGoogleInfoDto(Payload payload) {
         String email = payload.getEmail();
         String pictureUrl = payload.containsKey("picture") ? (String) payload.get("picture") : null;
         return new GoogleInfoDto(email, pictureUrl);
     }
 
-    // Google ID 토큰 검증기를 생성합니다.
+    // Google ID 토큰 검증기 생성
     private GoogleIdTokenVerifier createGoogleIdTokenVerifier() {
         return new GoogleIdTokenVerifier.Builder(
             new NetHttpTransport(), new JacksonFactory())
@@ -94,6 +102,7 @@ public class AuthService {
             .build();
     }
 
+    // 로그인 요청을 처리하고 JWT 토큰 반환
     public SigninResponseDto loginWithGoogle(GoogleSigninRequestDto dto) {
         GoogleInfoDto googleInfo = authenticate(dto.getIdToken());
         String email = googleInfo.getEmail();
@@ -106,6 +115,8 @@ public class AuthService {
         return new SigninResponseDto(member.getUsername(), member.getEmail(), jwt);
     }
 
+    // 회원가입 요청을 처리하고 JWT 토큰 반환
+    @Transactional
     public GoogleSignupResponseDto signupWithGoogle(GoogleSignupRequestDto dto) {
         try {
             log.info("Starting Google signup process for user: {}", dto.getUsername());
@@ -120,24 +131,26 @@ public class AuthService {
                 throw new BusinessException("이미 가입된 회원입니다.");
             });
 
-            Member member = new Member();
-            member.setEmail(email);
-            member.setUsername(dto.getUsername());
-            member.setBirthDate(dto.getBirthDate());
-            member.setGender(dto.getGender());
-            member.setPhoneNum(dto.getPhoneNum());
-            member.setProvider(AuthProvider.GOOGLE);
-            member.setRole(UserRole.USER);
+            Member member = Member.builder()
+                .email(email)
+                .username(dto.getUsername())
+                .birthDate(dto.getBirthDate())
+                .gender(dto.getGender())
+                .phoneNum(dto.getPhoneNum())
+                .provider(AuthProvider.GOOGLE)
+                .role(UserRole.USER)
+                .build();
 
-            Profile profile = new Profile();
-            profile.setHeight(dto.getHeight());
-            profile.setWeight(dto.getWeight());
-            profile.setShoeSize(dto.getShoeSize());
-            profile.setPreferredStyle(Style.valueOf(dto.getPreferredStyle()));
-            profile.setProfileImageUrl(googleInfo.getPictureUrl());
+            Profile profile = Profile.builder()
+                .height(dto.getHeight())
+                .weight(dto.getWeight())
+                .shoeSize(dto.getShoeSize())
+                .preferredStyle(Style.valueOf(dto.getPreferredStyle()))
+                .profileImageUrl(googleInfo.getPictureUrl())
+                .member(member)
+                .build();
 
             member.setProfile(profile);
-            profile.setMember(member);
 
             log.info("Saving member to database");
             Member saved = memberRepository.save(member);

@@ -1,7 +1,6 @@
 package com.tryiton.core.member.entity;
 
 import com.tryiton.core.common.enums.AuthProvider;
-import com.tryiton.core.common.enums.Style;
 import com.tryiton.core.common.enums.UserRole;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -13,11 +12,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToOne;
 import java.time.LocalDate;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
+@Builder
 @Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Member {
 
     @Id
@@ -41,15 +46,18 @@ public class Member {
     private String password; // Google 로그인은 null 허용
 
     @Column(name = "password_expired", nullable = false)
+    @Builder.Default
     private Boolean passwordExpired = false;
 
     @Column(name = "phone_num")
     private String phoneNum;
 
     @Column(name = "banned", nullable = false)
+    @Builder.Default
     private Boolean banned = false;
 
     @Column(name = "withdraw", nullable = false)
+    @Builder.Default
     private Boolean withdraw = false;
 
     // profile entity (회원 정보)

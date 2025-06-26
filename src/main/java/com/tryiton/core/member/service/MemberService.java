@@ -37,20 +37,22 @@ public class MemberService {
         String encodedPassword = (bCryptPasswordEncoder.encode(dto.getPassword()));
 
         // member entity로 변환
-        Member member = new Member();
-        member.setEmail(dto.getEmail());
-        member.setPassword(encodedPassword);
-        member.setProvider(AuthProvider.EMAIL);
-        member.setUsername(dto.getUsername());
+        Member member = Member.builder()
+            .email(dto.getEmail())
+            .username(dto.getUsername())
+            .password(encodedPassword)
+            .provider(AuthProvider.EMAIL)
+            .build();
 
         // profile entity로 변환
-        Profile profile = new Profile();
-        profile.setHeight(dto.getHeight());
-        profile.setWeight(dto.getWeight());
-        profile.setShoeSize(dto.getShoeSize());
+        Profile profile = Profile.builder()
+            .height(dto.getHeight())
+            .weight(dto.getWeight())
+            .shoeSize(dto.getShoeSize())
+            .member(member)  // 연관 관계 주입
+            .build();
 
         member.setProfile(profile);
-        profile.setMember(member);
 
         // 저장
         Member saved = memberRepository.save(member);
@@ -60,15 +62,12 @@ public class MemberService {
     }
 
     public SigninResponseDto signin(SigninRequestDto dto){
-        String email = dto.getEmail();
-        String password = dto.getPassword();
-
         // 이메일로 사용자 조회
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmail(dto.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         // 비밀번호 일치 여부 확인
-        if (!bCryptPasswordEncoder.matches(password, member.getPassword())) {
+        if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
