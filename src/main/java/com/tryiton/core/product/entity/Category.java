@@ -14,7 +14,7 @@ public class Category {
 
     @Id
     @Column(name = "category_id")
-    private Integer id;
+    private Integer categoryId;
 
     @Column(name = "category_id2") // 상위 카테고리 ID
     private Integer parentId;
