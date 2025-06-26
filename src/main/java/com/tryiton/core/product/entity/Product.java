@@ -61,7 +61,7 @@ public class Product extends BaseTimeEntity {
 
     @Builder
     public Product(Category category, String productName, String img1, String img2, String img3,
-        String img4, String img5, String content, int price, int sale) {
+        String img4, String img5, String content, int price, int sale, String brand) {
         this.category = category;
         this.productName = productName;
         this.img1 = img1;
@@ -72,6 +72,7 @@ public class Product extends BaseTimeEntity {
         this.content = content;
         this.price = price;
         this.sale = sale;
+        this.brand = brand;
         this.deleted = false;
         this.wishlistCount = 0;
     }

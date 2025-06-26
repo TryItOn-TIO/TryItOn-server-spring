@@ -14,9 +14,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @EntityListeners(AuditingEntityListener.class)
 public class BaseTimeEntity {
 
-    // rdate 컬럼에 생성시간이 자동으로 들어간다.
+    // created_at 컬럼에 생성시간이 자동으로 들어간다.
     @CreatedDate
-    @Column(name = "rdate", updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate
