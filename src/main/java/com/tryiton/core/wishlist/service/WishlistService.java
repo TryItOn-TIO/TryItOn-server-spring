@@ -66,7 +66,10 @@ public class WishlistService {
         Wishlist wishlist = wishlistRepository.findByUserId(userId)
             .orElseThrow(() -> new NoSuchElementException("찜 목록이 존재하지 않습니다."));
 
-        return wishlist.getItems().stream()
+        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(
+            wishlist.getWishlistId());
+
+        return sortedItems.stream()
             .map(item -> new ProductResponseDto(item.getProduct()))
             .toList();
     }

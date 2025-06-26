@@ -1,5 +1,6 @@
 package com.tryiton.core.wishlist.entity;
 
+import com.tryiton.core.common.BaseTimeEntity;
 import com.tryiton.core.product.entity.Product;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -16,7 +17,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class WishlistItem {
+public class WishlistItem extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
