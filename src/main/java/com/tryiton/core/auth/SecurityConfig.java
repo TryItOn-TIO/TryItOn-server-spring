@@ -1,5 +1,7 @@
-package com.tryiton.core.config;
+package com.tryiton.core.auth;
 
+import com.tryiton.core.auth.oauth.handler.CustomOAuth2SuccessHandler;
+import com.tryiton.core.auth.oauth.service.CustomOAuth2UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,6 +19,17 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private final CustomOAuth2UserService oAuth2UserService;
+
+    public SecurityConfig(CustomOAuth2UserService oAuth2UserService,
+        CustomOAuth2SuccessHandler successHandler) {
+        this.oAuth2UserService = oAuth2UserService;
+        this.successHandler = successHandler;
+    }
+
+    private final CustomOAuth2SuccessHandler successHandler;
+
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
@@ -33,7 +46,7 @@ public class SecurityConfig {
         // CORS 설정
         http.cors(cors -> cors.configurationSource(request -> {
             CorsConfiguration config = new CorsConfiguration();
-            config.setAllowedOrigins(List.of("http://localhost:5173"));
+            config.setAllowedOrigins(List.of("http://localhost:3000"));
             config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowedHeaders(List.of("*"));
             config.setExposedHeaders(List.of("Authorization"));
@@ -51,12 +64,19 @@ public class SecurityConfig {
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
             .requestMatchers(
-                "/", "/auth/**", "/h2-console/**",
+                "/", "/api/auth/**", "/h2-console/**",
                 "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
             ).permitAll()
-            .requestMatchers("/admin").hasRole("ADMIN")
-            .requestMatchers("/product").hasAnyRole("ADMIN", "USER") // api white list 추가
+            .requestMatchers("/admin/**").hasRole("ADMIN")
+            .requestMatchers("/api/mypage/**").hasAnyRole("ADMIN", "USER") // api white list 추가
             .anyRequest().authenticated()
+        );
+
+        // OAuth 로그인
+        http.oauth2Login(oauth -> oauth
+            .loginPage("/login")
+            .userInfoEndpoint(user -> user.userService(oAuth2UserService))
+            .successHandler(successHandler)
         );
 
         return http.build();
