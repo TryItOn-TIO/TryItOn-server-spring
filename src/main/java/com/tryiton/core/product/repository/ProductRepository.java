@@ -13,8 +13,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findAllByDeletedFalseOrderByWishlistCountDesc(Pageable pageable);
 
     // 특정 카테고리의 상품 중 페이징 조회
-    Page<Product> findByCategoryAndDeletedFalseOrderByWishlistCountDesc(Category category,
-        Pageable pageable);
+    Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);
 
     // 추천 알고리즘 상품: 특정 ID 리스트 기반 조회
     List<Product> findByIdInAndDeletedFalse(List<Long> ids);

@@ -49,6 +49,7 @@ public class Product extends BaseTimeEntity {
     private int price;
     private int sale;
 
+    @Column(nullable = false, length = 150)
     private String brand;
 
     private boolean deleted;
@@ -57,7 +58,7 @@ public class Product extends BaseTimeEntity {
     private int wishlistCount;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductVariant> variants = new ArrayList<>();
+    private final List<ProductVariant> variants = new ArrayList<>();
 
     @Builder
     public Product(Category category, String productName, String img1, String img2, String img3,
