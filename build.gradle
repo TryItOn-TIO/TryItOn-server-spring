@@ -17,7 +17,15 @@ repositories {
 	mavenCentral()
 }
 
+// Spring Cloud AWS BOM 추가
+dependencyManagement {
+	imports {
+		mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:3.1.1"
+	}
+}
+
 dependencies {
+	// 기존 의존성들 (develop 브랜치와 동일)
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -25,6 +33,12 @@ dependencies {
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
+	
+	// AWS 관련 의존성 추가
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager'
+	
+	// Actuator 추가 (헬스체크용)
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.h2database:h2'
@@ -36,9 +50,7 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
-}
+// 테스트 설정 (CI/CD용)
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'spring.profiles.active', 'test'

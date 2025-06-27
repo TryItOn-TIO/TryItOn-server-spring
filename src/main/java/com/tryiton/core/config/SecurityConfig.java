@@ -1,5 +1,6 @@
 package com.tryiton.core.config;
 
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -50,6 +51,7 @@ public class SecurityConfig {
 
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(EndpointRequest.to("health")).permitAll() // Health Check는 모두에게 허용
             .requestMatchers(
                 "/**", "/auth/**", "/h2-console/**",
                 "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
