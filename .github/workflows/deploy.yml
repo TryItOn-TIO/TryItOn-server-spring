@@ -41,6 +41,13 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
+      # --- [추가] 디버깅용 단계 ---
+      - name: Check for JAR file
+        run: |
+          echo "--- Checking the contents of build/libs directory ---"
+          ls -l build/libs
+          # --- 여기까지 추가 ---
+
       # 6. AWS 자격 증명 설정
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
