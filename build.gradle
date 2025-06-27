@@ -13,8 +13,20 @@ java {
 	}
 }
 
+// ext 블록을 추가하여 springCloudVersion 변수 선언
+ext {
+	set('springCloudVersion', "2023.0.2") // Spring Boot 3.2.x 버전에 맞는 Spring Cloud 버전
+}
+
 repositories {
 	mavenCentral()
+}
+// dependencyManagement 블록 추가
+dependencyManagement {
+	imports {
+		// Spring Cloud의 버전 목록표(BOM)를 import 합니다.
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
 }
 
 dependencies {
