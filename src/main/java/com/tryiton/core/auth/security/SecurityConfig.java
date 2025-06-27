@@ -3,32 +3,64 @@ package com.tryiton.core.auth.security;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .authorizeHttpRequests(authorize -> authorize
-                        // 1. /actuator/health 엔드포인트는 인증 없이 모두에게 허용
-                        .requestMatchers(EndpointRequest.to("health")).permitAll()
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
 
-                        // 2. (선택사항) 다른 모든 actuator 엔드포인트는 인증된 사용자에게만 허용
-                        // .requestMatchers(EndpointRequest.toAnyEndpoint()).authenticated()
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-                        // 3. 그 외 다른 모든 요청에 대한 규칙 (매우 중요!)
-                        //    - 현재는 모든 요청을 허용하도록 설정되어 있습니다.
-                        //    - 실제 프로젝트의 보안 요구사항에 맞게 이 부분을 수정해야 합니다.
-                        //      (예: .anyRequest().authenticated() 로 변경하여 로그인 요구)
-                        .anyRequest().permitAll()
-                );
-        // .csrf(csrf -> csrf.disable()) // CSRF 보호 비활성화 (필요 시)
-        // .formLogin(...) // 폼 로그인 설정 (필요 시)
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        // CORS 설정
+        http.cors(cors -> cors.configurationSource(request -> {
+            CorsConfiguration config = new CorsConfiguration();
+            config.setAllowedOrigins(List.of("http://localhost:5173"));
+            config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+            config.setAllowedHeaders(List.of("*"));
+            config.setExposedHeaders(List.of("Authorization"));
+            config.setAllowCredentials(true);
+            return config;
+        }));
+
+        // CSRF, 세션, 기본 로그인 비활성화
+        http.csrf(csrf -> csrf.disable());
+        http.headers(headers -> headers.frameOptions(frame -> frame.disable()));
+        http.formLogin(login -> login.disable());
+        http.httpBasic(basic -> basic.disable());
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        // 인가 정책
+        http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(EndpointRequest.to("health")).permitAll() // Health Check는 모두에게 허용
+
+            .requestMatchers(
+                "/", "/auth/**", "/h2-console/**",
+                "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
+            ).permitAll()
+            .requestMatchers("/admin").hasRole("ADMIN")
+            .requestMatchers("/product").hasAnyRole("ADMIN", "USER") // api white list 추가
+            .anyRequest().authenticated()
+        );
 
         return http.build();
     }
