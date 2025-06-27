@@ -52,15 +52,12 @@ public class AuthService {
 
     // OAuth 토큰을 검증하여 사용자 정보 반환
     public GoogleInfoDto authenticate(String token) {
-        return extractUserInfoFromToken(token);
+        return extractUserInfoFrom(token);
     }
 
     // 토큰에서 Google 사용자 정보 추출
-    private GoogleInfoDto extractUserInfoFromToken(String token) {
+    private GoogleInfoDto extractUserInfoFrom(String token) {
         try {
-            log.info("Verifying Google ID token");
-            log.info("Client ID: {}", clientId);
-
             validateClientId();
             
             GoogleIdTokenVerifier verifier = createGoogleIdTokenVerifier();
@@ -70,25 +67,21 @@ public class AuthService {
                 throw new BusinessException("유효하지 않은 ID 토큰입니다.");
             }
             Payload payload = idToken.getPayload();
-            log.info("Token verified successfully for email: {}", payload.getEmail());
-            
+
             // Payload로부터 사용자 정보 추출
-            return convertPayloadToGoogleInfoDto(payload);
+            return convertPayloadTo(payload);
 
         } catch (GeneralSecurityException e) {
-            log.error("Google 토큰 검증 실패 - Security Exception: {}", e.getMessage());
             throw new BusinessException("Google 토큰 검증 실패: " + e.getMessage());
         } catch (IOException e) {
-            log.error("Google 토큰 검증 실패 - IO Exception: {}", e.getMessage());
             throw new BusinessException("Google 토큰 검증 실패: " + e.getMessage());
         } catch (Exception e) {
-            log.error("Google 토큰 검증 중 예상치 못한 오류: {}", e.getMessage());
             throw new BusinessException("Google 토큰 검증 실패: " + e.getMessage());
         }
     }
 
     // Payload를 GoogleInfoDto로 변환
-    private GoogleInfoDto convertPayloadToGoogleInfoDto(Payload payload) {
+    private GoogleInfoDto convertPayloadTo(Payload payload) {
         String email = payload.getEmail();
         String pictureUrl = payload.containsKey("picture") ? (String) payload.get("picture") : null;
         return new GoogleInfoDto(email, pictureUrl);
@@ -119,13 +112,9 @@ public class AuthService {
     @Transactional
     public GoogleSignupResponseDto signupWithGoogle(GoogleSignupRequestDto dto) {
         try {
-            log.info("Starting Google signup process for user: {}", dto.getUsername());
-            
             GoogleInfoDto googleInfo = authenticate(dto.getIdToken());
             String email = googleInfo.getEmail();
             
-            log.info("Google authentication successful for email: {}", email);
-
             // 이메일 중복 체크
             memberRepository.findByEmail(email).ifPresent(m -> {
                 throw new BusinessException("이미 가입된 회원입니다.");
@@ -152,18 +141,14 @@ public class AuthService {
 
             member.setProfile(profile);
 
-            log.info("Saving member to database");
             Member saved = memberRepository.save(member);
-            log.info("Member saved successfully with ID: {}", saved.getId());
 
             String jwt = jwtUtil.createJwt(email, member.getRole().name(), 60 * 60 * 1000L);
             return GoogleSignupResponseDto.from(saved, jwt);
             
         } catch (BusinessException e) {
-            log.error("Business exception during signup: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error during signup: {}", e.getMessage(), e);
             throw new BusinessException("회원가입 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
