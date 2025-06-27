@@ -51,7 +51,7 @@ public class SecurityConfig {
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
             .requestMatchers(
-                "/", "/auth/**", "/h2-console/**",
+                "/**", "/auth/**", "/h2-console/**",
                 "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
             ).permitAll()
             .requestMatchers("/admin").hasRole("ADMIN")
