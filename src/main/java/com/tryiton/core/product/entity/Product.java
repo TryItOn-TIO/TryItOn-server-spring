@@ -77,4 +77,14 @@ public class Product extends BaseTimeEntity {
         this.deleted = false;
         this.wishlistCount = 0;
     }
+
+    public void increaseWishlistCount() {
+        this.wishlistCount++;
+    }
+
+    public void decreaseWishlistCount() {
+        if (this.wishlistCount > 0) {
+            this.wishlistCount--;
+        }
+    }
 }

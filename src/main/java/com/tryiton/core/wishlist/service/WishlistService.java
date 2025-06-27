@@ -42,6 +42,7 @@ public class WishlistService {
         if (!alreadyExists) {
             WishlistItem item = WishlistItem.builder().product(product).build();
             wishlist.addItem(item);
+            product.increaseWishlistCount(); // 찜 수 증가
         }
     }
 
@@ -58,6 +59,7 @@ public class WishlistService {
 
         wishlist.removeItem(item);
         wishlistItemRepository.delete(item);
+        item.getProduct().decreaseWishlistCount(); // 찜 수 감소
     }
 
     // 찜 조회
