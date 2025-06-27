@@ -1,5 +1,7 @@
 package com.tryiton.core.auth.email.service;
 
+import static com.tryiton.core.auth.email.util.Validator.validatePassword;
+
 import com.tryiton.core.auth.email.dto.EmailRequestDto;
 import com.tryiton.core.auth.email.dto.EmailSigninRequestDto;
 import com.tryiton.core.auth.email.dto.EmailSigninResponseDto;
@@ -9,8 +11,10 @@ import com.tryiton.core.auth.email.dto.EmailVerifyRequestDto;
 import com.tryiton.core.auth.email.entity.EmailVerification;
 import com.tryiton.core.auth.email.repository.EmailVerificationRepository;
 import com.tryiton.core.auth.email.util.RandomCodeGenerator;
+import com.tryiton.core.auth.email.util.Validator;
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.common.enums.AuthProvider;
+import com.tryiton.core.common.enums.Gender;
 import com.tryiton.core.common.enums.Style;
 import com.tryiton.core.common.enums.UserRole;
 import com.tryiton.core.member.entity.Member;
@@ -44,6 +48,9 @@ public class EmailAuthService {
 
     public void sendAuthenticationCode(EmailRequestDto dto){
         String email = dto.getEmail();
+
+        // 이메일 유효성 검사
+        Validator.validateEmail(email);
 
         // 이메일 중복 확인
         memberRepository.findByEmail(String.valueOf(dto.getEmail())).ifPresent(user1 -> {
@@ -94,6 +101,11 @@ public class EmailAuthService {
             throw new IllegalArgumentException("이메일 인증이 완료되지 않았습니다.");
         }
 
+        // 유효성 검증
+        Validator.validatePassword(dto.getPassword());
+        Validator.validateNickname(dto.getUsername());
+        Validator.validatePhone(dto.getPhoneNum());
+
         // 비밀번호 암호화
         String encodedPassword = (bCryptPasswordEncoder.encode(dto.getPassword()));
 
@@ -103,7 +115,7 @@ public class EmailAuthService {
             .username(dto.getUsername())
             .password(encodedPassword)
             .birthDate(dto.getBirthDate())
-            .gender(dto.getGender())
+            .gender(Gender.valueOf(dto.getGender()))
             .phoneNum(dto.getPhoneNum())
             .provider(AuthProvider.EMAIL)
             .role(UserRole.USER)
@@ -111,10 +123,10 @@ public class EmailAuthService {
 
         // profile entity로 변환
         Profile profile = Profile.builder()
+            .preferredStyle(Style.valueOf(dto.getPreferredStyle()))
             .height(dto.getHeight())
             .weight(dto.getWeight())
             .shoeSize(dto.getShoeSize())
-            .preferredStyle(Style.valueOf(dto.getPreferredStyle()))
             .profileImageUrl(dto.getProfileImageUrl())
             .member(member)
             .build();
@@ -132,6 +144,9 @@ public class EmailAuthService {
     }
 
     public EmailSigninResponseDto signinWithEmail(EmailSigninRequestDto dto){
+        // 이메일 유효성 검사
+        Validator.validateEmail(dto.getEmail());
+
         // 이메일로 사용자 조회
         Member member = memberRepository.findByEmail(dto.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
