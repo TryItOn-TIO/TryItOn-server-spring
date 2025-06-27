@@ -12,6 +12,11 @@ permissions:
     group: ec2-user
 
 hooks:
+  # 이 BeforeInstall 훅이 ApplicationStop보다 먼저 실행
+  BeforeInstall:
+    - location: scripts/set_permissions.sh # 방금 만든 권한 부여 스크립트
+      timeout: 60
+      runas: root # 파일 권한 변경은 root 권한으로 실행해야 안전
   ApplicationStop:
     - location: scripts/stop_server.sh
       timeout: 60
