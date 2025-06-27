@@ -1,7 +1,5 @@
 package com.tryiton.core.auth.email.service;
 
-import static com.tryiton.core.auth.email.util.Validator.validatePassword;
-
 import com.tryiton.core.auth.email.dto.EmailRequestDto;
 import com.tryiton.core.auth.email.dto.EmailSigninRequestDto;
 import com.tryiton.core.auth.email.dto.EmailSigninResponseDto;
@@ -20,9 +18,8 @@ import com.tryiton.core.common.enums.UserRole;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
 import com.tryiton.core.member.repository.MemberRepository;
+import jakarta.mail.MessagingException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -34,19 +31,19 @@ public class EmailAuthService {
     private final EmailVerificationRepository emailVerificationRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final JwtUtil jwtUtil;
-    private final JavaMailSender mailSender;
+    private final EmailService emailService;
 
     public EmailAuthService(MemberRepository memberRepository,
         EmailVerificationRepository emailVerificationRepository,
-        BCryptPasswordEncoder bCryptPasswordEncoder, JwtUtil jwtUtil, JavaMailSender mailSender) {
+        BCryptPasswordEncoder bCryptPasswordEncoder, JwtUtil jwtUtil, EmailService emailService) {
         this.memberRepository = memberRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.jwtUtil = jwtUtil;
-        this.mailSender = mailSender;
+        this.emailService = emailService;
     }
 
-    public void sendAuthenticationCode(EmailRequestDto dto){
+    public void sendAuthenticationCode(EmailRequestDto dto) throws MessagingException {
         String email = dto.getEmail();
 
         // 이메일 유효성 검사
@@ -65,13 +62,13 @@ public class EmailAuthService {
         emailVerificationRepository.save(ev);
 
         // 메일 발송
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setSubject("[TryItOn] 이메일 인증 코드");
-        message.setText("인증 코드: " + code);
-        message.setFrom("tryiton486@gmail.com");
+        try {
+            emailService.sendAuthenticationCode(email, code);
+        } catch (Exception e) {
+            log.error("이메일 인증 코드 발송 실패", e);
+            throw new RuntimeException("이메일 인증 코드 발송 중 오류가 발생했습니다.", e);
+        }
 
-        mailSender.send(message);
         log.info("인증 코드 전송 완료: {} -> {}", email, code);
     }
 

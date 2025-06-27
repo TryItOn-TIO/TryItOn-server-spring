@@ -7,6 +7,7 @@ import com.tryiton.core.auth.email.dto.EmailSignupRequestDto;
 import com.tryiton.core.auth.email.dto.EmailSignupResponseDto;
 import com.tryiton.core.auth.email.dto.EmailVerifyRequestDto;
 import com.tryiton.core.auth.email.service.EmailAuthService;
+import jakarta.mail.MessagingException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,7 +28,7 @@ public class EmailAuthController {
     }
 
     @PostMapping("/send")
-    public void sendAuthenticationCode(@RequestBody EmailRequestDto dto){
+    public void sendAuthenticationCode(@RequestBody EmailRequestDto dto) throws MessagingException {
         emailAuthService.sendAuthenticationCode(dto);
     }
 
