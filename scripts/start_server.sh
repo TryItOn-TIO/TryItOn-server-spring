@@ -21,5 +21,5 @@ fi
 
 DEPLOY_JAR=$DEPLOY_PATH$JAR_NAME
 echo "> DEPLOY_JAR 배포"    >> /home/ec2-user/app/deploy.log
-# 운영 환경에서는 local 프로파일 사용 (AWS Secrets Manager 연동)
-nohup java -jar $DEPLOY_JAR --spring.profiles.active=local >> /home/ec2-user/app/deploy.log 2>/home/ec2-user/app/deploy_err.log &
+# 개발 서버에서는 dev 프로파일 사용 (RDS + AWS Secrets Manager)
+nohup java -jar $DEPLOY_JAR --spring.profiles.active=dev >> /home/ec2-user/app/deploy.log 2>/home/ec2-user/app/deploy_err.log &
