@@ -46,7 +46,7 @@ jobs:
         run: |
           echo "--- Checking the contents of build/libs directory ---"
           ls -l build/libs
-          # --- 여기까지 추가 ---
+      # --- 여기까지 추가 ---
 
       # 6. AWS 자격 증명 설정
       - name: Configure AWS credentials
@@ -60,7 +60,7 @@ jobs:
       - name: Zip deployment package
         run: |
           mkdir -p deploy
-          cp build/libs/*.jar deploy/application.jar
+          cp $(find build/libs -name "*.jar" ! -name "*-plain.jar") deploy/application.jar
           cp appspec.yml deploy/appspec.yml
           cp -r scripts deploy/scripts
           cd deploy && zip -r deploy.zip .
