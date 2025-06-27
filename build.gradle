@@ -7,11 +7,13 @@ plugins {
 group = 'com.tryiton'
 version = '0.0.1-SNAPSHOT'
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
-}
+sourceCompatibility = '17' // 자바 버전 설정하는 구문 변경
+
+//java {
+//	toolchain {
+//		languageVersion = JavaLanguageVersion.of(17)
+//	}
+//}
 
 // ext 블록을 추가하여 springCloudVersion 변수 선언
 ext {
