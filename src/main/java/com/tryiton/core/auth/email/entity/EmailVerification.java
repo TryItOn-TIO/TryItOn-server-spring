@@ -1,5 +1,6 @@
 package com.tryiton.core.auth.email.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -12,12 +13,16 @@ import lombok.Getter;
 public class EmailVerification {
 
     @Id
+    @Column(name = "email", nullable = false)
     private String email;
 
+    @Column(name = "code", length = 6, nullable = false)
     private String code;
 
+    @Column(name = "verified", nullable = false)
     private boolean verified;
 
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public static EmailVerification create(String email, String code) {

@@ -23,25 +23,27 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Profile {
+
     @Id
+    @Column(name = "user_id")
     private Long userId;
 
     @OneToOne
     @MapsId
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
+//    @JoinColumn(name = "user_id", referencedColumnName = "user_id")
     private Member member;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "preferred_style")
+    @Column(name = "preferred_style", nullable = false)
     private Style preferredStyle;
 
-    @Column(name = "height")
+    @Column(name = "height", nullable = false)
     private Integer height;
 
-    @Column(name = "weight")
+    @Column(name = "weight", nullable = false)
     private Integer weight;
 
-    @Column(name = "shoe_size")
+    @Column(name = "shoe_size", nullable = false)
     private Integer shoeSize;
 
     @Column(name = "profile_image_url")
