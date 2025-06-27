@@ -12,15 +12,13 @@ permissions:
     group: ec2-user
 
 hooks:
-  ApplicationStop:
-    - location: scripts/stop_server.sh
-      timeout: 60
-      runas: ec2-user
-  # BeforeInstall은 제거하고 AfterInstall을 추가합니다.
+  # 파일이 모두 복사된 직후, 스크립트에 실행 권한을 부여합니다.
   AfterInstall:
-    - location: scripts/set_permissions.sh # 우리가 만든 권한 부여 스크립트
+    - location: scripts/set_permissions.sh
       timeout: 60
-      runas: root # 파일 권한 변경은 root 권한으로 실행
+      runas: root
+
+  # ApplicationStart 훅에서 start_server.sh가 모든 것을 처리합니다.
   ApplicationStart:
     - location: scripts/start_server.sh
       timeout: 60
