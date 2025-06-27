@@ -1,58 +1,55 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.5.3'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.springframework.boot' version '3.3.1'
+	id 'io.spring.dependency-management' version '1.1.5'
 }
 
 group = 'com.tryiton'
 version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
 
-sourceCompatibility = '17' // 자바 버전 설정하는 구문 변경
-
-//java {
-//	toolchain {
-//		languageVersion = JavaLanguageVersion.of(17)
-//	}
-//}
-
-// ext 블록을 추가하여 springCloudVersion 변수 선언
-//ext {
-//	set('springCloudVersion', "2023.1.4") // Spring Boot 3.3+ 버전에 맞는 Spring Cloud 버전
-//}
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
 
 repositories {
 	mavenCentral()
 }
-// dependencyManagement 블록 추가
-//dependencyManagement {
-//	imports {
-//		// Spring Cloud의 버전 목록표(BOM)를 import 합니다.
-//		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
-//	}
-//}
+
+ext {
+	set('springCloudVersion', "2023.1.4")
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.cloud:spring-cloud-starter-aws-secrets-manager-config'
 
-	implementation 'org.springframework.boot:spring-boot-starter-actuator' // AWS health check 및 보안 연동용 의존성
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'com.h2database:h2'
 
-	// RDS, Secret manager 연결하기 위한 라이브러리 추가
-//	implementation 'org.springframework.cloud:spring-cloud-starter-aws-secrets-manager-config'
-//	runtimeOnly 'com.mysql:mysql-connector-j'
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
 
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	compileOnly 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
