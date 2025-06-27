@@ -1,8 +1,11 @@
 name: TIO Spring CI/CD
 
 on:
+  # 아래 브랜치에 push될 때 자동으로 실행
   push:
-    branches: [ "main" ] # main 브랜치에 push될 때 실행됩니다.
+    branches: [ "main" , "dev"]
+  # github actions 탭에서 수동 실행 가능하도록 버튼 추가
+  workflow_dispatch:
 
 permissions:
   contents: read
