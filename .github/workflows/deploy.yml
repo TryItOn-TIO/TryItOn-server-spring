@@ -74,5 +74,5 @@ jobs:
         run: |
           aws deploy create-deployment \
             --application-name TIO-Shop-Application \
-            --deployment-group-name TIO-Spring-Deployment-Group \
+            --deployment-group-name TIO-Spring-CodeDeploy-Group \
             --s3-location bucket=${{ secrets.AWS_S3_BUCKET_NAME }},bundleType=zip,key=spring-app/deploy.zip
