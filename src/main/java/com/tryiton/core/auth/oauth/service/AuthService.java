@@ -5,7 +5,10 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.tryiton.core.auth.oauth.entity.OauthCredentials;
+import com.tryiton.core.common.enums.Gender;
 import jakarta.annotation.PostConstruct;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Value;
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.auth.oauth.dto.GoogleInfoDto;
@@ -30,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class AuthService {
+
+    private static final long ONE_HOUR = 60 * 60 * 1000L; // JWT 토큰 만료 1시간으로 설정
 
     private final MemberRepository memberRepository;
     private final JwtUtil jwtUtil;
@@ -84,7 +89,9 @@ public class AuthService {
     private GoogleInfoDto convertPayloadTo(Payload payload) {
         String email = payload.getEmail();
         String pictureUrl = payload.containsKey("picture") ? (String) payload.get("picture") : null;
-        return new GoogleInfoDto(email, pictureUrl);
+        String sub = payload.getSubject();
+
+        return new GoogleInfoDto(email, pictureUrl, sub);
     }
 
     // Google ID 토큰 검증기 생성
@@ -101,9 +108,9 @@ public class AuthService {
         String email = googleInfo.getEmail();
 
         Member member = memberRepository.findByEmail(email)
-            .orElseThrow(() -> new BusinessException("가입되지 않은 회원입니다. 회원가입이 필요합니다."));
+            .orElseThrow(() -> new BusinessException("d가입되지 않은 회원입니다. 회원가입이 필요합니다."));
 
-        String jwt = jwtUtil.createJwt(email, member.getRole().name(), 60 * 60 * 1000L);
+        String jwt = jwtUtil.createJwt(email, member.getRole().name(), ONE_HOUR); // 1시간
 
         return new SigninResponseDto(member.getUsername(), member.getEmail(), jwt);
     }
@@ -124,26 +131,36 @@ public class AuthService {
                 .email(email)
                 .username(dto.getUsername())
                 .birthDate(dto.getBirthDate())
-                .gender(dto.getGender())
+                .gender(Gender.valueOf(dto.getGender()))
                 .phoneNum(dto.getPhoneNum())
                 .provider(AuthProvider.GOOGLE)
                 .role(UserRole.USER)
                 .build();
 
+            OauthCredentials oauthCredentials = OauthCredentials.builder()
+                .providerUserId(googleInfo.getSub()) // Google에서 제공하는 고유 식별자
+                .expiresAt(LocalDateTime.now().plusHours(1)) // 1시간
+                .scope("openid profile email")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .member(member)
+                .build();
+
             Profile profile = Profile.builder()
+                .preferredStyle(Style.valueOf(dto.getPreferredStyle()))
                 .height(dto.getHeight())
                 .weight(dto.getWeight())
                 .shoeSize(dto.getShoeSize())
-                .preferredStyle(Style.valueOf(dto.getPreferredStyle()))
                 .profileImageUrl(googleInfo.getPictureUrl())
                 .member(member)
                 .build();
 
+            member.setOauthCredentials(oauthCredentials);
             member.setProfile(profile);
 
             Member saved = memberRepository.save(member);
 
-            String jwt = jwtUtil.createJwt(email, member.getRole().name(), 60 * 60 * 1000L);
+            String jwt = jwtUtil.createJwt(email, member.getRole().name(), ONE_HOUR); // 1시간
             return GoogleSignupResponseDto.from(saved, jwt);
             
         } catch (BusinessException e) {
