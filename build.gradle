@@ -26,6 +26,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
 
+	implementation 'org.springframework.boot:spring-boot-starter-actuator' // AWS health check 및 보안 연동용 의존성
+
+
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'com.mysql:mysql-connector-j'
