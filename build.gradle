@@ -15,7 +15,7 @@ java {
 
 // ext 블록을 추가하여 springCloudVersion 변수 선언
 ext {
-	set('springCloudVersion', "2023.0.2") // Spring Boot 3.2.x 버전에 맞는 Spring Cloud 버전
+	set('springCloudVersion', "2023.1.4") // Spring Boot 3.3+ 버전에 맞는 Spring Cloud 버전
 }
 
 repositories {
