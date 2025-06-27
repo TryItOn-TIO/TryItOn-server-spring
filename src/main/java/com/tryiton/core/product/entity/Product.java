@@ -9,6 +9,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.util.ArrayList;
@@ -17,6 +19,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -77,6 +81,14 @@ public class Product extends BaseTimeEntity {
         this.deleted = false;
         this.wishlistCount = 0;
     }
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "product_tag", // 실제 DB의 연결 테이블 이름
+            joinColumns = @JoinColumn(name = "product_id"), // 이 엔티티(Product)를 참조하는 외래 키
+            inverseJoinColumns = @JoinColumn(name = "tag_id") // 상대 엔티티(Tag)를 참조하는 외래 키
+    )
+    private Set<Tag> tags = new HashSet<>();
+
 
     public void increaseWishlistCount() {
         this.wishlistCount++;

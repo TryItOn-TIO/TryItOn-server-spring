@@ -16,7 +16,7 @@ public class BaseTimeEntity {
 
     // created_at 컬럼에 생성시간이 자동으로 들어간다.
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "create_at", updatable = false)
     private LocalDateTime createdAt;
 
     @LastModifiedDate

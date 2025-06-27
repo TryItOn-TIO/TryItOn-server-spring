@@ -1,23 +1,30 @@
 package com.tryiton.core.product.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import lombok.AccessLevel;
+
+import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Category {
 
     @Id
-    @Column(name = "category_id")
-    private Integer categoryId;
-
-    @Column(name = "category_id2") // 상위 카테고리 ID
-    private Integer parentId;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "category_id") // DB 컬럼명과 일치시킵니다.
+    private Long id;
 
     private String categoryName;
+
+    // --- 이 아래 코드들을 Category 클래스 내부에 추가하세요 ---
+
+    // 부모 카테고리 (자신)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_category_id")
+    private Category parentCategory;
+
+    // 자식 카테고리 목록 (자신)
+    @OneToMany(mappedBy = "parentCategory")
+    private List<Category> children = new ArrayList<>();
 }
