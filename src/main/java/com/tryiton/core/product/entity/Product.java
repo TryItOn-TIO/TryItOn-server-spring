@@ -1,10 +1,19 @@
 package com.tryiton.core.product.entity;
 
 import com.tryiton.core.common.BaseTimeEntity;
-import jakarta.persistence.*;
-
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -71,7 +80,6 @@ public class Product extends BaseTimeEntity {
         this.brand = brand;
         this.deleted = false;
         this.wishlistCount = 0;
-
     }
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -81,4 +89,14 @@ public class Product extends BaseTimeEntity {
     )
     private Set<Tag> tags = new HashSet<>();
 
+
+    public void increaseWishlistCount() {
+        this.wishlistCount++;
+    }
+
+    public void decreaseWishlistCount() {
+        if (this.wishlistCount > 0) {
+            this.wishlistCount--;
+        }
+    }
 }

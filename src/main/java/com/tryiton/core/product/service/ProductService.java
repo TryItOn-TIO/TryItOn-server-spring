@@ -1,11 +1,14 @@
 package com.tryiton.core.product.service;
 
-
+import com.tryiton.core.product.dto.ProductDetailResponseDto;
 import com.tryiton.core.product.dto.ProductResponseDto;
+import com.tryiton.core.product.dto.ProductVariantDto;
 import com.tryiton.core.product.dto.TagScoreDto;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
+import java.util.List;
+import java.util.NoSuchElementException;
 import com.tryiton.core.product.repository.TagRepository;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+/* 나이대 별 인기 상품 구현 해야함!! */
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -70,5 +75,18 @@ public class ProductService {
         for (Category child : category.getChildren()) {
             collectAllSubCategories(child, categoryList);
         }
+    }
+
+    // 상품 상세 조회
+    @Transactional(readOnly = true)
+    public ProductDetailResponseDto getProductDetail(Long productId) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new NoSuchElementException("해당 상품을 찾을 수 없습니다."));
+
+        List<ProductVariantDto> variantDto = product.getVariants().stream()
+            .map(ProductVariantDto::new)
+            .toList();
+
+        return new ProductDetailResponseDto(product, variantDto);
     }
 }
