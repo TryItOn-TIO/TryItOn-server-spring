@@ -108,7 +108,7 @@ public class AuthService {
         String email = googleInfo.getEmail();
 
         Member member = memberRepository.findByEmail(email)
-            .orElseThrow(() -> new BusinessException("d가입되지 않은 회원입니다. 회원가입이 필요합니다."));
+            .orElseThrow(() -> new BusinessException("가입되지 않은 회원입니다. 회원가입이 필요합니다."));
 
         String jwt = jwtUtil.createJwt(email, member.getRole().name(), ONE_HOUR); // 1시간
 
