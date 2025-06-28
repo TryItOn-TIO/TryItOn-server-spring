@@ -29,9 +29,3 @@ hooks:
     - location: scripts/start_server.sh
       timeout: 60
       runas: ec2-user
-
-  # (옵션) Health Check 같은 검증 스크립트
-  ValidateService:
-    - location: scripts/validate_service.sh
-      timeout: 60
-      runas: ec2-user
