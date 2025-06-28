@@ -22,4 +22,4 @@ fi
 DEPLOY_JAR=$DEPLOY_PATH$JAR_NAME
 echo "> DEPLOY_JAR 배포"    >> /home/ec2-user/app/deploy.log
 # 개발 서버에서는 dev 프로파일 사용 (RDS + AWS Secrets Manager)
-nohup java --server.address=0.0.0.0 -Dspring.profiles.active=dev -jar $DEPLOY_JAR >> /home/ec2-user/app/deploy.log 2>/home/ec2-user/app/deploy_err.log &
+nohup java -Dspring.profiles.active=dev -jar $DEPLOY_JAR >> /home/ec2-user/app/deploy.log 2>/home/ec2-user/app/deploy_err.log &
