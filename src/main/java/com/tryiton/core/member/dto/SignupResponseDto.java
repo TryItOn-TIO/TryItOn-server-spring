@@ -1,21 +1,15 @@
 package com.tryiton.core.member.dto;
 
-import com.tryiton.core.member.entity.Member;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
-@Getter
-@Builder
-@AllArgsConstructor
+@Getter @Setter
+@SuperBuilder
+@NoArgsConstructor
+// Google, Email DTO로 확장
 public class SignupResponseDto {
     private String email;
     private String username;
-
-    public static SignupResponseDto from(Member member) {
-        return SignupResponseDto.builder()
-            .email(member.getEmail())
-            .username(member.getUsername())
-            .build();
-    }
 }

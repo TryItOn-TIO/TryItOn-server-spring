@@ -1,15 +1,16 @@
 package com.tryiton.core.auth.oauth.dto;
 
+import com.tryiton.core.member.dto.SignupResponseDto;
 import com.tryiton.core.member.entity.Member;
-import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
-@Builder
-public class GoogleSignupResponseDto {
+@SuperBuilder
+@NoArgsConstructor
+public class GoogleSignupResponseDto extends SignupResponseDto {
 
-    private String email;
-    private String username;
     private String accessToken;
 
     public static GoogleSignupResponseDto from(Member member, String accessToken) {
