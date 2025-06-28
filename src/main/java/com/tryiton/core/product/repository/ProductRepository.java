@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 전체 상품 중 찜 많은 순으로 페이징 조회 (인기 상품 후보군)
-    Page<Product> findAllByDeletedFalseOrderByWishlistCountDesc(Pageable pageable);
+    List<Product> findAllByDeletedFalseOrderByWishlistCountDesc();
 
     // 특정 카테고리의 상품 중 페이징 조회
     Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);

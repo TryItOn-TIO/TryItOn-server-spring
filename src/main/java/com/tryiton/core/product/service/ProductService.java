@@ -68,14 +68,15 @@ public class ProductService {
             .collect(Collectors.toList());
     }
 
-    public Page<ProductResponseDto> getTopRankedProducts(Long userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+    public List<ProductResponseDto> getTopRankedProducts(Long userId) {
         Set<Long> likedProductIds = new HashSet<>(
             wishlistRepository.findProductIdsByUserId(userId));
 
-        return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc(pageable)
+        return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc()
+            .stream()
             .map(product -> new ProductResponseDto(product,
-                likedProductIds.contains(product.getId())));
+                likedProductIds.contains(product.getId())))
+            .toList();
     }
 
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
