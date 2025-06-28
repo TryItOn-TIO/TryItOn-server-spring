@@ -81,14 +81,14 @@ public class Product extends BaseTimeEntity {
         this.deleted = false;
         this.wishlistCount = 0;
     }
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
-            name = "product_tag", // 실제 DB의 연결 테이블 이름
-            joinColumns = @JoinColumn(name = "product_id"), // 이 엔티티(Product)를 참조하는 외래 키
-            inverseJoinColumns = @JoinColumn(name = "tag_id") // 상대 엔티티(Tag)를 참조하는 외래 키
+        name = "product_tag", // 실제 DB의 연결 테이블 이름
+        joinColumns = @JoinColumn(name = "product_id"), // 이 엔티티(Product)를 참조하는 외래 키
+        inverseJoinColumns = @JoinColumn(name = "tag_id") // 상대 엔티티(Tag)를 참조하는 외래 키
     )
     private Set<Tag> tags = new HashSet<>();
-
 
     public void increaseWishlistCount() {
         this.wishlistCount++;

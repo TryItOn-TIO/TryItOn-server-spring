@@ -34,40 +34,61 @@ public class ProductService {
 
     public List<ProductResponseDto> getPersonalizedRecommendations(Long userId) {
         List<TagScoreDto> favoriteTags = tagRepository.findUserFavoriteTags(userId);
-        Map<Long, Double> tagScoreMap = favoriteTags.stream().collect(Collectors.toMap(TagScoreDto::getTagId, TagScoreDto::getScore));
+        Map<Long, Double> tagScoreMap = favoriteTags.stream()
+            .collect(Collectors.toMap(TagScoreDto::getTagId, TagScoreDto::getScore));
         Set<Long> candidateIds = new HashSet<>();
         if (!favoriteTags.isEmpty()) {
-            candidateIds.addAll(productRepository.findProductIdsByTagIds(new ArrayList<>(tagScoreMap.keySet())));
+            candidateIds.addAll(
+                productRepository.findProductIdsByTagIds(new ArrayList<>(tagScoreMap.keySet())));
         }
 
-        candidateIds.removeAll(productRepository.findPurchasedProductIdsByUserId(userId));
-        candidateIds.removeAll(wishlistRepository.findProductIdsByUserId(userId));
+        productRepository.findPurchasedProductIdsByUserId(userId).forEach(candidateIds::remove);
+        List<Long> likedProductIds = wishlistRepository.findProductIdsByUserId(userId);
+        likedProductIds.forEach(candidateIds::remove);
 
-        if (candidateIds.isEmpty()) return Collections.emptyList();
+        if (candidateIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         List<Product> finalCandidates = productRepository.findByIds(new ArrayList<>(candidateIds));
 
         return finalCandidates.stream()
-                .map(product -> {
-                    double contentScore = product.getTags().stream().mapToDouble(tag -> tagScoreMap.getOrDefault(tag.getId(), 0.0)).sum();
-                    double popularityScore = product.getWishlistCount() * 0.1;
-                    return new AbstractMap.SimpleEntry<>(product, contentScore + popularityScore);
-                })
-                .sorted(Map.Entry.<Product, Double>comparingByValue().reversed())
-                .limit(10)
-                .map(entry -> new ProductResponseDto(entry.getKey()))
-                .collect(Collectors.toList());
+            .map(product -> {
+                double contentScore = product.getTags().stream()
+                    .mapToDouble(tag -> tagScoreMap.getOrDefault(tag.getId(), 0.0)).sum();
+                double popularityScore = product.getWishlistCount() * 0.1;
+                double totalScore = contentScore + popularityScore;
+
+                boolean liked = likedProductIds.contains(product.getId());
+                return new AbstractMap.SimpleEntry<>(new ProductResponseDto(product, liked),
+                    totalScore);
+            })
+            .sorted(Map.Entry.<ProductResponseDto, Double>comparingByValue().reversed())
+            .limit(10)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
     }
 
-    public Page<ProductResponseDto> getTopRankedProducts(int page, int size) {
+    public Page<ProductResponseDto> getTopRankedProducts(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc(pageable).map(ProductResponseDto::new);
+        Set<Long> likedProductIds = new HashSet<>(
+            wishlistRepository.findProductIdsByUserId(userId));
+
+        return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc(pageable)
+            .map(product -> new ProductResponseDto(product,
+                likedProductIds.contains(product.getId())));
     }
 
-    public Page<ProductResponseDto> getProductsByCategory(Category category, int page, int size) {
+    public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
+        int size) {
         List<Category> categoriesToSearch = new ArrayList<>();
         collectAllSubCategories(category, categoriesToSearch);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        return productRepository.findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(categoriesToSearch, pageable).map(ProductResponseDto::new);
+
+        Set<Long> likedProductIds = new HashSet<>(
+            wishlistRepository.findProductIdsByUserId(userId));
+        return productRepository.findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(
+            categoriesToSearch, pageable).map(
+            product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())));
     }
 
     private void collectAllSubCategories(Category category, List<Category> categoryList) {

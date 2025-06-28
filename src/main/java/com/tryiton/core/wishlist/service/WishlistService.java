@@ -72,7 +72,7 @@ public class WishlistService {
             wishlist.getWishlistId());
 
         return sortedItems.stream()
-            .map(item -> new ProductResponseDto(item.getProduct()))
+            .map(item -> new ProductResponseDto(item.getProduct(), true))
             .toList();
     }
 }
