@@ -9,10 +9,12 @@ public class MainProductResponse {
 
     private final List<ProductResponseDto> recommended;
     private final Page<ProductResponseDto> ranked;
+    private final String tryOnImg;
 
     public MainProductResponse(List<ProductResponseDto> recommended,
-        Page<ProductResponseDto> ranked) {
+        Page<ProductResponseDto> ranked, String tryOnImg) {
         this.recommended = recommended;
         this.ranked = ranked;
+        this.tryOnImg = tryOnImg;
     }
 }
