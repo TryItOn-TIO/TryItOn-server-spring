@@ -42,6 +42,9 @@ public class Avatar extends BaseTimeEntity {
     @OneToMany(mappedBy = "avatar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AvatarItem> items = new ArrayList<>();
 
+    @Column(name = "is_bookmarked", nullable = false)
+    private boolean isBookmarked;
+
     public void addItem(AvatarItem item) {
         items.add(item);
         item.setAvatar(this);
