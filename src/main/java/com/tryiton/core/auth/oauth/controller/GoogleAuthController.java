@@ -1,11 +1,11 @@
 package com.tryiton.core.auth.oauth.controller;
 
+import com.tryiton.core.auth.oauth.dto.GoogleSigninResponseDto;
 import com.tryiton.core.auth.oauth.service.AuthService;
 import com.tryiton.core.auth.oauth.dto.GoogleSigninRequestDto;
 import com.tryiton.core.auth.oauth.dto.GoogleSignupRequestDto;
 import com.tryiton.core.auth.oauth.dto.GoogleSignupResponseDto;
 import com.tryiton.core.common.exception.BusinessException;
-import com.tryiton.core.member.dto.SigninResponseDto;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,7 @@ public class GoogleAuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody GoogleSigninRequestDto dto) {
         try {
-            SigninResponseDto response = authService.loginWithGoogle(dto);
+            GoogleSigninResponseDto response = authService.loginWithGoogle(dto);
             return ResponseEntity.ok(response);
         } catch (BusinessException e) {
             return ResponseEntity

@@ -6,7 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -48,4 +47,10 @@ public class Profile {
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
+
+    @Column(name = "user_base_image_url")
+    private String userBaseImageUrl;
+
+    @Column(name = "avatar_base_image_url", nullable = false)
+    private String avatarBaseImageUrl;
 }
