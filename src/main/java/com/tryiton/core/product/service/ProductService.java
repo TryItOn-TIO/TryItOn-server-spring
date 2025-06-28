@@ -43,7 +43,8 @@ public class ProductService {
         }
 
         productRepository.findPurchasedProductIdsByUserId(userId).forEach(candidateIds::remove);
-        wishlistRepository.findProductIdsByUserId(userId).forEach(candidateIds::remove);
+        List<Long> likedProductIds = wishlistRepository.findProductIdsByUserId(userId);
+        likedProductIds.forEach(candidateIds::remove);
 
         if (candidateIds.isEmpty()) {
             return Collections.emptyList();
@@ -55,26 +56,39 @@ public class ProductService {
                 double contentScore = product.getTags().stream()
                     .mapToDouble(tag -> tagScoreMap.getOrDefault(tag.getId(), 0.0)).sum();
                 double popularityScore = product.getWishlistCount() * 0.1;
-                return new AbstractMap.SimpleEntry<>(product, contentScore + popularityScore);
+                double totalScore = contentScore + popularityScore;
+
+                boolean liked = likedProductIds.contains(product.getId());
+                return new AbstractMap.SimpleEntry<>(new ProductResponseDto(product, liked),
+                    totalScore);
             })
-            .sorted(Map.Entry.<Product, Double>comparingByValue().reversed())
+            .sorted(Map.Entry.<ProductResponseDto, Double>comparingByValue().reversed())
             .limit(10)
-            .map(entry -> new ProductResponseDto(entry.getKey()))
+            .map(Map.Entry::getKey)
             .collect(Collectors.toList());
     }
 
-    public Page<ProductResponseDto> getTopRankedProducts(int page, int size) {
+    public Page<ProductResponseDto> getTopRankedProducts(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
+        Set<Long> likedProductIds = new HashSet<>(
+            wishlistRepository.findProductIdsByUserId(userId));
+
         return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc(pageable)
-            .map(ProductResponseDto::new);
+            .map(product -> new ProductResponseDto(product,
+                likedProductIds.contains(product.getId())));
     }
 
-    public Page<ProductResponseDto> getProductsByCategory(Category category, int page, int size) {
+    public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
+        int size) {
         List<Category> categoriesToSearch = new ArrayList<>();
         collectAllSubCategories(category, categoriesToSearch);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Set<Long> likedProductIds = new HashSet<>(
+            wishlistRepository.findProductIdsByUserId(userId));
         return productRepository.findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(
-            categoriesToSearch, pageable).map(ProductResponseDto::new);
+            categoriesToSearch, pageable).map(
+            product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())));
     }
 
     private void collectAllSubCategories(Category category, List<Category> categoryList) {

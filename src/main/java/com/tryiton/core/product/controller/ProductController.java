@@ -30,7 +30,7 @@ public class ProductController {
     ) {
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
             userId);
-        Page<ProductResponseDto> ranked = productService.getTopRankedProducts(page, size);
+        Page<ProductResponseDto> ranked = productService.getTopRankedProducts(userId, page, size);
         String tryOnImg = avatarService.getLatestTryOnImage(userId);
 
         return ResponseEntity.ok(new MainProductResponse(recommended, ranked, tryOnImg));
@@ -44,7 +44,8 @@ public class ProductController {
         @RequestParam(defaultValue = "10") int size
     ) {
         Category category = categoryService.findById(categoryId);
-        Page<ProductResponseDto> products = productService.getProductsByCategory(category, page,
+        Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
+            page,
             size);
         String tryOnImg = avatarService.getLatestTryOnImage(userId); // 아바타 이미지 조회
 
