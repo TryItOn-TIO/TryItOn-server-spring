@@ -11,15 +11,14 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    // --- 이 아래 메소드들을 기존 파일에 추가하거나, 있는 것은 그대로 사용합니다 ---
-
     // 전체 상품 중 찜 많은 순으로 페이징 조회 (인기 상품 후보군)
     Page<Product> findAllByDeletedFalseOrderByWishlistCountDesc(Pageable pageable);
 
     // 특정 카테고리의 상품 중 페이징 조회
     Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);
 
-    Page<Product> findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(List<Category> categories, Pageable pageable);
+    Page<Product> findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(List<Category> categories,
+        Pageable pageable);
 
     // 추천 알고리즘을 위해 특정 ID 리스트 기반으로 상품 조회
     List<Product> findByIdInAndDeletedFalse(List<Long> ids);

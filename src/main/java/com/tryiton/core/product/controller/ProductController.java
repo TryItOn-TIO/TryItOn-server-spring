@@ -21,23 +21,25 @@ public class ProductController {
 
     @GetMapping
     public ResponseEntity<MainProductResponse> getMainProducts(
-            @RequestParam Long userId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+        @RequestParam Long userId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
     ) {
-        List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(userId);
+        List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
+            userId);
         Page<ProductResponseDto> ranked = productService.getTopRankedProducts(page, size);
         return ResponseEntity.ok(new MainProductResponse(recommended, ranked));
     }
 
     @GetMapping("/category")
     public ResponseEntity<Page<ProductResponseDto>> getCategoryProducts(
-            @RequestParam Long categoryId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+        @RequestParam Long categoryId,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size
     ) {
         Category category = categoryService.findById(categoryId);
-        Page<ProductResponseDto> products = productService.getProductsByCategory(category, page, size);
+        Page<ProductResponseDto> products = productService.getProductsByCategory(category, page,
+            size);
         return ResponseEntity.ok(products);
     }
 }
