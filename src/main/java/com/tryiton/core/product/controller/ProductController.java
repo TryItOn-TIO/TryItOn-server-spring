@@ -31,9 +31,9 @@ public class ProductController {
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
             userId);
         Page<ProductResponseDto> ranked = productService.getTopRankedProducts(userId, page, size);
-        String tryOnImg = avatarService.getLatestTryOnImage(userId);
+        String avatarImg = avatarService.getLatestAvatarImage(userId);
 
-        return ResponseEntity.ok(new MainProductResponse(recommended, ranked, tryOnImg));
+        return ResponseEntity.ok(new MainProductResponse(recommended, ranked, avatarImg));
     }
 
     @GetMapping("/category")
@@ -47,8 +47,8 @@ public class ProductController {
         Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
             page,
             size);
-        String tryOnImg = avatarService.getLatestTryOnImage(userId); // 아바타 이미지 조회
+        String avatarImg = avatarService.getLatestAvatarImage(userId); // 아바타 이미지 조회
 
-        return ResponseEntity.ok(new CategoryProductResponse(products, tryOnImg));
+        return ResponseEntity.ok(new CategoryProductResponse(products, avatarImg));
     }
 }

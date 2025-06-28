@@ -23,6 +23,6 @@ public class Avatar extends BaseTimeEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "try_on_img", nullable = false, length = 600)
-    private String tryOnImg;
+    @Column(name = "avatar_img", nullable = false, length = 600)
+    private String avatarImg;
 }

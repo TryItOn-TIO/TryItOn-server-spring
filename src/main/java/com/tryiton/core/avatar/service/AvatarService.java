@@ -11,8 +11,8 @@ public class AvatarService {
 
     private final AvatarRepository avatarRepository;
 
-    public String getLatestTryOnImage(Long userId) {
+    public String getLatestAvatarImage(Long userId) {
         Avatar avatar = avatarRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
-        return avatar.getTryOnImg();
+        return avatar.getAvatarImg();
     }
 }
