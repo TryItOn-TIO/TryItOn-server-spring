@@ -62,6 +62,15 @@ public class SecurityConfig {
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
             .requestMatchers("/**").permitAll() // 로그인 이전 테스트를 위하여 임시로 모든 권한 제한 해제
+            /*
+            .requestMatchers(
+                "/", "/auth/**", "/h2-console/**",
+                "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
+            ).permitAll()
+            .requestMatchers("/admin").hasRole("ADMIN")
+            .requestMatchers("/product").hasAnyRole("ADMIN", "USER") // api white list 추가
+            .anyRequest().authenticated()
+             */
         );
 
         // JWT 인증 필터
