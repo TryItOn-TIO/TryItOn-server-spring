@@ -28,7 +28,9 @@ rm -f $ERROR_LOG
 
 # Spring Boot 애플리케이션 로그를 별도의 파일로 리다이렉션합니다.
 nohup java -Djava.security.egd=file:/dev/./urandom \
-           -jar $JAR_PATH \
-           --spring.profiles.active=dev > $APP_LOG 2> $ERROR_LOG &
+           -Dspring.profiles.active=dev \
+           -Dserver.address=0.0.0.0 \
+           -Djava.net.preferIPv4Stack=true \
+           -jar $JAR_PATH > $APP_LOG 2> $ERROR_LOG &
 
 echo "### DEPLOYMENT SCRIPT END $(date +%Y-%m-%d-%H:%M:%S) ###" >> $DEPLOY_LOG
