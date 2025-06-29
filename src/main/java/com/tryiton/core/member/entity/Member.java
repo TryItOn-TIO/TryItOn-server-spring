@@ -1,7 +1,7 @@
 package com.tryiton.core.member.entity;
 
-import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.common.enums.AuthProvider;
+import com.tryiton.core.common.enums.Style;
 import com.tryiton.core.common.enums.UserRole;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -13,16 +13,20 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
-import jakarta.persistence.OneToMany;
-import java.util.ArrayList;
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "member")
+@Builder
 @Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Member {
 
     @Id
@@ -33,51 +37,47 @@ public class Member {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "user_name")
+    @Column(name = "user_name", nullable = false)
     private String username;
 
-    @Column(name = "birth_date")
+    @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(name = "gender")
-    private String gender;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", nullable = false)
+    private Gender gender;
 
     @Column(name = "password")
     private String password; // Google 로그인은 null 허용
 
     @Column(name = "password_expired", nullable = false)
+    @Builder.Default
     private Boolean passwordExpired = false;
 
-    @Column(name = "phone_num")
+    @Column(name = "phone_num", nullable = false, length = 18)
     private String phoneNum;
 
     @Column(name = "banned", nullable = false)
+    @Builder.Default
     private Boolean banned = false;
 
     @Column(name = "withdraw", nullable = false)
+    @Builder.Default
     private Boolean withdraw = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private AuthProvider provider;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
+    private UserRole role;
 
     // profile entity (회원 정보)
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
     private Profile profile;
 
-    // Role
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role")
-    private UserRole role;
-
-    // google or email
-    @Enumerated(EnumType.STRING)
-    @Column(name = "provider")
-    private AuthProvider provider;
-
-    // google 로그인 유저의 고유 ID
-    @Column(name = "provider_id")
-    private String providerId;
-
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @BatchSize(size = 10)
-    public List<Avatar> avatars = new ArrayList<>();
-
-
+    // OAuth 정보는 선택적 1:1 관계
+    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, optional = true, fetch = FetchType.LAZY)
+    private OauthCredentials oauthCredentials;
 }

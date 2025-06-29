@@ -1,8 +1,7 @@
-package com.tryiton.core.auth;
+package com.tryiton.core.auth.security;
 
 import com.tryiton.core.auth.jwt.JwtUtil;
-import com.tryiton.core.auth.jwt.handler.JwtAuthFilter;
-import com.tryiton.core.auth.jwt.service.CustomUserDetailService;
+import com.tryiton.core.auth.jwt.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,13 +20,10 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final AuthenticationConfiguration authenticationConfiguration;
     private  final JwtUtil jwtUtil;
     private final CustomUserDetailService customUserDetailService;
 
-    public SecurityConfig(AuthenticationConfiguration authenticationConfiguration, JwtUtil jwtUtil,
-        CustomUserDetailService customUserDetailService) {
-        this.authenticationConfiguration = authenticationConfiguration;
+    public SecurityConfig(JwtUtil jwtUtil, CustomUserDetailService customUserDetailService) {
         this.jwtUtil = jwtUtil;
         this.customUserDetailService = customUserDetailService;
     }
@@ -68,31 +64,18 @@ public class SecurityConfig {
             .requestMatchers("/**").permitAll() // 로그인 이전 테스트를 위하여 임시로 모든 권한 제한 해제
             /*
             .requestMatchers(
-                "/", "/api/auth/**", "/h2-console/**",
+                "/", "/auth/**", "/h2-console/**",
                 "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
             ).permitAll()
-            .requestMatchers("/admin/**").hasRole("ADMIN")
-            .requestMatchers("/api/mypage/**").hasAnyRole("ADMIN", "USER") // api white list 추가
+            .requestMatchers("/admin").hasRole("ADMIN")
+            .requestMatchers("/product").hasAnyRole("ADMIN", "USER") // api white list 추가
             .anyRequest().authenticated()
              */
         );
-//
-//        // OAuth 로그인
-//        http.oauth2Login(oauth -> oauth
-//            .loginPage("/login")
-//            .userInfoEndpoint(user -> user.userService(oAuth2UserService))
-//            .successHandler(successHandler)
-//        );
-
-//        SigninFilter signinFilter = new SigninFilter(authenticationManager(authenticationConfiguration), jwtUtil);
-//        signinFilter.setFilterProcessesUrl("/api/auth/signin");
 
         // JWT 인증 필터
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtUtil, customUserDetailService);
-
-        http
-//            .addFilterAt(signinFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,6 +1,5 @@
-package com.tryiton.core.auth.jwt.service;
+package com.tryiton.core.auth.security;
 
-import com.tryiton.core.auth.jwt.CustomUserDetails;
 import com.tryiton.core.member.repository.MemberRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

@@ -1,8 +1,7 @@
-package com.tryiton.core.auth.jwt.handler;
+package com.tryiton.core.auth.jwt;
 
-import com.tryiton.core.auth.jwt.CustomUserDetails;
-import com.tryiton.core.auth.jwt.JwtUtil;
-import com.tryiton.core.auth.jwt.service.CustomUserDetailService;
+import com.tryiton.core.auth.security.CustomUserDetails;
+import com.tryiton.core.auth.security.CustomUserDetailService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

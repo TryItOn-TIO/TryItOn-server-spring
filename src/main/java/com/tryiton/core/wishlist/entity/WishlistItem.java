@@ -1,8 +1,7 @@
 package com.tryiton.core.wishlist.entity;
 
-import com.tryiton.core.member.entity.Member;
+import com.tryiton.core.common.BaseTimeEntity;
 import com.tryiton.core.product.entity.Product;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -10,26 +9,34 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/* 회원 1명당 여러 개의 WishlistItem */
-/* 상품 1개가 여러 회원에게 찜 가능하도록 */
 @Entity
 @Getter
-@NoArgsConstructor
-public class WishlistItem {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class WishlistItem extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "wishlist_item_id")
-    private Long id;
+    private Long wishlistItemId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private Member member;
+    @JoinColumn(name = "wishlist_id")
+    private Wishlist wishlist;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id")
     private Product product;
+
+    @Builder
+    public WishlistItem(Product product) {
+        this.product = product;
+    }
+
+    public void setWishlist(Wishlist wishlist) {
+        this.wishlist = wishlist;
+    }
 }
