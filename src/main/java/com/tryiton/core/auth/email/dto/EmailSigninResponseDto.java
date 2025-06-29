@@ -1,12 +1,14 @@
 package com.tryiton.core.auth.email.dto;
 
-import lombok.AllArgsConstructor;
+import com.tryiton.core.member.dto.SigninResponseDto;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
-@Getter
-@AllArgsConstructor
-public class EmailSigninResponseDto {
-    private String username;
-    private String email;
-    private String accessToken;
+@Getter @Setter
+@SuperBuilder
+@NoArgsConstructor
+public class EmailSigninResponseDto extends SigninResponseDto {
+
 }

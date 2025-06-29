@@ -1,5 +1,6 @@
 package com.tryiton.core.product.controller;
 
+import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.product.dto.CategoryProductResponse;
 import com.tryiton.core.product.dto.MainProductResponse;
@@ -29,9 +30,13 @@ public class ProductController {
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
             userId);
         List<ProductResponseDto> ranked = productService.getTopRankedProducts(userId);
-        String tryOnImg = avatarService.getLatestTryOnImage(userId);
+        AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
 
-        return ResponseEntity.ok(new MainProductResponse(recommended, ranked, tryOnImg));
+        return ResponseEntity.ok(MainProductResponse.builder()
+            .recommended(recommended)
+            .ranked(ranked)
+            .avatarInfo(avatarInfo)
+            .build());
     }
 
     @GetMapping("/category")
@@ -45,8 +50,8 @@ public class ProductController {
         Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
             page,
             size);
-        String tryOnImg = avatarService.getLatestTryOnImage(userId); // 아바타 이미지 조회
+        AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
 
-        return ResponseEntity.ok(new CategoryProductResponse(products, tryOnImg));
+        return ResponseEntity.ok(new CategoryProductResponse(products, avatarInfo));
     }
 }

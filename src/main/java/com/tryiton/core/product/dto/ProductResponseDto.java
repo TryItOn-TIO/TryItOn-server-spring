@@ -16,6 +16,8 @@ public class ProductResponseDto {
     private final String brand;
     private final int wishlistCount;
     private final LocalDateTime createdAt;
+    private final Long categoryId;
+    private final String categoryName;
 
     public ProductResponseDto(Product product, boolean liked) {
         this.id = product.getId();
@@ -27,5 +29,7 @@ public class ProductResponseDto {
         this.brand = product.getBrand();
         this.wishlistCount = product.getWishlistCount();
         this.createdAt = product.getCreatedAt();
+        this.categoryId = product.getCategory().getId();
+        this.categoryName = product.getCategory().getCategoryName();
     }
 }
