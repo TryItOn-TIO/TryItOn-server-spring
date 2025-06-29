@@ -31,7 +31,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
-	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
+	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
+//	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
 	
 	// AWS 관련 의존성 추가
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager'
