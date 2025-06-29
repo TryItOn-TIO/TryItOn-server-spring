@@ -2,6 +2,7 @@ package com.tryiton.core.auth.security;
 
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.auth.jwt.JwtAuthFilter;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -61,6 +62,7 @@ public class SecurityConfig {
 
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(EndpointRequest.to("health")).permitAll() // Health Check는 모두에게 허용
             .requestMatchers("/**").permitAll() // 로그인 이전 테스트를 위하여 임시로 모든 권한 제한 해제
             /*
             .requestMatchers(

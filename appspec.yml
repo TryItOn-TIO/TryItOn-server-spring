@@ -1,0 +1,31 @@
+version: 0.0
+os: linux
+files:
+  - source:  /
+    destination: /home/ec2-user/app
+    overwrite: yes
+
+permissions:
+  - object: /
+    pattern: "**"
+    owner: ec2-user
+    group: ec2-user
+
+hooks:
+  # (옵션) 배포 전에 이전 버전을 중지
+  ApplicationStop:
+    - location: scripts/stop_server.sh
+      timeout: 60
+      runas: ec2-user
+
+  # 파일 복사 직후, 권한 설정
+  AfterInstall:
+    - location: scripts/set_permissions.sh
+      timeout: 60
+      runas: root
+
+  # 새 버전 애플리케이션 시작
+  ApplicationStart:
+    - location: scripts/start_server.sh
+      timeout: 60
+      runas: ec2-user

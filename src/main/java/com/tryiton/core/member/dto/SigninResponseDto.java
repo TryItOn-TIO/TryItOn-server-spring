@@ -1,10 +1,13 @@
 package com.tryiton.core.member.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
-@AllArgsConstructor
+@SuperBuilder
+@NoArgsConstructor
+// Google, Email DTO로 확장
 public class SigninResponseDto {
     private String username;
     private String email;

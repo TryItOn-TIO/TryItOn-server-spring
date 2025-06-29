@@ -1,19 +1,14 @@
 package com.tryiton.core.auth.oauth.dto;
 
-import java.time.LocalDate;
+import com.tryiton.core.member.dto.SignupRequestDto;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
-public class GoogleSignupRequestDto {
-    private String username;
-    private LocalDate birthDate;
-    private String gender;
-    private String phoneNum;
-
-    private String preferredStyle;
-    private Integer height;  // cm
-    private Integer weight;  // kg
-    private Integer shoeSize;
+@SuperBuilder
+@NoArgsConstructor
+public class GoogleSignupRequestDto extends SignupRequestDto {
 
     private String idToken;
 }

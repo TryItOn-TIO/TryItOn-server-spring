@@ -19,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
 
 @Entity
@@ -40,16 +41,10 @@ public class Avatar extends BaseTimeEntity {
     @Column(name = "avatar_img", nullable = false, length = 600)
     private String avatarImg;
 
-    @OneToMany(mappedBy = "avatar", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @BatchSize(size = 10)
-    public List<AvatarItem> item = new ArrayList<>();
-
     @OneToMany(mappedBy = "avatar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AvatarItem> items = new ArrayList<>();
 
-    public void setMappingMember(Member member) {
-        this.member = member;
-        member.getAvatars().add(this);
+    @Setter
     @Column(name = "is_bookmarked", nullable = false)
     private boolean isBookmarked;
 
