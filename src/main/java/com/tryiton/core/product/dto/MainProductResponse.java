@@ -1,20 +1,16 @@
 package com.tryiton.core.product.dto;
 
+import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
+import lombok.Builder;
 import lombok.Getter;
 import org.springframework.data.domain.Page;
 import java.util.List;
 
 @Getter
+@Builder
 public class MainProductResponse {
 
     private final List<ProductResponseDto> recommended;
     private final Page<ProductResponseDto> ranked;
-    private final String tryOnImg;
-
-    public MainProductResponse(List<ProductResponseDto> recommended,
-        Page<ProductResponseDto> ranked, String tryOnImg) {
-        this.recommended = recommended;
-        this.ranked = ranked;
-        this.tryOnImg = tryOnImg;
-    }
+    private AvatarProductInfoDto avatarInfo;
 }
