@@ -19,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter
@@ -42,6 +43,7 @@ public class Avatar extends BaseTimeEntity {
     @OneToMany(mappedBy = "avatar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AvatarItem> items = new ArrayList<>();
 
+    @Setter
     @Column(name = "is_bookmarked", nullable = false)
     private boolean isBookmarked;
 

@@ -1,18 +1,13 @@
 package com.tryiton.core.avatar.service;
 
-import com.tryiton.core.avatar.entity.Avatar;
-import com.tryiton.core.avatar.repository.AvatarRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
+import java.util.List;
 
-@Service
-@RequiredArgsConstructor
-public class AvatarService {
+public interface AvatarService {
 
-    private final AvatarRepository avatarRepository;
+    AvatarProductInfoDto getLatestAvatarWithProducts(Long userId);
 
-    public String getLatestAvatarImage(Long userId) {
-        Avatar avatar = avatarRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
-        return avatar.getAvatarImg();
-    }
+    List<AvatarProductInfoDto> getBookmarkedAvatarsWithProducts(Long userId);
+
+    void updateBookmark(Long avatarId, Long userId, boolean bookmark);
 }

@@ -15,6 +15,6 @@ public interface AvatarRepository extends JpaRepository<Avatar, Long> {
     // 최근 입혀본 착장 (1장) - 메인/카테고리 탭, 옷장
     Avatar findTopByUserIdOrderByCreatedAtDesc(Long userId);
 
-    // 유저의 북마크 목록에서 특정 착장 하나를 클릭할 경우 해당 착장을 불러옴
-    Optional<Avatar> findByAvatarIdAndUser(Long avatarId, Member user);
+    // 유저의 북마크 목록에서 특정 착장 하나를 클릭했을 때 해당 아바타를 불러옴
+    Optional<Avatar> findByIdAndUser(Long id, Member user);
 }

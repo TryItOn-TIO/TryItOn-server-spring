@@ -12,5 +12,5 @@ public interface AvatarItemRepository extends JpaRepository<AvatarItem, Long> {
     List<AvatarItem> findAllByAvatar(Avatar avatar);
 
     // 특정 아바타 ID로 착장 상품 조회
-    List<AvatarItem> findAllByAvatar_AvatarId(Long avatarId);
+    List<AvatarItem> findAllByAvatar_Id(Long avatarId);
 }
