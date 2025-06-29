@@ -2,14 +2,10 @@ package com.tryiton.core;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(properties = {
-		"spring.config.import=",
-		"spring.cloud.aws.secretsmanager.enabled=false",
-		"spring.cloud.aws.region.static=us-east-1",
-		"spring.cloud.aws.credentials.access-key=test",
-		"spring.cloud.aws.credentials.secret-key=test"
-})
+@SpringBootTest
+@ActiveProfiles("test")
 class CoreApplicationTests {
 
 	@Test
