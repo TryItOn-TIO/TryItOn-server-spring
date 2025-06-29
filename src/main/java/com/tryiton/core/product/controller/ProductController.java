@@ -25,13 +25,11 @@ public class ProductController {
 
     @GetMapping
     public ResponseEntity<MainProductResponse> getMainProducts(
-        @RequestParam Long userId,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size
+        @RequestParam Long userId
     ) {
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
             userId);
-        Page<ProductResponseDto> ranked = productService.getTopRankedProducts(userId, page, size);
+        List<ProductResponseDto> ranked = productService.getTopRankedProducts(userId);
         AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
 
         return ResponseEntity.ok(MainProductResponse.builder()
