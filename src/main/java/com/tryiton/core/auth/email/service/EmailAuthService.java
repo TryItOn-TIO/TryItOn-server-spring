@@ -125,6 +125,8 @@ public class EmailAuthService {
             .weight(dto.getWeight())
             .shoeSize(dto.getShoeSize())
             .profileImageUrl(dto.getProfileImageUrl())
+            .avatarBaseImageUrl(dto.getAvatarBaseImageUrl())
+            .userBaseImageUrl(dto.getUserBaseImageUrl())
             .member(member)
             .build();
 
@@ -154,6 +156,10 @@ public class EmailAuthService {
         }
 
         String token = jwtUtil.createJwt(member.getEmail(), member.getRole().name(), 60 * 60 * 1000L);
-        return new EmailSigninResponseDto(member.getUsername(), member.getEmail(), token);
+        return (EmailSigninResponseDto) EmailSigninResponseDto.builder()
+            .username(member.getUsername())
+            .email(member.getEmail())
+            .accessToken(token)
+            .build();
     }
 }

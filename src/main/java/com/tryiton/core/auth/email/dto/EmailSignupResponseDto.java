@@ -1,21 +1,20 @@
 package com.tryiton.core.auth.email.dto;
 
+import com.tryiton.core.member.dto.SignupResponseDto;
 import com.tryiton.core.member.entity.Member;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
-@Builder
-@AllArgsConstructor
-public class EmailSignupResponseDto {
-    private String email;
-    private String username;
+@SuperBuilder
+@NoArgsConstructor
+public class EmailSignupResponseDto extends SignupResponseDto {
 
-    public static EmailSignupResponseDto from(Member member) {
+    public static EmailSignupResponseDto from(Member saved) {
         return EmailSignupResponseDto.builder()
-            .email(member.getEmail())
-            .username(member.getUsername())
+            .email(saved.getEmail())
+            .username(saved.getUsername())
             .build();
     }
 }

@@ -5,6 +5,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.tryiton.core.auth.email.util.Validator;
+import com.tryiton.core.auth.oauth.dto.GoogleSigninResponseDto;
 import com.tryiton.core.auth.oauth.entity.OauthCredentials;
 import com.tryiton.core.common.enums.Gender;
 import jakarta.annotation.PostConstruct;
@@ -19,7 +21,6 @@ import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.auth.oauth.dto.GoogleSigninRequestDto;
 import com.tryiton.core.auth.oauth.dto.GoogleSignupRequestDto;
 import com.tryiton.core.auth.oauth.dto.GoogleSignupResponseDto;
-import com.tryiton.core.member.dto.SigninResponseDto;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
 import com.tryiton.core.member.repository.MemberRepository;
@@ -103,7 +104,7 @@ public class AuthService {
     }
 
     // 로그인 요청을 처리하고 JWT 토큰 반환
-    public SigninResponseDto loginWithGoogle(GoogleSigninRequestDto dto) {
+    public GoogleSigninResponseDto loginWithGoogle(GoogleSigninRequestDto dto) {
         GoogleInfoDto googleInfo = authenticate(dto.getIdToken());
         String email = googleInfo.getEmail();
 
@@ -112,7 +113,11 @@ public class AuthService {
 
         String jwt = jwtUtil.createJwt(email, member.getRole().name(), ONE_HOUR); // 1시간
 
-        return new SigninResponseDto(member.getUsername(), member.getEmail(), jwt);
+        return (GoogleSigninResponseDto) GoogleSigninResponseDto.builder()
+            .username(member.getUsername())
+            .email(member.getEmail())
+            .accessToken(jwt)
+            .build();
     }
 
     // 회원가입 요청을 처리하고 JWT 토큰 반환
@@ -127,6 +132,10 @@ public class AuthService {
                 throw new BusinessException("이미 가입된 회원입니다.");
             });
 
+            // 휴대폰 번호 유효성 검사
+            Validator.validatePhone(dto.getPhoneNum());
+
+            // 회원가입 처리
             Member member = Member.builder()
                 .email(email)
                 .username(dto.getUsername())
@@ -152,6 +161,8 @@ public class AuthService {
                 .weight(dto.getWeight())
                 .shoeSize(dto.getShoeSize())
                 .profileImageUrl(googleInfo.getPictureUrl())
+                .userBaseImageUrl(dto.getUserBaseImageUrl())
+                .avatarBaseImageUrl(dto.getAvatarBaseImageUrl())
                 .member(member)
                 .build();
 
