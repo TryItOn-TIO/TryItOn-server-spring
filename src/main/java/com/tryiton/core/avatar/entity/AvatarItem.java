@@ -17,6 +17,7 @@ import lombok.Setter;
 
 @Entity
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
@@ -41,4 +42,5 @@ public class AvatarItem {
         this.avatar = avatar;
         this.product = product;
     }
+
 }

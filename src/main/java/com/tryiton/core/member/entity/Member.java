@@ -1,6 +1,9 @@
 package com.tryiton.core.member.entity;
 
+import com.tryiton.core.auth.oauth.entity.OauthCredentials;
+import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.common.enums.AuthProvider;
+import com.tryiton.core.common.enums.Gender;
 import com.tryiton.core.common.enums.Style;
 import com.tryiton.core.common.enums.UserRole;
 import jakarta.persistence.CascadeType;
@@ -12,9 +15,12 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.List;
+import javax.swing.DefaultListModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -73,6 +79,10 @@ public class Member {
     @Column(name = "role")
     private UserRole role;
 
+    // 페이지 네이션 고려
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Avatar> avatars;
+
     // profile entity (회원 정보)
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
     private Profile profile;
@@ -80,4 +90,5 @@ public class Member {
     // OAuth 정보는 선택적 1:1 관계
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, optional = true, fetch = FetchType.LAZY)
     private OauthCredentials oauthCredentials;
+
 }

@@ -34,15 +34,40 @@ public class Avatar extends BaseTimeEntity {
     @Column(name = "avatar_id")
     private Long id;
 
+    @Column(name = "pose_img", nullable = false)
+    private String poseImg;
+
+    @Column(name = "upper_mask_img", nullable = false)
+    private String upperMaskImg;
+
+    @Column(name = "lower_mask_img", nullable = false)
+    private String lowerMaskImg;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private Member user;
+    private Member member;
 
     @Column(name = "avatar_img", nullable = false, length = 600)
     private String avatarImg;
 
     @OneToMany(mappedBy = "avatar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AvatarItem> items = new ArrayList<>();
+
+    @Builder
+    public Avatar(Long id, String tryOnImg, String poseImg, String upperMaskImg,
+        String lowerMaskImg) {
+        this.id = id;
+        this.avatarImg = tryOnImg;
+        this.poseImg = poseImg;
+        this.upperMaskImg = upperMaskImg;
+        this.lowerMaskImg = lowerMaskImg;
+    }
+
+    // 일 대 다 매핑
+    public void setMappingUser(Member member) {
+        this.member = member;
+        member.getAvatars().add(this);
+    }
 
     @Setter
     @Column(name = "is_bookmarked", nullable = false)
