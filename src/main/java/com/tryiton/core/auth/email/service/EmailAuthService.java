@@ -125,6 +125,8 @@ public class EmailAuthService {
             .weight(dto.getWeight())
             .shoeSize(dto.getShoeSize())
             .profileImageUrl(dto.getProfileImageUrl())
+            .avatarBaseImageUrl(dto.getAvatarBaseImageUrl())
+            .userBaseImageUrl(dto.getUserBaseImageUrl())
             .member(member)
             .build();
 
