@@ -45,11 +45,23 @@ public class SecurityConfig {
         // CORS 설정
         http.cors(cors -> cors.configurationSource(request -> {
             CorsConfiguration config = new CorsConfiguration();
-            config.setAllowedOrigins(List.of("http://localhost:3000"));
+            config.setAllowedOrigins(List.of(
+                    "http://localhost:3000",
+                    "https://tio-style.com",
+                    "https://www.tio-style.com"));
             config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-            config.setAllowedHeaders(List.of("*"));
+            config.setAllowedHeaders(List.of(
+                    "Authorization", 
+                    "Content-Type", 
+                    "X-Requested-With",
+                    "Accept",
+                    "Origin",
+                    "Access-Control-Request-Method",
+                    "Access-Control-Request-Headers"
+            ));
             config.setExposedHeaders(List.of("Authorization"));
             config.setAllowCredentials(true);
+            config.setMaxAge(3600L); // preflight 캐시 시간
             return config;
         }));
 
