@@ -53,6 +53,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      # AWS 자격 증명 설정
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       # 5. Spring Boot 애플리케이션 빌드
       - name: Build and Test with Gradle
         # 이 단계에서만 사용할 환경 변수를 GitHub Secrets에서 가져와 설정합니다.
@@ -62,6 +70,7 @@ jobs:
           MAIL_ID: ${{ secrets.MAIL_ID }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           JWT: ${{ secrets.JWT }}
+          TOSS_KEY: ${{ secrets.TOSS_KEY }}
         run: ./gradlew build -Dspring.profiles.active=ci
 
       # --- [추가] 디버깅용 단계 ---
@@ -71,15 +80,7 @@ jobs:
           ls -l build/libs
       # --- 여기까지 추가 ---
 
-      # 6. AWS 자격 증명 설정
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      # 7. 배포 패키지 압축
+      # 6. 배포 패키지 압축
       - name: Zip deployment package
         run: |
           mkdir -p deploy

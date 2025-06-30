@@ -17,8 +17,9 @@ public class ProductDetailResponseDto {
     private final List<String> images;
     private final int wishlistCount;
     private final List<ProductVariantDto> variant;
+    private final boolean liked; // 찜 여부 추가
 
-    public ProductDetailResponseDto(Product product, List<ProductVariantDto> variant) {
+    public ProductDetailResponseDto(Product product, List<ProductVariantDto> variant, boolean liked) {
         this.id = product.getId();
         this.productName = product.getProductName();
         this.brand = product.getBrand();
@@ -27,6 +28,7 @@ public class ProductDetailResponseDto {
         this.content = product.getContent();
         this.wishlistCount = product.getWishlistCount();
         this.variant = variant;
+        this.liked = liked;
 
         // 이미지 필드를 List로 구성
         this.images = new ArrayList<>();
