@@ -17,9 +17,6 @@ import java.net.URL;
 
 @RestController
 public class FileUploadController {
-    @Autowired
-    private S3Template s3Template;
-
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
 
