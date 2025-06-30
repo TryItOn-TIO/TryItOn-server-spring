@@ -101,14 +101,16 @@ public class ProductService {
 
     // 상품 상세 조회
     @Transactional(readOnly = true)
-    public ProductDetailResponseDto getProductDetail(Long productId) {
+    public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new NoSuchElementException("해당 상품을 찾을 수 없습니다."));
+
+        boolean liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
 
         List<ProductVariantDto> variantDto = product.getVariants().stream()
             .map(ProductVariantDto::new)
             .toList();
 
-        return new ProductDetailResponseDto(product, variantDto);
+        return new ProductDetailResponseDto(product, variantDto, liked);
     }
 }
