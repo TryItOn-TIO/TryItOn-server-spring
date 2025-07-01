@@ -65,6 +65,7 @@ jobs:
       - name: Build and Test with Gradle
         # 이 단계에서만 사용할 환경 변수를 GitHub Secrets에서 가져와 설정합니다.
         env:
+          TOSS_KEY: ${{ secrets.TOSS_KEY }}
           OAUTH_ID: ${{ secrets.OAUTH_ID }}
           OAUTH_PASSWORD: ${{ secrets.OAUTH_PASSWORD }}
           MAIL_ID: ${{ secrets.MAIL_ID }}
