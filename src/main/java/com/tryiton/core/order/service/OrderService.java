@@ -70,4 +70,23 @@ public class OrderService {
         String firstItemName = orderItems.get(0).getProduct().getProductName();
         return orderItems.size() > 1 ? firstItemName + " 외 " + (orderItems.size() - 1) + "건" : firstItemName;
     }
+    
+    @Transactional
+    public OrderResponseDto createSimpleOrder(SimpleOrderRequestDto request) {
+        Member user = memberRepository.findById(request.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+        
+        Address address = addressRepository.findById(request.getAddressId())
+                .orElseThrow(() -> new EntityNotFoundException("주소를 찾을 수 없습니다."));
+
+        Order order = Order.builder()
+                .user(user)
+                .address(address)
+                .totalAmount(request.getAmount())
+                .orderStatus("PENDING")
+                .build();
+
+        orderRepository.save(order);
+        return new OrderResponseDto(order, request.getOrderName());
+    }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PaymentController {
     private final PaymentService paymentService;
+    
     @PostMapping("/confirm")
     public ResponseEntity<JSONObject> confirmPayment(@RequestBody PaymentConfirmRequestDto requestDto) {
         return ResponseEntity.ok(paymentService.confirmPayment(requestDto));

@@ -10,8 +10,14 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
+    
     @PostMapping
     public ResponseEntity<OrderResponseDto> createOrder(@RequestBody OrderRequestDto requestDto) {
         return ResponseEntity.ok(orderService.createOrder(requestDto));
+    }
+    
+    @PostMapping("/simple")
+    public ResponseEntity<OrderResponseDto> createSimpleOrder(@RequestBody SimpleOrderRequestDto request) {
+        return ResponseEntity.ok(orderService.createSimpleOrder(request));
     }
 }

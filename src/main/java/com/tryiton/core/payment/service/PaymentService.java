@@ -32,7 +32,22 @@ public class PaymentService {
 
     @Transactional
     public JSONObject confirmPayment(PaymentConfirmRequestDto requestDto) {
-        Order order = orderRepository.findByOrderUid(requestDto.getOrderId()).orElseThrow(() -> new EntityNotFoundException("주문을 찾을 수 없습니다: " + requestDto.getOrderId()));
+        // 필수 파라미터 검증
+        if (requestDto.getOrderId() == null || requestDto.getOrderId().trim().isEmpty()) {
+            throw new IllegalArgumentException("주문 ID가 필요합니다.");
+        }
+        
+        if (requestDto.getPaymentKey() == null || requestDto.getPaymentKey().trim().isEmpty()) {
+            throw new IllegalArgumentException("결제 키가 필요합니다.");
+        }
+        
+        if (requestDto.getAmount() == null || requestDto.getAmount() <= 0) {
+            throw new IllegalArgumentException("유효한 결제 금액이 필요합니다.");
+        }
+        
+        Order order = orderRepository.findByOrderUid(requestDto.getOrderId())
+            .orElseThrow(() -> new EntityNotFoundException("주문을 찾을 수 없습니다: " + requestDto.getOrderId()));
+        
         if (order.getTotalAmount().longValue() != requestDto.getAmount()) {
             throw new IllegalArgumentException("주문 금액이 일치하지 않습니다.");
         }
@@ -78,6 +93,7 @@ public class PaymentService {
                 .paymentMethod((String) paymentData.get("method"))
                 .amount(BigDecimal.valueOf(order.getTotalAmount().longValue()))
                 .status((String) paymentData.get("status"))
+                .requestedAt(LocalDateTime.now())
                 .approvedAt(LocalDateTime.parse(approvedAtStr, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                 .build();
     }
