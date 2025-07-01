@@ -34,8 +34,9 @@ public class WishlistItem extends BaseTimeEntity {
     private Product product;
 
     @Builder
-    public WishlistItem(Product product) {
+    public WishlistItem(Long wishlistItemId, Wishlist wishlist, Product product) {
+        this.wishlistItemId = wishlistItemId;
+        this.wishlist = wishlist;
         this.product = product;
     }
-
 }

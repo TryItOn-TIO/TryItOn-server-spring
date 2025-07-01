@@ -48,9 +48,11 @@ public class Profile {
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
+    // 전신 사진
     @Column(name = "user_base_image_url")
     private String userBaseImageUrl;
 
+    // 회색 아바타
     @Column(name = "avatar_base_image_url", nullable = false)
     private String avatarBaseImageUrl;
 }
