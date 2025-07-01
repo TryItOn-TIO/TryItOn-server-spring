@@ -102,4 +102,11 @@ public class Product extends BaseTimeEntity {
             this.wishlistCount--;
         }
     }
+
+    public static boolean isUpperGarment(Product garment) {
+        if (garment.category.getParentCategory().getId() == 1) {
+            return true;
+        }
+        return false;
+    }
 }

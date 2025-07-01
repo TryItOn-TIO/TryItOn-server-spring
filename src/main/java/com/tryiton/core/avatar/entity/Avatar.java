@@ -77,4 +77,8 @@ public class Avatar extends BaseTimeEntity {
         items.add(item);
         item.setAvatar(this);
     }
+
+    public void update(String avatarImg) {
+        this.avatarImg = avatarImg;
+    }
 }
