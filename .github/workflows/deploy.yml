@@ -65,13 +65,14 @@ jobs:
       - name: Build and Test with Gradle
         # 이 단계에서만 사용할 환경 변수를 GitHub Secrets에서 가져와 설정합니다.
         env:
+          SPRING_PROFILES_ACTIVE: ci
           OAUTH_ID: ${{ secrets.OAUTH_ID }}
           OAUTH_PASSWORD: ${{ secrets.OAUTH_PASSWORD }}
           MAIL_ID: ${{ secrets.MAIL_ID }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           JWT: ${{ secrets.JWT }}
           TOSS_KEY: ${{ secrets.TOSS_KEY }}
-        run: ./gradlew build -Dspring.profiles.active=ci
+        run: ./gradlew build
 
       # --- [추가] 디버깅용 단계 ---
       - name: Check for JAR file
