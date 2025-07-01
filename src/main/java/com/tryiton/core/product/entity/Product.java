@@ -104,11 +104,19 @@ public class Product extends BaseTimeEntity {
         }
     }
 
+    /**
+     * 이 상품이 상의인지 확인합니다. (부모 카테고리 ID: 3)
+     * @return 상의이면 true, 아니면 false
+     */
     public boolean isUpperGarment() {
-        // 'this'는 현재 Product 인스턴스를 가리킵니다.
-        if (this.category.getParentCategory().getId() == 1) {
-            return true;
-        }
-        return false;
+        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 3;
+    }
+
+    /**
+     * 이 상품이 하의인지 확인합니다. (부모 카테고리 ID: 1)
+     * @return 하의이면 true, 아니면 false
+     */
+    public boolean isLowerGarment() {
+        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 1;
     }
 }
