@@ -9,4 +9,7 @@ public class AvatarTryOnRequest {
 
     private String productId;
 
+    public AvatarTryOnRequest(String productId) {
+        this.productId = productId;
+    }
 }

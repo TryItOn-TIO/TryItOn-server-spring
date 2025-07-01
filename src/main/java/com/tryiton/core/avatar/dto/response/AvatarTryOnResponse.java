@@ -1,5 +1,10 @@
 package com.tryiton.core.avatar.dto.response;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class AvatarTryOnResponse {
     // 가상 피팅이 완료된 최종 이미지의 S3 URL
     private final Long avatarId;

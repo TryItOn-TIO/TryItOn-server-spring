@@ -7,4 +7,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class FastApiTryOnResponse {
     private String tryOnImgUrl;
+
+    public FastApiTryOnResponse(String tryOnImgUrl) {
+        this.tryOnImgUrl = tryOnImgUrl;
+    }
 }

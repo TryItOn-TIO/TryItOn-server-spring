@@ -127,7 +127,7 @@ public class AvatarServiceImpl implements AvatarService {
         Product garment = productRepository.findById(productId).get();
 
         String maskUrl = avatar.getLowerMaskImg();
-        if (Product.isUpperGarment(garment)) {
+        if (garment.isUpperGarment()) {
             maskUrl = avatar.getUpperMaskImg();
         }
 
