@@ -31,7 +31,9 @@ public class ProductVariant {
     private Integer quantity;
 
     @Builder
-    public ProductVariant(Product product, String size, String color, Integer quantity) {
+    public ProductVariant(Long variantId, Product product, String size, String color,
+        Integer quantity) {
+        this.variantId = variantId;
         this.product = product;
         this.size = size;
         this.color = color;
