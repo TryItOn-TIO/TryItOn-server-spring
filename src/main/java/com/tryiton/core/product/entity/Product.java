@@ -61,12 +61,15 @@ public class Product extends BaseTimeEntity {
     @Column(name = "wishlist_count")
     private int wishlistCount;
 
+     private String gender;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<ProductVariant> variants = new ArrayList<>();
 
     @Builder
     public Product(Category category, String productName, String img1, String img2, String img3,
-        String img4, String img5, String content, int price, int sale, String brand) {
+        String img4, String img5, String content, int price, int sale, String brand, String gender, Long id) {
+        this.id = id;
         this.category = category;
         this.productName = productName;
         this.img1 = img1;
@@ -80,6 +83,7 @@ public class Product extends BaseTimeEntity {
         this.brand = brand;
         this.deleted = false;
         this.wishlistCount = 0;
+        this.gender = gender;
     }
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -98,5 +102,13 @@ public class Product extends BaseTimeEntity {
         if (this.wishlistCount > 0) {
             this.wishlistCount--;
         }
+    }
+
+    public boolean isUpperGarment() {
+        // 'this'는 현재 Product 인스턴스를 가리킵니다.
+        if (this.category.getParentCategory().getId() == 1) {
+            return true;
+        }
+        return false;
     }
 }

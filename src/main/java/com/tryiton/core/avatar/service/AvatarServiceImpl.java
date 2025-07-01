@@ -14,6 +14,8 @@ import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
+import com.tryiton.core.product.entity.Product;
+import com.tryiton.core.product.repository.ProductRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class AvatarServiceImpl implements AvatarService {
     private final AvatarItemRepository avatarItemRepository;
     private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
+    private final ProductRepository productRepository;
 
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
     @Override
@@ -118,12 +121,22 @@ public class AvatarServiceImpl implements AvatarService {
      * 가상 피팅을 수행하고 결과 이미지 URL을 반환합니다.
      */
     public AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest) {
+        Long userId = member.getId();
+        Avatar avatar = avatarRepository.findTopByMemberOrderByCreatedAtDesc(userId);
+        Long productId = Long.parseLong(avatarTryOnRequest.getProductId());
+        Product garment = productRepository.findById(productId).get();
+
+        String maskUrl = avatar.getLowerMaskImg();
+        if (garment.isUpperGarment()) {
+            maskUrl = avatar.getUpperMaskImg();
+        }
+
         // 1. FastAPI 서버에 보낼 요청 DTO를 구성
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-            avatarTryOnRequest.getBaseImgUrl(),
-            avatarTryOnRequest.getGarmentImgUrl(),
-            avatarTryOnRequest.getMaskImgUrl(),
-            avatarTryOnRequest.getPoseImgUrl(),
+            avatar.getAvatarImg(),
+            garment.getImg2(),
+            maskUrl,
+            avatar.getPoseImg(),
             member.getId()
         );
 
@@ -142,7 +155,9 @@ public class AvatarServiceImpl implements AvatarService {
 
         System.out.println("FastAPI 서버로부터 응답 수신: " + fastApiResponse.getTryOnImgUrl());
 
+        avatar.update(fastApiResponse.getTryOnImgUrl());
+
         // 3. FastAPI 서버의 응답을 서비스의 최종 응답 DTO로 변환하여 반환
-        return AvatarTryOnResponse.of(fastApiResponse.getTryOnImgUrl());
+        return new AvatarTryOnResponse(avatar.getId(), fastApiResponse.getTryOnImgUrl(), garment.getProductName(), garment.getCategory().getCategoryName());
     }
 }

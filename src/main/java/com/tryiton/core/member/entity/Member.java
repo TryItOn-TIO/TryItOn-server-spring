@@ -19,6 +19,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.DefaultListModel;
 import lombok.AllArgsConstructor;
@@ -81,7 +82,7 @@ public class Member {
 
     // 페이지 네이션 고려
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Avatar> avatars;
+    private List<Avatar> avatars = new ArrayList<>();
 
     // profile entity (회원 정보)
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
