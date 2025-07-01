@@ -37,7 +37,7 @@ public class AvatarServiceImpl implements AvatarService {
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
     @Override
     public AvatarProductInfoDto getLatestAvatarWithProducts(Long userId) {
-        Avatar avatar = avatarRepository.findTopByMemberOrderByCreatedAtDesc(userId);
+        Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
 
         List<String> productNames = getProductNamesOfAvatar(avatar);
 
@@ -122,7 +122,7 @@ public class AvatarServiceImpl implements AvatarService {
      */
     public AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest) {
         Long userId = member.getId();
-        Avatar avatar = avatarRepository.findTopByMemberOrderByCreatedAtDesc(userId);
+        Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
         Long productId = Long.parseLong(avatarTryOnRequest.getProductId());
         Product garment = productRepository.findById(productId).get();
 

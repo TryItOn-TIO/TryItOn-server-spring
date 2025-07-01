@@ -74,7 +74,7 @@ class AvatarServiceImplTest {
             // --- 여기까지 수정 ---
 
             // Repository Mocking
-            when(avatarRepository.findTopByMemberOrderByCreatedAtDesc(userId)).thenReturn(mockAvatar);
+            when(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId)).thenReturn(mockAvatar);
             when(productRepository.findById(productId)).thenReturn(Optional.of(mockGarment));
 
             // mockAvatar의 행위 정의
