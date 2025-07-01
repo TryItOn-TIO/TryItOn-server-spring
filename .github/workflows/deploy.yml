@@ -71,7 +71,7 @@ jobs:
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           JWT: ${{ secrets.JWT }}
           TOSS_KEY: ${{ secrets.TOSS_KEY }}
-        run: ./gradlew build -Dspring.profiles.active=ci
+        run: ./gradlew build
 
       # --- [추가] 디버깅용 단계 ---
       - name: Check for JAR file
