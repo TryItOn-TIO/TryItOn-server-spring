@@ -12,7 +12,7 @@ public class ProductVariantDto {
     private final Integer quantity;
 
     public ProductVariantDto(ProductVariant variant) {
-        this.variantId = variant.getId();
+        this.variantId = variant.getVariantId();
         this.size = variant.getSize();
         this.color = variant.getColor();
         this.quantity = variant.getQuantity();

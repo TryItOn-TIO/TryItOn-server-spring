@@ -3,8 +3,8 @@ package com.tryiton.core.order.entity;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.entity.ProductVariant;
 import jakarta.persistence.*;
-        import lombok.*;
-        import java.math.BigDecimal;
+import lombok.*;
+import java.math.BigDecimal;
 
 @Entity
 @Getter
