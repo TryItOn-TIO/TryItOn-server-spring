@@ -61,7 +61,6 @@ dependencies {
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
-	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
 }
 
 // 테스트 설정 (CI/CD용)
