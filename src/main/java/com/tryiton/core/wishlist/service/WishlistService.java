@@ -26,10 +26,7 @@ public class WishlistService {
 
     // 찜 추가 (중복 찜 방지 로직 추가)
     @Transactional
-    public void addProductToWishlist(Long userId, Long productId) {
-        Member user = memberRepository.findById(userId)
-            .orElseThrow(() -> new NoSuchElementException("존재하지 않는 유저입니다."));
-
+    public void addProductToWishlist(Member user, Long productId) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new NoSuchElementException("존재하지 않는 상품입니다."));
 
@@ -48,8 +45,8 @@ public class WishlistService {
 
     // 찜 제거
     @Transactional
-    public void removeProductFromWishlist(Long userId, Long productId) {
-        Wishlist wishlist = wishlistRepository.findByUserId(userId)
+    public void removeProductFromWishlist(Member user, Long productId) {
+        Wishlist wishlist = wishlistRepository.findByUserId(user.getId())
             .orElseThrow(() -> new NoSuchElementException("찜 목록이 존재하지 않습니다."));
 
         WishlistItem item = wishlist.getItems().stream()
@@ -64,8 +61,8 @@ public class WishlistService {
 
     // 찜 조회
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getWishlistProducts(Long userId) {
-        Wishlist wishlist = wishlistRepository.findByUserId(userId)
+    public List<ProductResponseDto> getWishlistProducts(Member user) {
+        Wishlist wishlist = wishlistRepository.findByUserId(user.getId())
             .orElseThrow(() -> new NoSuchElementException("찜 목록이 존재하지 않습니다."));
 
         List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(
