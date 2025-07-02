@@ -82,6 +82,7 @@ public class Member {
 
     // 페이지 네이션 고려
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<Avatar> avatars = new ArrayList<>();
 
     // profile entity (회원 정보)

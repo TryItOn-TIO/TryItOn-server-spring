@@ -84,7 +84,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarCreateResponse create(Member member, AvatarCreateRequest avatarCreateRequest) {
         // 1. FastAPI 서버로 보낼 요청 DTO 생성
         String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
-        InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(originalImgUrl);
+        InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(member.getId(), originalImgUrl);
 
         // 2. WebClient를 사용하여 FastAPI 서버의 /generate 엔드포인트에 POST 요청
         InitialAvatarResponse fastApiResponse = fastApiWebClient.post()

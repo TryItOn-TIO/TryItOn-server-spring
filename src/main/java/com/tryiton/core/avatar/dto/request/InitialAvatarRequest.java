@@ -6,5 +6,6 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class InitialAvatarRequest {
-    private String originalImgUrl;
+    private Long userId;
+    private String tryOnImgUrl;
 }
