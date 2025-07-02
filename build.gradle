@@ -67,6 +67,7 @@ dependencies {
 // 테스트 설정 (CI/CD용)
 tasks.named('test') {
 	useJUnitPlatform()
-	systemProperty 'spring.profiles.active', 'test'
+	// 외부에서 spring.profiles.active를 지정하면 해당 값을 사용하고, 아니면 'test'를 기본값으로 사용
+	systemProperty 'spring.profiles.active', System.getProperty('spring.profiles.active', 'test')
 	systemProperty 'spring.config.import', ''
 }
