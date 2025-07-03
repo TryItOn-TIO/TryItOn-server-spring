@@ -13,6 +13,7 @@ import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URL;
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.auth.oauth.dto.GoogleInfoDto;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -50,13 +52,13 @@ public class AuthService {
     private final String bucketName;
 
     public AuthService(MemberRepository memberRepository, JwtUtil jwtUtil,
-        @Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
-        S3Client s3Client, // 생성자 파라미터 변경
-        @Value("${cloud.aws.s3.bucket}") String bucketName) {
+       @Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
+       @Autowired(required = false) S3Client s3Client, // 선택적 의존성으로 변경
+       @Value("${cloud.aws.s3.bucket}") String bucketName) {
         this.memberRepository = memberRepository;
         this.jwtUtil = jwtUtil;
         this.clientId = clientId;
-        this.s3Client = s3Client; // 주입받은 S3Client 할당
+        this.s3Client = s3Client; // 주입받은 S3Client 할당 (null일 수 있음)
         this.bucketName = bucketName;
     }
 
@@ -82,7 +84,7 @@ public class AuthService {
             // 토큰 검증
             GoogleIdToken idToken = verifier.verify(token);
             if (idToken == null) {
-                throw new BusinessException("유효하지 않은 ID 토큰입니다.");
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "유효하지 않은 ID 토큰입니다.");
             }
             Payload payload = idToken.getPayload();
 
@@ -90,11 +92,11 @@ public class AuthService {
             return convertPayloadTo(payload);
 
         } catch (GeneralSecurityException e) {
-            throw new BusinessException("Google 토큰 검증 실패: " + e.getMessage());
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "Google 토큰 검증 실패: " + e.getMessage());
         } catch (IOException e) {
-            throw new BusinessException("Google 토큰 검증 실패: " + e.getMessage());
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "Google 토큰 검증 실패: " + e.getMessage());
         } catch (Exception e) {
-            throw new BusinessException("Google 토큰 검증 실패: " + e.getMessage());
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "Google 토큰 검증 실패: " + e.getMessage());
         }
     }
 
@@ -121,7 +123,7 @@ public class AuthService {
         String email = googleInfo.getEmail();
 
         Member member = memberRepository.findByEmail(email)
-            .orElseThrow(() -> new BusinessException("가입되지 않은 회원입니다. 회원가입이 필요합니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "가입되지 않은 회원입니다. 회원가입이 필요합니다."));
 
         String jwt = jwtUtil.createJwt(email, member.getRole().name(), ONE_HOUR); // 1시간
 
@@ -142,7 +144,7 @@ public class AuthService {
 
             // 이메일 중복 체크
             memberRepository.findByEmail(email).ifPresent(m -> {
-                throw new BusinessException("이미 가입된 회원입니다.");
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "이미 가입된 회원입니다.");
             });
 
             // 휴대폰 번호 유효성 검사
@@ -201,7 +203,7 @@ public class AuthService {
             throw e;
         } catch (Exception e) {
             log.error("회원가입 처리 중 오류가 발생했습니다.", e);
-            throw new BusinessException("회원가입 처리 중 오류가 발생했습니다: " + e.getMessage());
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "회원가입 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 

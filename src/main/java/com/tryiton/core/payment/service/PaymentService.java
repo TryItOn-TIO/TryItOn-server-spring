@@ -1,5 +1,6 @@
 package com.tryiton.core.payment.service;
 
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.order.entity.Order;
 import com.tryiton.core.order.repository.OrderRepository;
 import com.tryiton.core.payment.dto.PaymentConfirmRequestDto;
@@ -34,22 +35,22 @@ public class PaymentService {
     public JSONObject confirmPayment(PaymentConfirmRequestDto requestDto) {
         // 필수 파라미터 검증
         if (requestDto.getOrderId() == null || requestDto.getOrderId().trim().isEmpty()) {
-            throw new IllegalArgumentException("주문 ID가 필요합니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "주문 ID가 필요합니다.");
         }
         
         if (requestDto.getPaymentKey() == null || requestDto.getPaymentKey().trim().isEmpty()) {
-            throw new IllegalArgumentException("결제 키가 필요합니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "결제 키가 필요합니다.");
         }
         
         if (requestDto.getAmount() == null || requestDto.getAmount() <= 0) {
-            throw new IllegalArgumentException("유효한 결제 금액이 필요합니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "유효한 결제 금액이 필요합니다.");
         }
         
         Order order = orderRepository.findByOrderUid(requestDto.getOrderId())
-            .orElseThrow(() -> new EntityNotFoundException("주문을 찾을 수 없습니다: " + requestDto.getOrderId()));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다: " + requestDto.getOrderId()));
         
         if (order.getTotalAmount().longValue() != requestDto.getAmount()) {
-            throw new IllegalArgumentException("주문 금액이 일치하지 않습니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "주문 금액이 일치하지 않습니다.");
         }
 
         HttpHeaders headers = createTossAuthHeaders();
@@ -69,10 +70,10 @@ public class PaymentService {
                 paymentRepository.save(payment);
                 return paymentData;
             } else {
-                throw new RuntimeException("토스페이먼츠 승인 실패: " + responseEntity.getBody());
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "토스페이먼츠 승인에 실패했습니다.");
             }
         } catch (Exception e) {
-            throw new RuntimeException("결제 승인 과정에서 오류 발생", e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "결제 승인 과정에서 오류가 발생했습니다.");
         }
     }
 

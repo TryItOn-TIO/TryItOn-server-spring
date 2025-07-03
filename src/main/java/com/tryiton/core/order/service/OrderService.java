@@ -2,6 +2,7 @@ package com.tryiton.core.order.service;
 
 import com.tryiton.core.address.entity.Address;
 import com.tryiton.core.address.repository.AddressRepository;
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.order.dto.*;
@@ -11,6 +12,7 @@ import com.tryiton.core.product.entity.ProductVariant;
 import com.tryiton.core.product.repository.ProductVariantRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -28,13 +30,14 @@ public class OrderService {
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto requestDto) {
-        Member user = memberRepository.findById(requestDto.getUserId()).orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
-        Address address = addressRepository.findById(requestDto.getAddressId()).orElseThrow(() -> new EntityNotFoundException("주소를 찾을 수 없습니다."));
+        Member user = memberRepository.findById(requestDto.getUserId()).orElseThrow(() -> new BusinessException(
+            HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        Address address = addressRepository.findById(requestDto.getAddressId()).orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주소를 찾을 수 없습니다."));
 
         // 1. OrderItem 엔티티 리스트를 먼저 생성합니다.
         List<OrderItem> orderItems = requestDto.getOrderItems().stream()
                 .map(itemDto -> {
-                    ProductVariant variant = productVariantRepository.findById(itemDto.getVariantId()).orElseThrow(() -> new EntityNotFoundException("상품 옵션을 찾을 수 없습니다."));
+                    ProductVariant variant = productVariantRepository.findById(itemDto.getVariantId()).orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "상품 옵션을 찾을 수 없습니다."));
                     return OrderItem.builder()
                             .product(variant.getProduct())
                             .variant(variant)
@@ -74,10 +77,10 @@ public class OrderService {
     @Transactional
     public OrderResponseDto createSimpleOrder(SimpleOrderRequestDto request) {
         Member user = memberRepository.findById(request.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
         
         Address address = addressRepository.findById(request.getAddressId())
-                .orElseThrow(() -> new EntityNotFoundException("주소를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주소를 찾을 수 없습니다."));
 
         Order order = Order.builder()
                 .user(user)

@@ -6,12 +6,14 @@ import com.tryiton.core.cart.entity.Cart;
 import com.tryiton.core.cart.entity.CartItem;
 import com.tryiton.core.cart.repository.CartRepository;
 import com.tryiton.core.cart.repository.CartItemRepository;
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.ProductVariant;
 import com.tryiton.core.product.repository.ProductVariantRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -38,7 +40,7 @@ public class CartService {
     public void addOrUpdateItem(Long userId, CartAddRequestDto requestDto) {
         Cart cart = findOrCreateCart(userId);
         ProductVariant variant = productVariantRepository.findById(requestDto.getVariantId())
-                .orElseThrow(() -> new EntityNotFoundException("상품 옵션을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "상품 옵션을 찾을 수 없습니다."));
 
         // 이미 장바구니에 같은 상품 옵션이 있는지 확인
         cart.getCartItems().stream()
@@ -57,7 +59,7 @@ public class CartService {
     @Transactional
     public void updateItemQuantity(Long cartItemId, int quantity) {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new EntityNotFoundException("장바구니 상품을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "장바구니 상품을 찾을 수 없습니다."));
         cartItem.updateQuantity(quantity);
     }
 
@@ -67,19 +69,19 @@ public class CartService {
         // orphanRemoval=true 옵션 덕분에 Cart에서 CartItem을 제거하면 DB에서도 삭제됩니다.
         // 또는, cartItemRepository.deleteById(cartItemId); 를 직접 호출해도 됩니다.
         CartItem cartItem = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new EntityNotFoundException("장바구니 상품을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "장바구니 상품을 찾을 수 없습니다."));
         cartItem.getCart().getCartItems().remove(cartItem);
     }
 
     private Cart findCartByUserId(Long userId) {
         return cartRepository.findByMemberId(userId)
-                .orElseThrow(() -> new EntityNotFoundException("장바구니를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "장바구니 상품을 찾을 수 없습니다."));
     }
 
     private Cart findOrCreateCart(Long userId) {
         return cartRepository.findByMemberId(userId).orElseGet(() -> {
             Member member = memberRepository.findById(userId)
-                    .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다."));
+                    .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
             return cartRepository.save(new Cart(member));
         });
     }

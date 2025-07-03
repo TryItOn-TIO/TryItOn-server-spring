@@ -29,6 +29,7 @@ public class CartController {
         return ResponseEntity.ok().build();
     }
 
+    // 일부 변경이면 PATCH가 적합할 듯
     // ★★★ [신규] 수량 변경 API ★★★
     @PutMapping("/items/{cartItemId}")
     public ResponseEntity<Void> updateCartItemQuantity(

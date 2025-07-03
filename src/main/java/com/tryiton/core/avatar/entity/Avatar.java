@@ -27,7 +27,6 @@ import org.hibernate.annotations.BatchSize;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
 public class Avatar extends BaseTimeEntity {
 
     @Id
@@ -55,13 +54,14 @@ public class Avatar extends BaseTimeEntity {
     private List<AvatarItem> items = new ArrayList<>();
 
     @Builder
-    public Avatar(Long id, String tryOnImg, String poseImg, String upperMaskImg,
-        String lowerMaskImg) {
+    public Avatar(Long id, String poseImg, String upperMaskImg, String lowerMaskImg, Member member, String avatarImg, boolean isBookmarked) {
         this.id = id;
-        this.avatarImg = tryOnImg;
         this.poseImg = poseImg;
         this.upperMaskImg = upperMaskImg;
         this.lowerMaskImg = lowerMaskImg;
+        this.member = member;
+        this.avatarImg = avatarImg;
+        this.isBookmarked = isBookmarked;
     }
 
     // 일 대 다 매핑

@@ -1,5 +1,6 @@
 package com.tryiton.core.wishlist.service;
 
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.dto.ProductResponseDto;
@@ -12,6 +13,7 @@ import com.tryiton.core.wishlist.repository.WishlistRepository;
 import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +30,7 @@ public class WishlistService {
     @Transactional
     public void addProductToWishlist(Member user, Long productId) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new NoSuchElementException("존재하지 않는 상품입니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "존재하지 않는 상품입니다."));
 
         Wishlist wishlist = wishlistRepository.findByUser(user)
             .orElseGet(() -> wishlistRepository.save(Wishlist.builder().user(user).build()));
@@ -47,12 +49,12 @@ public class WishlistService {
     @Transactional
     public void removeProductFromWishlist(Member user, Long productId) {
         Wishlist wishlist = wishlistRepository.findByUserId(user.getId())
-            .orElseThrow(() -> new NoSuchElementException("찜 목록이 존재하지 않습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "찜 목록이 존재하지 않습니다."));
 
         WishlistItem item = wishlist.getItems().stream()
             .filter(i -> i.getProduct().getId().equals(productId))
             .findFirst()
-            .orElseThrow(() -> new NoSuchElementException("찜 목록에 없는 상품입니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "찜 목록에 없는 상품입니다."));
 
         wishlist.removeItem(item);
         wishlistItemRepository.delete(item);
@@ -63,7 +65,7 @@ public class WishlistService {
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getWishlistProducts(Member user) {
         Wishlist wishlist = wishlistRepository.findByUserId(user.getId())
-            .orElseThrow(() -> new NoSuchElementException("찜 목록이 존재하지 않습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "찜 목록이 존재하지 않습니다."));
 
         List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(
             wishlist.getWishlistId());
