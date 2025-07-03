@@ -8,6 +8,8 @@ import com.tryiton.core.auth.email.dto.EmailSignupResponseDto;
 import com.tryiton.core.auth.email.dto.EmailVerifyRequestDto;
 import com.tryiton.core.auth.email.service.EmailAuthService;
 import jakarta.mail.MessagingException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth/mail")
 public class EmailAuthController {
+
     private final EmailAuthService emailAuthService;
 
     public EmailAuthController(EmailAuthService emailAuthService) {
@@ -23,22 +26,36 @@ public class EmailAuthController {
     }
 
     @PostMapping("/login")
-    public EmailSigninResponseDto login(@RequestBody EmailSigninRequestDto dto){
-        return emailAuthService.signinWithEmail(dto);
+    public ResponseEntity<EmailSigninResponseDto> login(@RequestBody EmailSigninRequestDto dto) {
+        EmailSigninResponseDto responseDto = emailAuthService.signinWithEmail(dto);
+        return ResponseEntity.ok(responseDto);
     }
 
+//    @PostMapping("/send")
+//    public void sendAuthenticationCode(@RequestBody EmailRequestDto dto) throws MessagingException {
+//        emailAuthService.sendAuthenticationCode(dto);
+//    }
+
     @PostMapping("/send")
-    public void sendAuthenticationCode(@RequestBody EmailRequestDto dto) throws MessagingException {
+    public ResponseEntity<Void> sendAuthenticationCode(@RequestBody EmailRequestDto dto)
+        throws MessagingException {
         emailAuthService.sendAuthenticationCode(dto);
+        // 성공적으로 실행되면 200 OK 상태 코드만 반환
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/verify")
-    public Boolean verifyAuthenticationCode(@RequestBody EmailVerifyRequestDto dto){
-        return emailAuthService.verifyAuthenticationCode(dto);
+    public ResponseEntity<Boolean> verifyAuthenticationCode(
+        @RequestBody EmailVerifyRequestDto dto) {
+        Boolean isVerified = emailAuthService.verifyAuthenticationCode(dto);
+        return ResponseEntity.ok(isVerified);
     }
 
     @PostMapping("/signup")
-    public EmailSignupResponseDto signupWithEmail(@RequestBody EmailSignupRequestDto dto){
-        return emailAuthService.signupWithEmail(dto);
+    public ResponseEntity<EmailSignupResponseDto> signupWithEmail(
+        @RequestBody EmailSignupRequestDto dto) {
+        EmailSignupResponseDto responseDto = emailAuthService.signupWithEmail(dto);
+        // 리소스가 성공적으로 생성되었음을 의미하는 201 Created 상태 코드와 함께 결과 반환
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 }
