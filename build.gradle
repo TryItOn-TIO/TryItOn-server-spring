@@ -32,11 +32,12 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+	// springboot 3.3+ 와 호환성 문제있는 paulschwarz dotenv 대신 채택
 	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
-//	implementation 'me.paulschwarz:spring-dotenv:2.2.0'
-	
+
 	// AWS 관련 의존성 추가
-	implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager'
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager' // 비밀 관리자(AWS내 비밀처리된 env 자료들 조회)
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3' // pre-signed URL S3 접근
 
 	// Actuator 추가 (헬스체크용)
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -60,11 +61,13 @@ dependencies {
 
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
 }
 
 // 테스트 설정 (CI/CD용)
 tasks.named('test') {
 	useJUnitPlatform()
-	systemProperty 'spring.profiles.active', 'test'
+	// 외부에서 spring.profiles.active를 지정하면 해당 값을 사용하고, 아니면 'test'를 기본값으로 사용
+	systemProperty 'spring.profiles.active', System.getProperty('spring.profiles.active', 'test')
 	systemProperty 'spring.config.import', ''
 }

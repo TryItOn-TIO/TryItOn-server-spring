@@ -1,5 +1,6 @@
 package com.tryiton.core.product.controller;
 
+import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.product.dto.CategoryProductResponse;
@@ -11,6 +12,7 @@ import com.tryiton.core.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -25,8 +27,10 @@ public class ProductController {
 
     @GetMapping
     public ResponseEntity<MainProductResponse> getMainProducts(
-        @RequestParam Long userId
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails
     ) {
+        Long userId = customUserDetails.getUser().getId();
+
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
             userId);
         List<ProductResponseDto> ranked = productService.getTopRankedProducts(userId);
@@ -41,11 +45,13 @@ public class ProductController {
 
     @GetMapping("/category")
     public ResponseEntity<CategoryProductResponse> getCategoryProducts(
-        @RequestParam Long userId,
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestParam Long categoryId,
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
+        Long userId = customUserDetails.getUser().getId();
+
         Category category = categoryService.findById(categoryId);
         Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
             page,

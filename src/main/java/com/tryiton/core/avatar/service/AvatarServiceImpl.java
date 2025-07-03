@@ -14,6 +14,8 @@ import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
+import com.tryiton.core.product.entity.Product;
+import com.tryiton.core.product.repository.ProductRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +32,12 @@ public class AvatarServiceImpl implements AvatarService {
     private final AvatarItemRepository avatarItemRepository;
     private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
+    private final ProductRepository productRepository;
 
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
     @Override
     public AvatarProductInfoDto getLatestAvatarWithProducts(Long userId) {
-        Avatar avatar = avatarRepository.findTopByMemberOrderByCreatedAtDesc(userId);
+        Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
 
         List<String> productNames = getProductNamesOfAvatar(avatar);
 
@@ -114,21 +117,37 @@ public class AvatarServiceImpl implements AvatarService {
         return AvatarCreateResponse.fromEntity(savedAvatar);
     }
 
-    /**
-     * 가상 피팅을 수행하고 결과 이미지 URL을 반환합니다.
-     */
+    @Transactional
+    @Override
     public AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest) {
-        // 1. FastAPI 서버에 보낼 요청 DTO를 구성
+        Long userId = member.getId();
+        // 1. 사용자의 가장 최근 아바타를 조회합니다.
+        Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
+        if (avatar == null) {
+            throw new IllegalStateException("가상 피팅을 진행할 아바타가 존재하지 않습니다.");
+        }
+
+        // 2. 착용할 상품(의류)을 조회합니다.
+        Product newGarment = productRepository.findById(Long.parseLong(avatarTryOnRequest.getProductId()))
+            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
+
+        // 3. Avatar 엔티티의 비즈니스 로직을 호출하여 옷을 입힙니다.
+        //    (내부적으로 상/하의 중복 착용을 처리합니다)
+        avatar.wearGarment(newGarment);
+
+        // 4. 의류 종류에 맞는 마스크 URL을 결정합니다.
+        String maskUrl = newGarment.isUpperGarment() ? avatar.getUpperMaskImg() : avatar.getLowerMaskImg();
+
+        // 5. FastAPI 서버에 보낼 요청 DTO를 구성합니다.
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-            avatarTryOnRequest.getBaseImgUrl(),
-            avatarTryOnRequest.getGarmentImgUrl(),
-            avatarTryOnRequest.getMaskImgUrl(),
-            avatarTryOnRequest.getPoseImgUrl(),
+            avatar.getAvatarImg(),
+            newGarment.getImg2(), // 상품의 착용샷 이미지
+            maskUrl,
+            avatar.getPoseImg(),
             member.getId()
         );
 
-        // 2. WebClient를 사용하여 FastAPI 서버의 /tryon 엔드포인트에 POST 요청
-        System.out.println("FastAPI 서버에 Try-on 요청 전송...");
+        // 6. WebClient를 사용하여 FastAPI 서버에 가상 피팅을 요청합니다.
         FastApiTryOnResponse fastApiResponse = fastApiWebClient.post()
             .uri("/tryon")
             .bodyValue(fastApiRequest)
@@ -140,9 +159,22 @@ public class AvatarServiceImpl implements AvatarService {
             throw new RuntimeException("FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
         }
 
-        System.out.println("FastAPI 서버로부터 응답 수신: " + fastApiResponse.getTryOnImgUrl());
+        // 7. 최종 생성된 이미지로 아바타의 이미지를 업데이트합니다.
+        avatar.update(fastApiResponse.getTryOnImgUrl());
 
-        // 3. FastAPI 서버의 응답을 서비스의 최종 응답 DTO로 변환하여 반환
-        return AvatarTryOnResponse.of(fastApiResponse.getTryOnImgUrl());
+        // 8. 현재 아바타가 입고 있는 모든 아이템 정보를 DTO 리스트로 변환합니다.
+        List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+            .map(item -> new AvatarTryOnResponse.ProductInfo(
+                item.getProduct().getProductName(),
+                item.getProduct().getCategory().getCategoryName()
+            ))
+            .collect(Collectors.toList());
+
+        // 9. 최종 응답 DTO를 빌더로 생성하여 반환합니다.
+        return AvatarTryOnResponse.builder()
+            .avatarId(avatar.getId())
+            .avatarImgUrl(fastApiResponse.getTryOnImgUrl())
+            .products(productInfos)
+            .build();
     }
 }

@@ -61,12 +61,15 @@ public class Product extends BaseTimeEntity {
     @Column(name = "wishlist_count")
     private int wishlistCount;
 
+     private String gender;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<ProductVariant> variants = new ArrayList<>();
 
     @Builder
     public Product(Category category, String productName, String img1, String img2, String img3,
-        String img4, String img5, String content, int price, int sale, String brand) {
+        String img4, String img5, String content, int price, int sale, String brand, String gender, Long id) {
+        this.id = id;
         this.category = category;
         this.productName = productName;
         this.img1 = img1;
@@ -80,6 +83,7 @@ public class Product extends BaseTimeEntity {
         this.brand = brand;
         this.deleted = false;
         this.wishlistCount = 0;
+        this.gender = gender;
     }
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -98,5 +102,21 @@ public class Product extends BaseTimeEntity {
         if (this.wishlistCount > 0) {
             this.wishlistCount--;
         }
+    }
+
+    /**
+     * 이 상품이 상의인지 확인합니다. (부모 카테고리 ID: 3)
+     * @return 상의이면 true, 아니면 false
+     */
+    public boolean isUpperGarment() {
+        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 3;
+    }
+
+    /**
+     * 이 상품이 하의인지 확인합니다. (부모 카테고리 ID: 1)
+     * @return 하의이면 true, 아니면 false
+     */
+    public boolean isLowerGarment() {
+        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 1;
     }
 }
