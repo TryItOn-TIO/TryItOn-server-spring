@@ -11,6 +11,8 @@ import com.tryiton.core.auth.email.repository.EmailVerificationRepository;
 import com.tryiton.core.auth.email.util.RandomCodeGenerator;
 import com.tryiton.core.auth.email.util.Validator;
 import com.tryiton.core.auth.jwt.JwtUtil;
+import com.tryiton.core.cart.entity.Cart;
+import com.tryiton.core.cart.repository.CartRepository;
 import com.tryiton.core.common.enums.AuthProvider;
 import com.tryiton.core.common.enums.Gender;
 import com.tryiton.core.common.enums.Style;
@@ -30,15 +32,17 @@ import org.springframework.stereotype.Service;
 public class EmailAuthService {
 
     private final MemberRepository memberRepository;
+    private final CartRepository cartRepository;
     private final EmailVerificationRepository emailVerificationRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
 
-    public EmailAuthService(MemberRepository memberRepository,
+    public EmailAuthService(MemberRepository memberRepository, CartRepository cartRepository,
         EmailVerificationRepository emailVerificationRepository,
         BCryptPasswordEncoder bCryptPasswordEncoder, JwtUtil jwtUtil, EmailService emailService) {
         this.memberRepository = memberRepository;
+        this.cartRepository = cartRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.jwtUtil = jwtUtil;
@@ -136,6 +140,10 @@ public class EmailAuthService {
 
         // 저장
         Member saved = memberRepository.save(member);
+
+        // Cart를 자동으로 생성
+        Cart cart = new Cart(saved);
+        cartRepository.save(cart);
 
         // 인증 정보 삭제
         emailVerificationRepository.delete(ev);
