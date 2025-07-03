@@ -72,7 +72,7 @@ public class EmailAuthService {
         log.info("인증 코드 전송 완료: {} -> {}", email, code);
     }
 
-    public Boolean verifyAuthenticationCode(EmailVerifyRequestDto dto){
+    public boolean verifyAuthenticationCode(EmailVerifyRequestDto dto){
         // 이메일 인증 요청을 했는 지 확인
         EmailVerification ev = emailVerificationRepository.findById(dto.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("인증 요청 내역이 없습니다."));

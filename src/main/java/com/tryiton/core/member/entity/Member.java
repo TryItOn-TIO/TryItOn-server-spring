@@ -59,18 +59,18 @@ public class Member {
 
     @Column(name = "password_expired", nullable = false)
     @Builder.Default
-    private Boolean passwordExpired = false;
+    private boolean passwordExpired = false;
 
     @Column(name = "phone_num", nullable = false, length = 18)
     private String phoneNum;
 
     @Column(name = "banned", nullable = false)
     @Builder.Default
-    private Boolean banned = false;
+    private boolean banned = false;
 
     @Column(name = "withdraw", nullable = false)
     @Builder.Default
-    private Boolean withdraw = false;
+    private boolean withdraw = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

@@ -33,7 +33,7 @@ public class EmailAuthController {
     }
 
     @PostMapping("/verify")
-    public Boolean verifyAuthenticationCode(@RequestBody EmailVerifyRequestDto dto){
+    public boolean verifyAuthenticationCode(@RequestBody EmailVerifyRequestDto dto){
         return emailAuthService.verifyAuthenticationCode(dto);
     }
 

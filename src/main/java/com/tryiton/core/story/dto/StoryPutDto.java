@@ -3,8 +3,7 @@ package com.tryiton.core.story.dto;
 import lombok.Getter;
 
 @Getter
-public class StoryRequestDto {
-    private Long avatarId;
+public class StoryPutDto {
     private String storyImageUrl;
     private String contents;
 }
