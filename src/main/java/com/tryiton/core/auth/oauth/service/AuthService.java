@@ -24,6 +24,8 @@ import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.auth.oauth.dto.GoogleSigninRequestDto;
 import com.tryiton.core.auth.oauth.dto.GoogleSignupRequestDto;
 import com.tryiton.core.auth.oauth.dto.GoogleSignupResponseDto;
+import com.tryiton.core.cart.entity.Cart;
+import com.tryiton.core.cart.repository.CartRepository;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
 import com.tryiton.core.member.repository.MemberRepository;
@@ -46,16 +48,18 @@ public class AuthService {
     private static final long ONE_HOUR = 60 * 60 * 1000L; // JWT 토큰 만료 1시간으로 설정
 
     private final MemberRepository memberRepository;
+    private final CartRepository cartRepository;
     private final JwtUtil jwtUtil;
     private final String clientId;
     private final S3Client s3Client; // S3Template 대신 S3Client 주입
     private final String bucketName;
 
-    public AuthService(MemberRepository memberRepository, JwtUtil jwtUtil,
+    public AuthService(MemberRepository memberRepository, CartRepository cartRepository, JwtUtil jwtUtil,
        @Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
        @Autowired(required = false) S3Client s3Client, // 선택적 의존성으로 변경
        @Value("${cloud.aws.s3.bucket}") String bucketName) {
         this.memberRepository = memberRepository;
+        this.cartRepository = cartRepository;
         this.jwtUtil = jwtUtil;
         this.clientId = clientId;
         this.s3Client = s3Client; // 주입받은 S3Client 할당 (null일 수 있음)
@@ -193,7 +197,11 @@ public class AuthService {
             savedMember.setOauthCredentials(oauthCredentials);
             savedMember.setProfile(profile);
 
-            // ★ 6. Profile과 OauthCredentials 정보가 포함된 Member를 다시 저장하여 업데이트를 완료합니다.
+            // ★ 6. Cart를 자동으로 생성합니다.
+            Cart cart = new Cart(savedMember);
+            cartRepository.save(cart);
+
+            // ★ 7. Profile과 OauthCredentials 정보가 포함된 Member를 다시 저장하여 업데이트를 완료합니다.
             memberRepository.save(savedMember);
 
             String jwt = jwtUtil.createJwt(email, savedMember.getRole().name(), ONE_HOUR);

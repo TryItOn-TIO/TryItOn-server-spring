@@ -93,4 +93,13 @@ public class Member {
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, optional = true, fetch = FetchType.LAZY)
     private OauthCredentials oauthCredentials;
 
+    // Cart 1:1 관계 (회원가입 시 자동 생성)
+    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private com.tryiton.core.cart.entity.Cart cart;
+
+    // Cart 설정을 위한 편의 메서드
+    public void setCart(com.tryiton.core.cart.entity.Cart cart) {
+        this.cart = cart;
+    }
+
 }
