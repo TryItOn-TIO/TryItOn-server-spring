@@ -15,11 +15,13 @@ import com.tryiton.core.common.enums.AuthProvider;
 import com.tryiton.core.common.enums.Gender;
 import com.tryiton.core.common.enums.Style;
 import com.tryiton.core.common.enums.UserRole;
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
 import com.tryiton.core.member.repository.MemberRepository;
 import jakarta.mail.MessagingException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -51,7 +53,7 @@ public class EmailAuthService {
 
         // 이메일 중복 확인
         memberRepository.findByEmail(String.valueOf(dto.getEmail())).ifPresent(user1 -> {
-            throw new IllegalArgumentException("이미 등록된 이메일입니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "이미 등록된 이메일입니다.");
         });
 
         // 인증 코드 생성
@@ -66,7 +68,7 @@ public class EmailAuthService {
             emailService.sendAuthenticationCode(email, code);
         } catch (Exception e) {
             log.error("이메일 인증 코드 발송 실패", e);
-            throw new RuntimeException("이메일 인증 코드 발송 중 오류가 발생했습니다.", e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "이메일 발송 중 오류가 발생했습니다.");
         }
 
         log.info("인증 코드 전송 완료: {} -> {}", email, code);
@@ -75,11 +77,11 @@ public class EmailAuthService {
     public Boolean verifyAuthenticationCode(EmailVerifyRequestDto dto){
         // 이메일 인증 요청을 했는 지 확인
         EmailVerification ev = emailVerificationRepository.findById(dto.getEmail())
-            .orElseThrow(() -> new IllegalArgumentException("인증 요청 내역이 없습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "인증 요청 내역이 없습니다."));
 
         // 이메일 인증 요청의 만료 여부 확인
         if (ev.isExpired()) {
-            throw new IllegalArgumentException("인증 코드가 만료되었습니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "인증 코드가 만료되었습니다.");
         }
 
         // 인증 번호가 일치하는 지 확인 후, 해당 이메일 인증 완료 처리
@@ -92,10 +94,10 @@ public class EmailAuthService {
     public EmailSignupResponseDto signupWithEmail(EmailSignupRequestDto dto){
         // 이메일 인증 완료 여부 확인
         EmailVerification ev = emailVerificationRepository.findById(dto.getEmail())
-            .orElseThrow(() -> new IllegalArgumentException("이메일 인증이 필요합니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "이메일 인증이 필요합니다."));
 
         if (!ev.isVerified()) {
-            throw new IllegalArgumentException("이메일 인증이 완료되지 않았습니다.");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "이메일 인증이 완료되지 않았습니다.");
         }
 
         // 유효성 검증
@@ -148,11 +150,11 @@ public class EmailAuthService {
 
         // 이메일로 사용자 조회
         Member member = memberRepository.findByEmail(dto.getEmail())
-            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "가입되지 않았거나 비밀번호가 올바르지 않습니다."));
 
         // 비밀번호 일치 여부 확인
         if (!bCryptPasswordEncoder.matches(dto.getPassword(), member.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "가입되지 않았거나 비밀번호가 올바르지 않습니다.");
         }
 
         String token = jwtUtil.createJwt(member.getEmail(), member.getRole().name(), 60 * 60 * 1000L);

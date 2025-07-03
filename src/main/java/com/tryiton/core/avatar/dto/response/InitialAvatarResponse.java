@@ -6,9 +6,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class InitialAvatarResponse {
+    private String tryOnImgUrl;
     private String poseImgUrl;
-    private String maskImgUrl;
-    private String upperMaskImgUrl;
     private String lowerMaskImgUrl;
-    private String avatarImg;
+    private String upperMaskImgUrl;
 }

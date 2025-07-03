@@ -1,5 +1,6 @@
 package com.tryiton.core.product.service;
 
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.product.dto.ProductDetailResponseDto;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.dto.ProductVariantDto;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,7 +105,7 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new NoSuchElementException("해당 상품을 찾을 수 없습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
         boolean liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
 

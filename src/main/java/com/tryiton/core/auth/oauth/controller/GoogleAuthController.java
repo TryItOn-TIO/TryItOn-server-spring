@@ -17,33 +17,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth/google")
 public class GoogleAuthController {
+
     private final AuthService authService;
 
     public GoogleAuthController(AuthService authService) {
         this.authService = authService;
     }
 
+    // globalExceptionHandler가 등록된 에러를 처리함
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody GoogleSigninRequestDto dto) {
-        try {
-            GoogleSigninResponseDto response = authService.loginWithGoogle(dto);
-            return ResponseEntity.ok(response);
-        } catch (BusinessException e) {
-            return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(Map.of("code", "LOGIN_FAILED", "message", e.getMessage()));
-        }
+        GoogleSigninResponseDto response = authService.loginWithGoogle(dto);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody GoogleSignupRequestDto dto) {
-        try {
-            GoogleSignupResponseDto response = authService.signupWithGoogle(dto);
-            return ResponseEntity.ok(response);
-        } catch (BusinessException e) {
-            return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("code", "SIGNUP_FAILED", "message", e.getMessage()));
-        }
+        GoogleSignupResponseDto response = authService.signupWithGoogle(dto);
+        return ResponseEntity.ok(response);
     }
 }

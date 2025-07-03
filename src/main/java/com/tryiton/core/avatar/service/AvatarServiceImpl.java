@@ -12,6 +12,7 @@ import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.Product;
@@ -19,6 +20,7 @@ import com.tryiton.core.product.repository.ProductRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -39,8 +41,12 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarProductInfoDto getLatestAvatarWithProducts(Long userId) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
 
-        List<String> productNames = getProductNamesOfAvatar(avatar);
+        // 아바타가 없을 때는?
+        if (avatar == null) {
+            return null;
+        }
 
+        List<String> productNames = getProductNamesOfAvatar(avatar);
         return new AvatarProductInfoDto(avatar.getAvatarImg(), productNames);
     }
 
@@ -48,7 +54,7 @@ public class AvatarServiceImpl implements AvatarService {
     @Override
     public List<AvatarProductInfoDto> getBookmarkedAvatarsWithProducts(Long userId) {
         Member user = memberRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("해당 유저가 존재하지 않습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "해당 유저가 존재하지 않습니다."));
 
         return avatarRepository.findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc(user).stream()
             .limit(10)
@@ -70,10 +76,10 @@ public class AvatarServiceImpl implements AvatarService {
     @Transactional
     public void updateBookmark(Long avatarId, Long userId, boolean bookmark) {
         Member user = memberRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("해당 유저가 존재하지 않습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "해당 유저가 존재하지 않습니다."));
 
         Avatar avatar = avatarRepository.findByIdAndMember(avatarId, user)
-            .orElseThrow(() -> new IllegalArgumentException("해당 아바타가 존재하지 않습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "해당 아바타가 존재하지 않습니다."));
 
         avatar.setBookmarked(bookmark);
     }
@@ -84,7 +90,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarCreateResponse create(Member member, AvatarCreateRequest avatarCreateRequest) {
         // 1. FastAPI 서버로 보낼 요청 DTO 생성
         String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
-        InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(originalImgUrl);
+        InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(member.getId(), originalImgUrl);
 
         // 2. WebClient를 사용하여 FastAPI 서버의 /generate 엔드포인트에 POST 요청
         InitialAvatarResponse fastApiResponse = fastApiWebClient.post()
@@ -96,7 +102,7 @@ public class AvatarServiceImpl implements AvatarService {
 
         // 3. FastAPI 응답 검증
         if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null || fastApiResponse.getUpperMaskImgUrl() == null || fastApiResponse.getLowerMaskImgUrl() == null) {
-            throw new RuntimeException("FastAPI 서버로부터 유효한 이미지 주소를 받지 못했습니다.");
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI 서버로부터 유효한 이미지 주소를 받지 못했습니다.");
         }
 
         // 4. 응답받은 이미지 주소들을 포함하여 Avatar 엔티티 생성
@@ -124,7 +130,7 @@ public class AvatarServiceImpl implements AvatarService {
         // 1. 사용자의 가장 최근 아바타를 조회합니다.
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
         if (avatar == null) {
-            throw new IllegalStateException("가상 피팅을 진행할 아바타가 존재하지 않습니다.");
+            throw new BusinessException(HttpStatus.NOT_FOUND, "가상 피팅을 진행할 아바타가 존재하지 않습니다.");
         }
 
         // 2. 착용할 상품(의류)을 조회합니다.
@@ -156,7 +162,7 @@ public class AvatarServiceImpl implements AvatarService {
             .block();
 
         if (fastApiResponse == null || fastApiResponse.getTryOnImgUrl() == null) {
-            throw new RuntimeException("FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
         }
 
         // 7. 최종 생성된 이미지로 아바타의 이미지를 업데이트합니다.
