@@ -23,6 +23,16 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, e.getStatus());
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleBusinessException(IllegalArgumentException e) {
+        log.warn("BusinessException: status={}, message={}", HttpStatus.BAD_REQUEST, e.getMessage());
+        Map<String, Object> body = Map.of(
+            "status", HttpStatus.BAD_REQUEST,
+            "message", e.getMessage()
+        );
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception e) {
         log.error("Unhandled Exception: ", e);
@@ -32,4 +42,6 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+
 }
