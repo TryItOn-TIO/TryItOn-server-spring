@@ -13,6 +13,7 @@ import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.net.URL;
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.auth.oauth.dto.GoogleInfoDto;
@@ -51,13 +52,13 @@ public class AuthService {
     private final String bucketName;
 
     public AuthService(MemberRepository memberRepository, JwtUtil jwtUtil,
-        @Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
-        S3Client s3Client, // 생성자 파라미터 변경
-        @Value("${cloud.aws.s3.bucket}") String bucketName) {
+       @Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
+       @Autowired(required = false) S3Client s3Client, // 선택적 의존성으로 변경
+       @Value("${cloud.aws.s3.bucket}") String bucketName) {
         this.memberRepository = memberRepository;
         this.jwtUtil = jwtUtil;
         this.clientId = clientId;
-        this.s3Client = s3Client; // 주입받은 S3Client 할당
+        this.s3Client = s3Client; // 주입받은 S3Client 할당 (null일 수 있음)
         this.bucketName = bucketName;
     }
 
