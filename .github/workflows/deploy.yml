@@ -106,12 +106,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: spring-app-jar
+          path: build/libs
       - name: Check downloaded artifact contents
         run: ls -lR
       - name: Zip deployment package
         run: |
           mkdir -p deploy
-          cp $(find . -name "*.jar" ! -name "*-plain.jar") deploy/application.jar
+          cp $(find build/libs -name "*.jar" ! -name "*-plain.jar") deploy/application.jar
           cp appspec.yml deploy/appspec.yml
           cp -r scripts deploy/scripts
           cd deploy && zip -r deploy.zip .
