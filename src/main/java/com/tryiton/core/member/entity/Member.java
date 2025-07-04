@@ -102,4 +102,12 @@ public class Member {
         this.cart = cart;
     }
 
+    
+    //== 비즈니스 로직 ==//
+    public void updateUsername(String username) {
+        if (username != null && !username.trim().isEmpty()) {
+            this.username = username;
+        }
+    }
+
 }

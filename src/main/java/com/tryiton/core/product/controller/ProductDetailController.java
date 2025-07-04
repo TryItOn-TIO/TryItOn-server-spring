@@ -1,12 +1,12 @@
 package com.tryiton.core.product.controller;
 
+import com.tryiton.core.auth.security.SecurityUtil;
 import com.tryiton.core.product.dto.ProductDetailResponseDto;
 import com.tryiton.core.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,10 +18,8 @@ public class ProductDetailController {
 
     // 상품 상세 조회
     @GetMapping("/{productId}")
-    public ProductDetailResponseDto getProductDetail(
-        @RequestParam Long userId,
-        @PathVariable Long productId) {
-
+    public ProductDetailResponseDto getProductDetail(@PathVariable Long productId) {
+        Long userId = SecurityUtil.getCurrentUserId();
         return productService.getProductDetail(userId, productId);
     }
 }

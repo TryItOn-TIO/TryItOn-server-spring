@@ -1,23 +1,21 @@
 package com.tryiton.core.address.entity;
 
+import com.tryiton.core.address.dto.AddressRequestDto;
 import com.tryiton.core.member.entity.Member;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Getter
+@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class Address {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "addr_id")
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "addr_id")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id", nullable = false)
     private Member user;
 
     @Column(nullable = false, length = 10)
@@ -38,9 +36,22 @@ public class Address {
     @Column(length = 20)
     private String alternateNum;
 
+    @Setter // isDefaultAddr 필드만 외부에서 수정 가능하도록 Setter 추가
     @Column(nullable = false)
     private boolean isDefaultAddr = false;
 
     @Column(length = 255)
     private String deliverRequest;
+
+    //== 비즈니스 로직 ==//
+    public void update(AddressRequestDto dto) {
+        this.zipCode = dto.getZipCode();
+        this.address = dto.getAddress();
+        this.addressDetail = dto.getAddressDetail();
+        this.receiver = dto.getReceiver();
+        this.primaryNum = dto.getPrimaryNum();
+        this.alternateNum = dto.getAlternateNum();
+        this.isDefaultAddr = dto.isDefaultAddr();
+        this.deliverRequest = dto.getDeliverRequest();
+    }
 }
