@@ -1,5 +1,6 @@
 package com.tryiton.core.cart.controller;
 
+import com.tryiton.core.auth.security.SecurityUtil;
 import com.tryiton.core.cart.dto.CartAddRequestDto;
 import com.tryiton.core.cart.dto.CartItemDto;
 import com.tryiton.core.cart.dto.CartItemUpdateRequestDto;
@@ -18,31 +19,30 @@ public class CartController {
 
     @GetMapping
     public ResponseEntity<List<CartItemDto>> getCartItems() {
-        Long userId = 1L; // TODO: SecurityContext에서 사용자 ID 가져오기
+        Long userId = SecurityUtil.getCurrentUserId();
         return ResponseEntity.ok(cartService.getCartItems(userId));
     }
 
     @PostMapping("/items")
     public ResponseEntity<Void> addItemToCart(@RequestBody CartAddRequestDto requestDto) {
-        Long userId = 1L; // TODO: SecurityContext에서 사용자 ID 가져오기
+        Long userId = SecurityUtil.getCurrentUserId();
         cartService.addOrUpdateItem(userId, requestDto);
         return ResponseEntity.ok().build();
     }
 
-    // 일부 변경이면 PATCH가 적합할 듯
-    // ★★★ [신규] 수량 변경 API ★★★
     @PutMapping("/items/{cartItemId}")
     public ResponseEntity<Void> updateCartItemQuantity(
             @PathVariable Long cartItemId,
             @RequestBody CartItemUpdateRequestDto requestDto) {
-        cartService.updateItemQuantity(cartItemId, requestDto.getQuantity());
+        Long userId = SecurityUtil.getCurrentUserId();
+        cartService.updateItemQuantity(userId, cartItemId, requestDto.getQuantity());
         return ResponseEntity.ok().build();
     }
 
-    // ★★★ [신규] 삭제 API ★★★
     @DeleteMapping("/items/{cartItemId}")
     public ResponseEntity<Void> deleteCartItem(@PathVariable Long cartItemId) {
-        cartService.deleteCartItem(cartItemId);
-        return ResponseEntity.noContent().build(); // 내용 없이 성공(204) 응답
+        Long userId = SecurityUtil.getCurrentUserId();
+        cartService.deleteCartItem(userId, cartItemId);
+        return ResponseEntity.noContent().build();
     }
 }

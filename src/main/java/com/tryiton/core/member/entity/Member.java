@@ -101,5 +101,12 @@ public class Member {
     public void setCart(com.tryiton.core.cart.entity.Cart cart) {
         this.cart = cart;
     }
+    
+    //== 비즈니스 로직 ==//
+    public void updateUsername(String username) {
+        if (username != null && !username.trim().isEmpty()) {
+            this.username = username;
+        }
+    }
 
 }
