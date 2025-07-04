@@ -37,6 +37,7 @@ public class Address {
     private String alternateNum;
 
     @Setter // isDefaultAddr 필드만 외부에서 수정 가능하도록 Setter 추가
+    @Builder.Default
     @Column(nullable = false)
     private boolean isDefaultAddr = false;
 
