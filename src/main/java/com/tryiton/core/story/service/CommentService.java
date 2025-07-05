@@ -10,6 +10,7 @@ import com.tryiton.core.story.repository.CommentRepository;
 import com.tryiton.core.story.repository.StoryRepository;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,7 +61,7 @@ public class CommentService {
 
         // 댓글 작성자와 수정 요청자가 일치하는지 확인
         if (!comment.getAuthor().getId().equals(author.getId())) {
-            throw new BusinessException("댓글을 수정할 권한이 없습니다.");
+            throw new BusinessException(HttpStatus.FORBIDDEN, "댓글을 수정할 권한이 없습니다.");
         }
 
         comment.update(requestDto.getContents(), requestDto.getPosition());
@@ -81,7 +82,7 @@ public class CommentService {
         boolean isStoryAuthor = story.getAuthor().getId().equals(author.getId());
 
         if (!isCommentAuthor && !isStoryAuthor) {
-            throw new BusinessException("댓글을 삭제할 권한이 없습니다.");
+            throw new BusinessException(HttpStatus.FORBIDDEN, "댓글을 삭제할 권한이 없습니다.");
         }
 
         commentRepository.delete(comment);

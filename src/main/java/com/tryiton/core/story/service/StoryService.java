@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,7 +69,7 @@ public class StoryService {
 
         // 권한 확인
         if (!story.getAuthor().getId().equals(author.getId())){
-            throw new BusinessException("스토리를 수정할 권한이 없습니다.");
+            throw new BusinessException(HttpStatus.FORBIDDEN, "스토리를 수정할 권한이 없습니다.");
         }
 
         story.update(storyPutDto.getContents());
@@ -86,7 +87,7 @@ public class StoryService {
         boolean isStoryAuthor = story.getAuthor().getId().equals(author.getId());
 
         if (!isStoryAuthor){
-            throw new BusinessException("스토리를 삭제할 권한이 없습니다.");
+            throw new BusinessException(HttpStatus.FORBIDDEN, "스토리를 삭제할 권한이 없습니다.");
         }
 
         storyRepository.delete(story);

@@ -75,16 +75,9 @@ public class SecurityConfig {
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
             .requestMatchers(EndpointRequest.to("health")).permitAll() // Health Check는 모두에게 허용
-            .requestMatchers("/**").permitAll() // 로그인 이전 테스트를 위하여 임시로 모든 권한 제한 해제
-            /*
-            .requestMatchers(
-                "/", "/auth/**", "/h2-console/**",
-                "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**"
-            ).permitAll()
-            .requestMatchers("/admin").hasRole("ADMIN")
-            .requestMatchers("/product").hasAnyRole("ADMIN", "USER") // api white list 추가
-            .anyRequest().authenticated()
-             */
+            .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+            .requestMatchers("/api/products/**", "/api/wishlist/**", "/api/payment/**", "/api/orders/**", "/api/closet/**", "/api/avatar/**", "/api/payment/**", "/api/home/**").authenticated() // 인증 필요
+            .anyRequest().permitAll()
         );
 
         // JWT 인증 필터
