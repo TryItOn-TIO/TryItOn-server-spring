@@ -4,6 +4,9 @@ import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.ClosetPageResponse;
 import com.tryiton.core.avatar.service.AvatarService;
+import com.tryiton.core.closet.dto.ClosetAddRequest;
+import com.tryiton.core.closet.dto.ClosetResponse;
+import com.tryiton.core.closet.service.ClosetService;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.wishlist.service.WishlistService;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +29,7 @@ public class ClosetController {
 
     private final AvatarService avatarService;
     private final WishlistService wishlistService;
+    private final ClosetService closetService;
 
     // 옷장 페이지 데이터 조회
     @GetMapping
@@ -34,30 +39,30 @@ public class ClosetController {
         Member user = customUserDetails.getUser();
 
         AvatarProductInfoDto latestAvatar = avatarService.getLatestAvatarWithProducts(user.getId());
-        List<AvatarProductInfoDto> bookmarkedAvatars = avatarService.getBookmarkedAvatarsWithProducts(user.getId());
+        List<ClosetResponse> closetItems = closetService.getClosetItems(user);
         List<ProductResponseDto> wishlistProducts = wishlistService.getWishlistProducts(user);
 
         return ResponseEntity.ok(
-            new ClosetPageResponse(latestAvatar, bookmarkedAvatars, wishlistProducts));
+            new ClosetPageResponse(latestAvatar, closetItems, wishlistProducts));
     }
 
-    // 북마크 추가
-    @PostMapping("/{avatarId}/bookmark")
-    public ResponseEntity<Void> addBookmark(
+    // 옷장에 추가
+    @PostMapping
+    public ResponseEntity<Void> addToCloset(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
-        @PathVariable Long avatarId
+        @RequestBody ClosetAddRequest request
     ) {
-        avatarService.updateBookmark(avatarId, customUserDetails.getUser().getId(), true);
+        closetService.addToCloset(customUserDetails.getUser(), request.getAvatarId());
         return ResponseEntity.ok().build();
     }
 
-    // 북마크 해제
-    @DeleteMapping("/{avatarId}/bookmark")
-    public ResponseEntity<Void> removeBookmark(
+    // 옷장에서 삭제
+    @DeleteMapping("/{closetId}")
+    public ResponseEntity<Void> removeFromCloset(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
-        @PathVariable Long avatarId
+        @PathVariable Long closetId
     ) {
-        avatarService.updateBookmark(avatarId, customUserDetails.getUser().getId(), false);
+        closetService.removeFromCloset(customUserDetails.getUser(), closetId);
         return ResponseEntity.ok().build();
     }
 }

@@ -2,8 +2,10 @@ package com.tryiton.core.avatar.controller;
 
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
+import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
+import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.member.entity.Member;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +62,15 @@ public class AvatarController {
         AvatarTryOnResponse response = avatarService.tryOn(member, avatarTryOnRequest);
 
         // 성공 시 200 OK 상태 코드와 함께 결과 반환
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/together")
+    public ResponseEntity<TryonAvatarTogetherNodeResponse> tryonTogether(
+        @AuthenticationPrincipal Member member,
+        @RequestBody TryonAvatarTogetherNodeRequest tryonAvatarTogetherNodeRequest
+    ) {
+        TryonAvatarTogetherNodeResponse response = avatarService.tryonTogether(member, tryonAvatarTogetherNodeRequest);
         return ResponseEntity.ok(response);
     }
 }

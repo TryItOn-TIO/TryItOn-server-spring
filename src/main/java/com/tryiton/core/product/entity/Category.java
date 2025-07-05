@@ -10,12 +10,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import lombok.Builder;
 import lombok.Getter;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
+@NoArgsConstructor
 public class Category {
 
     @Id
@@ -34,4 +37,11 @@ public class Category {
     // 자식 카테고리 목록 (자신)
     @OneToMany(mappedBy = "parentCategory")
     private List<Category> children = new ArrayList<>();
+
+    @Builder
+    public Category(Long id, String categoryName, Category parentCategory) {
+        this.id = id;
+        this.categoryName = categoryName;
+        this.parentCategory = parentCategory;
+    }
 }

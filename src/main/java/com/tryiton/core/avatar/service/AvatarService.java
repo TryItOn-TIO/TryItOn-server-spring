@@ -1,6 +1,8 @@
 package com.tryiton.core.avatar.service;
 
 import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
+import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
+import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import java.util.List;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
@@ -13,11 +15,9 @@ import org.springframework.stereotype.Service;
 public interface AvatarService {
     AvatarProductInfoDto getLatestAvatarWithProducts(Long userId);
 
-    List<AvatarProductInfoDto> getBookmarkedAvatarsWithProducts(Long userId);
-
-    void updateBookmark(Long avatarId, Long userId, boolean bookmark);
-
     AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest);
 
     AvatarCreateResponse create(Member member, AvatarCreateRequest avatarCreateRequest);
+
+    TryonAvatarTogetherNodeResponse tryonTogether(Member member, TryonAvatarTogetherNodeRequest tryonAvatarTogetherNodeRequest);
 }

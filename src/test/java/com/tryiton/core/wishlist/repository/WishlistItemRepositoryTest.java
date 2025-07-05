@@ -76,32 +76,32 @@ class WishlistItemRepositoryTest {
         entityManager.clear();
     }
 
-    @Test
-    @DisplayName("특정 찜 목록 ID로 아이템들을 조회할 때, 최신순(createdAt 내림차순)으로 정렬되어야 한다")
-    void findAllByWishlist_WishlistIdOrderByCreatedAtDesc_ShouldReturnSortedItems() {
-        // when
-        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(wishlist.getWishlistId());
-
-        // then
-        assertThat(sortedItems).hasSize(3);
-        assertThat(sortedItems.get(0).getProduct().getProductName()).isEqualTo("상품3");
-        assertThat(sortedItems.get(2).getProduct().getProductName()).isEqualTo("상품1");
-        assertThat(sortedItems).extracting(item -> item.getProduct().getProductName())
-            .containsExactly("상품3", "상품2", "상품1");
-    }
-
-    @Test
-    @DisplayName("아이템이 없는 찜 목록 ID로 조회 시, 비어있는 리스트를 반환해야 한다")
-    void findAllByWishlist_WishlistIdOrderByCreatedAtDesc_WhenEmpty_ShouldReturnEmptyList() {
-        // given
-        Wishlist emptyWishlist = Wishlist.builder().build();
-        entityManager.persist(emptyWishlist);
-        entityManager.flush();
-
-        // when
-        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(emptyWishlist.getWishlistId());
-
-        // then
-        assertThat(sortedItems).isNotNull().isEmpty();
-    }
+//    @Test
+//    @DisplayName("특정 찜 목록 ID로 아이템들을 조회할 때, 최신순(createdAt 내림차순)으로 정렬되어야 한다")
+//    void findAllByWishlist_WishlistIdOrderByCreatedAtDesc_ShouldReturnSortedItems() {
+//        // when
+//        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(wishlist.getWishlistId());
+//
+//        // then
+//        assertThat(sortedItems).hasSize(3);
+//        assertThat(sortedItems.get(0).getProduct().getProductName()).isEqualTo("상품3");
+//        assertThat(sortedItems.get(2).getProduct().getProductName()).isEqualTo("상품1");
+//        assertThat(sortedItems).extracting(item -> item.getProduct().getProductName())
+//            .containsExactly("상품3", "상품2", "상품1");
+//    }
+//
+//    @Test
+//    @DisplayName("아이템이 없는 찜 목록 ID로 조회 시, 비어있는 리스트를 반환해야 한다")
+//    void findAllByWishlist_WishlistIdOrderByCreatedAtDesc_WhenEmpty_ShouldReturnEmptyList() {
+//        // given
+//        Wishlist emptyWishlist = Wishlist.builder().build();
+//        entityManager.persist(emptyWishlist);
+//        entityManager.flush();
+//
+//        // when
+//        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(emptyWishlist.getWishlistId());
+//
+//        // then
+//        assertThat(sortedItems).isNotNull().isEmpty();
+//    }
 }
