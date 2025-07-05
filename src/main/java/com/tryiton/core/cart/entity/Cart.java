@@ -27,5 +27,9 @@ public class Cart {
 
     public Cart(Member member) {
         this.member = member;
+        // 양방향 관계 설정
+        if (member != null) {
+            member.setCart(this);
+        }
     }
 }

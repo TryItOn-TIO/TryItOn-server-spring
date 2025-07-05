@@ -55,4 +55,17 @@ public class Profile {
     // 회색 아바타
     @Column(name = "avatar_base_image_url", nullable = false)
     private String avatarBaseImageUrl;
+    
+    //== 비즈니스 로직 ==//
+    public void updateProfile(Integer height, Integer weight, Integer shoeSize) {
+        if (height != null) {
+            this.height = height;
+        }
+        if (weight != null) {
+            this.weight = weight;
+        }
+        if (shoeSize != null) {
+            this.shoeSize = shoeSize;
+        }
+    }
 }

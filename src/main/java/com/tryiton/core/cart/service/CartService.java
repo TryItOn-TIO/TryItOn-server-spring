@@ -57,19 +57,30 @@ public class CartService {
     }
     // ★★★ [신규] 수량 변경 로직 ★★★
     @Transactional
-    public void updateItemQuantity(Long cartItemId, int quantity) {
+    public void updateItemQuantity(Long userId, Long cartItemId, int quantity) {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "장바구니 상품을 찾을 수 없습니다."));
+        
+        // 해당 장바구니 아이템이 현재 사용자의 것인지 확인
+        if (!cartItem.getCart().getMember().getId().equals(userId)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "접근 권한이 없습니다.");
+        }
+        
         cartItem.updateQuantity(quantity);
     }
 
     // ★★★ [신규] 삭제 로직 ★★★
     @Transactional
-    public void deleteCartItem(Long cartItemId) {
-        // orphanRemoval=true 옵션 덕분에 Cart에서 CartItem을 제거하면 DB에서도 삭제됩니다.
-        // 또는, cartItemRepository.deleteById(cartItemId); 를 직접 호출해도 됩니다.
+    public void deleteCartItem(Long userId, Long cartItemId) {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "장바구니 상품을 찾을 수 없습니다."));
+        
+        // 해당 장바구니 아이템이 현재 사용자의 것인지 확인
+        if (!cartItem.getCart().getMember().getId().equals(userId)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "접근 권한이 없습니다.");
+        }
+        
+        // orphanRemoval=true 옵션 덕분에 Cart에서 CartItem을 제거하면 DB에서도 삭제됩니다.
         cartItem.getCart().getCartItems().remove(cartItem);
     }
 
