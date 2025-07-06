@@ -46,15 +46,8 @@ public class ClosetAvatar extends BaseTimeEntity {
     }
 
     public void addItem(ClosetAvatarItem item) {
-        if (isFull()) {
-            throw new IllegalStateException("옷장에는 최대 10개까지만 저장할 수 있습니다.");
-        }
         this.items.add(item);
         item.setClosetAvatar(this);
-    }
-
-    private boolean isFull() {
-        return this.items.size() >= 10;
     }
 
     /* 착장 전체의 조합이 같은지를 비교 */
