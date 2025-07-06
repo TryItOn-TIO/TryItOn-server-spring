@@ -3,6 +3,7 @@ import com.tryiton.core.order.dto.*;
 import com.tryiton.core.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -12,12 +13,25 @@ public class OrderController {
     private final OrderService orderService;
     
     @PostMapping
-    public ResponseEntity<OrderResponseDto> createOrder(@RequestBody OrderRequestDto requestDto) {
-        return ResponseEntity.ok(orderService.createOrder(requestDto));
+    public ResponseEntity<OrderResponseDto> createOrder(
+        @RequestBody OrderRequestDto requestDto,
+        Authentication authentication
+    ) {
+        // JWT에서 사용자 정보 추출
+        String userEmail = authentication.getName();
+        
+        return ResponseEntity.ok(orderService.createOrder(requestDto, userEmail));
     }
     
-    @PostMapping("/simple")
-    public ResponseEntity<OrderResponseDto> createSimpleOrder(@RequestBody SimpleOrderRequestDto request) {
-        return ResponseEntity.ok(orderService.createSimpleOrder(request));
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<Void> cancelOrder(
+        @PathVariable Long orderId,
+        Authentication authentication
+    ) {
+        // JWT에서 사용자 정보 추출
+        String userEmail = authentication.getName();
+        
+        orderService.cancelOrder(orderId, userEmail);
+        return ResponseEntity.ok().build();
     }
 }
