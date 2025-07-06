@@ -40,7 +40,8 @@ public class ClosetAvatar extends BaseTimeEntity {
     private List<ClosetAvatarItem> items = new ArrayList<>();
 
     @Builder
-    public ClosetAvatar(Member user, String avatarImage) {
+    public ClosetAvatar(Long id, Member user, String avatarImage) {
+        this.id = id;
         this.user = user;
         this.avatarImage = avatarImage;
     }
