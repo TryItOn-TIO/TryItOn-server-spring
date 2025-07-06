@@ -31,11 +31,6 @@ public class EmailAuthController {
         return ResponseEntity.ok(responseDto);
     }
 
-//    @PostMapping("/send")
-//    public void sendAuthenticationCode(@RequestBody EmailRequestDto dto) throws MessagingException {
-//        emailAuthService.sendAuthenticationCode(dto);
-//    }
-
     @PostMapping("/send")
     public ResponseEntity<Void> sendAuthenticationCode(@RequestBody EmailRequestDto dto)
         throws MessagingException {

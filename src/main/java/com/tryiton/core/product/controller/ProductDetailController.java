@@ -1,9 +1,10 @@
 package com.tryiton.core.product.controller;
 
-import com.tryiton.core.auth.security.SecurityUtil;
+import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.product.dto.ProductDetailResponseDto;
 import com.tryiton.core.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,8 +19,11 @@ public class ProductDetailController {
 
     // 상품 상세 조회
     @GetMapping("/{productId}")
-    public ProductDetailResponseDto getProductDetail(@PathVariable Long productId) {
-        Long userId = SecurityUtil.getCurrentUserId();
+    public ProductDetailResponseDto getProductDetail(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
+        @PathVariable Long productId) {
+
+        Long userId = customUserDetails.getUser().getId();
         return productService.getProductDetail(userId, productId);
     }
 }
