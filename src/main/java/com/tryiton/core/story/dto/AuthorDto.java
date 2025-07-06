@@ -1,4 +1,4 @@
-package com.tryiton.core.story.entity;
+package com.tryiton.core.story.dto;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-public class Author {
+public class AuthorDto {
 
     private Long id;
     private String username;

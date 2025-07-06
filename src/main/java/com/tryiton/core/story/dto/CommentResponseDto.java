@@ -1,6 +1,5 @@
 package com.tryiton.core.story.dto;
 
-import com.tryiton.core.story.entity.Position;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,5 +13,5 @@ public class CommentResponseDto {
     private String contents;
     private LocalDateTime createdAt;
 
-    private Position position;
+    private PositionDto position;
 }

@@ -1,6 +1,7 @@
 package com.tryiton.core.story.entity;
 
 import com.tryiton.core.member.entity.Member;
+import com.tryiton.core.story.dto.PositionDto;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -43,7 +44,7 @@ public class Comment {
     private String contents;
 
     @Embedded
-    private Position position;
+    private PositionDto position;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false)
@@ -53,7 +54,7 @@ public class Comment {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Comment(Story story, Member author, String contents, Position position, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public Comment(Story story, Member author, String contents, PositionDto position, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.story = story;
         this.author = author;
         this.contents = contents;
@@ -63,7 +64,7 @@ public class Comment {
     }
 
     // 댓글 수정
-    public void update(String contents, Position position, LocalDateTime updatedAt){
+    public void update(String contents, PositionDto position, LocalDateTime updatedAt){
         this.contents = contents;
         this.position = position;
         this.updatedAt = updatedAt;

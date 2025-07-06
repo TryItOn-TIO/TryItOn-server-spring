@@ -1,7 +1,6 @@
 package com.tryiton.core.story.dto;
 
 import com.tryiton.core.product.dto.ProductResponseDto;
-import com.tryiton.core.story.entity.Author;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -26,7 +25,7 @@ public class StoryResponseDto {
     private List<ProductResponseDto> products;
 
     // 작성자 정보
-    private Author author;
+    private AuthorDto author;
 
     // 댓글 정보
     private List<CommentResponseDto> comments;

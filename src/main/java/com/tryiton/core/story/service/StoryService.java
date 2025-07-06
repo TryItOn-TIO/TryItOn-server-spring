@@ -6,12 +6,12 @@ import com.tryiton.core.common.enums.StorySort;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.product.dto.ProductResponseDto;
+import com.tryiton.core.story.dto.AuthorDto;
 import com.tryiton.core.story.dto.CommentResponseDto;
 import com.tryiton.core.story.dto.StoriesResponseDto;
 import com.tryiton.core.story.dto.StoryPutDto;
 import com.tryiton.core.story.dto.StoryRequestDto;
 import com.tryiton.core.story.dto.StoryResponseDto;
-import com.tryiton.core.story.entity.Author;
 import com.tryiton.core.story.entity.Story;
 import com.tryiton.core.story.repository.StoryLikeRepository;
 import com.tryiton.core.story.repository.StoryRepository;
@@ -189,9 +189,9 @@ public class StoryService {
 
     private StoryResponseDto mapToStoryResponseDto(Story story, Long currentUserId){
         // Author 매핑
-        Author author = null;
+        AuthorDto author = null;
         if (story.getAuthor() != null) {
-            author = Author.builder()
+            author = AuthorDto.builder()
                 .id(story.getAuthor().getId())
                 .username(story.getAuthor().getUsername())
                 .profileImageUrl(
@@ -260,9 +260,9 @@ public class StoryService {
             .map(story -> {
 
                 // Author 매핑
-                Author author = null;
+                AuthorDto author = null;
                 if (story.getAuthor() != null) {
-                    author = Author.builder()
+                    author = AuthorDto.builder()
                         .id(story.getAuthor().getId())
                         .username(story.getAuthor().getUsername())
                         .profileImageUrl(

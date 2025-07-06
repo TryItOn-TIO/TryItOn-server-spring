@@ -1,4 +1,4 @@
-package com.tryiton.core.story.entity;
+package com.tryiton.core.story.dto;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Position {
+public class PositionDto {
 
     private Integer x;
     private Integer y;
