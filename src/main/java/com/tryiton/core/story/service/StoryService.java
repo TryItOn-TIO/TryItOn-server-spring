@@ -46,12 +46,17 @@ public class StoryService {
 
     @Transactional
     public boolean postStory(Member author, StoryRequestDto storyRequestDto){
+        // avatarId null 체크
+        if (storyRequestDto.getAvatarId() == null) {
+            throw new IllegalArgumentException("아바타 ID가 필요합니다.");
+        }
+        
          Avatar avatar = avatarRepository.findById(storyRequestDto.getAvatarId())
              .orElseThrow(() -> new IllegalArgumentException("아바타를 찾을 수 없습니다."));
 
         Story newStory = Story.builder()
-             .author(author)
-             .avatar(avatar)
+            .author(author)
+            .avatar(avatar)
             .storyImageUrl(storyRequestDto.getStoryImageUrl())
             .contents(storyRequestDto.getContents())
             .createdAt(LocalDateTime.now())
@@ -198,7 +203,7 @@ public class StoryService {
         // currentUserId를 사용하여 해당 스토리의 좋아요 여부 확인
         boolean isStoryLiked = false;
         if (currentUserId != null && storyLikeRepository != null ) {
-            isStoryLiked = storyLikeRepository.existsByStoryIdAndMemberId(currentUserId, story.getId());
+            isStoryLiked = storyLikeRepository.existsByStoryIdAndMemberId(story.getId(), currentUserId);
         }
 
         // Products 매핑
@@ -304,7 +309,7 @@ public class StoryService {
                 // currentUserId를 사용하여 해당 스토리의 좋아요 여부 확인
                 boolean isStoryLiked = false;
                 if (currentUserId != null && storyLikeRepository != null ) {
-                     isStoryLiked = storyLikeRepository.existsByStoryIdAndMemberId(currentUserId, story.getId());
+                     isStoryLiked = storyLikeRepository.existsByStoryIdAndMemberId(story.getId(), currentUserId);
                 }
 
                 return StoryResponseDto.builder()

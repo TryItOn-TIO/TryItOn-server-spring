@@ -5,6 +5,6 @@ import lombok.Getter;
 @Getter
 public class StoryRequestDto {
     private Long avatarId;
-    private String storyImageUrl;
     private String contents;
+    private String storyImageUrl;
 }
