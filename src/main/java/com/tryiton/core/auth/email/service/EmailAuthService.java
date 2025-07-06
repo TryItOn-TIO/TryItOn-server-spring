@@ -11,6 +11,8 @@ import com.tryiton.core.auth.email.repository.EmailVerificationRepository;
 import com.tryiton.core.auth.email.util.RandomCodeGenerator;
 import com.tryiton.core.auth.email.util.Validator;
 import com.tryiton.core.auth.jwt.JwtUtil;
+import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
+import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.cart.entity.Cart;
 import com.tryiton.core.cart.repository.CartRepository;
 import com.tryiton.core.common.enums.AuthProvider;
@@ -37,16 +39,19 @@ public class EmailAuthService {
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final AvatarService avatarService;
 
     public EmailAuthService(MemberRepository memberRepository, CartRepository cartRepository,
         EmailVerificationRepository emailVerificationRepository,
-        BCryptPasswordEncoder bCryptPasswordEncoder, JwtUtil jwtUtil, EmailService emailService) {
+        BCryptPasswordEncoder bCryptPasswordEncoder, JwtUtil jwtUtil, EmailService emailService,
+        AvatarService avatarService) {
         this.memberRepository = memberRepository;
         this.cartRepository = cartRepository;
         this.emailVerificationRepository = emailVerificationRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
+        this.avatarService = avatarService;
     }
 
     public void sendAuthenticationCode(EmailRequestDto dto) throws MessagingException {
@@ -144,6 +149,15 @@ public class EmailAuthService {
         // Cart를 자동으로 생성
         Cart cart = new Cart(saved);
         cartRepository.save(cart);
+
+        // 회원가입 시 첫 아바타를 생성하는 로직 추가
+        if (dto.getAvatarBaseImageUrl() != null && !dto.getAvatarBaseImageUrl().isBlank()) {
+            AvatarCreateRequest avatarRequest = new AvatarCreateRequest(
+                saved.getId().toString(), // userId
+                dto.getAvatarBaseImageUrl()  // tryOnImgUrl
+            );
+            avatarService.create(saved, avatarRequest);
+        }
 
         // 인증 정보 삭제
         emailVerificationRepository.delete(ev);

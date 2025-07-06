@@ -8,6 +8,8 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.tryiton.core.auth.email.util.Validator;
 import com.tryiton.core.auth.oauth.dto.GoogleSigninResponseDto;
 import com.tryiton.core.auth.oauth.entity.OauthCredentials;
+import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
+import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.common.enums.Gender;
 import jakarta.annotation.PostConstruct;
 import java.net.URI;
@@ -53,17 +55,19 @@ public class AuthService {
     private final String clientId;
     private final S3Client s3Client; // S3Template 대신 S3Client 주입
     private final String bucketName;
+    private final AvatarService avatarService;
 
     public AuthService(MemberRepository memberRepository, CartRepository cartRepository, JwtUtil jwtUtil,
        @Value("${spring.security.oauth2.client.registration.google.client-id}") String clientId,
        @Autowired(required = false) S3Client s3Client, // 선택적 의존성으로 변경
-       @Value("${cloud.aws.s3.bucket}") String bucketName) {
+       @Value("${cloud.aws.s3.bucket}") String bucketName, AvatarService avatarService) {
         this.memberRepository = memberRepository;
         this.cartRepository = cartRepository;
         this.jwtUtil = jwtUtil;
         this.clientId = clientId;
         this.s3Client = s3Client; // 주입받은 S3Client 할당 (null일 수 있음)
         this.bucketName = bucketName;
+        this.avatarService = avatarService;
     }
 
     // client id 검증
@@ -203,6 +207,15 @@ public class AuthService {
 
             // ★ 7. Profile과 OauthCredentials 정보가 포함된 Member를 다시 저장하여 업데이트를 완료합니다.
             memberRepository.save(savedMember);
+
+            // 회원가입 시 첫 아바타를 생성하는 로직 추가
+            if (dto.getAvatarBaseImageUrl() != null && !dto.getAvatarBaseImageUrl().isBlank()) {
+                AvatarCreateRequest avatarRequest = new AvatarCreateRequest(
+                    savedMember.getId().toString(),    // userId
+                    dto.getAvatarBaseImageUrl()     // tryOnImgUrl
+                );
+                avatarService.create(savedMember, avatarRequest);
+            }
 
             String jwt = jwtUtil.createJwt(email, savedMember.getRole().name(), ONE_HOUR);
             return GoogleSignupResponseDto.from(savedMember, jwt);
