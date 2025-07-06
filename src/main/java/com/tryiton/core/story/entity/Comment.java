@@ -53,17 +53,20 @@ public class Comment {
     private LocalDateTime updatedAt;
 
     @Builder
-    public Comment(Story story, Member author, String contents, Position position) {
+    public Comment(Story story, Member author, String contents, Position position, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.story = story;
         this.author = author;
         this.contents = contents;
         this.position = position;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     // 댓글 수정
-    public void update(String contents, Position position){
+    public void update(String contents, Position position, LocalDateTime updatedAt){
         this.contents = contents;
         this.position = position;
+        this.updatedAt = updatedAt;
     }
 
 }

@@ -1,7 +1,7 @@
 package com.tryiton.core.story.service;
 
-import com.tryiton.core.avatar.entity.Avatar;
-import com.tryiton.core.avatar.repository.AvatarRepository;
+import com.tryiton.core.closet.entity.ClosetAvatar;
+import com.tryiton.core.closet.repository.ClosetAvatarRepository;
 import com.tryiton.core.common.enums.StorySort;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
@@ -32,14 +32,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class StoryService {
 
     private final StoryRepository storyRepository;
-    private final AvatarRepository avatarRepository;
+    private final ClosetAvatarRepository closetAvatarRepository;
     private final WishlistRepository wishlistRepository;
     private final StoryLikeRepository storyLikeRepository;
 
-    public StoryService(StoryRepository storyRepository, AvatarRepository avatarRepository,
+    public StoryService(StoryRepository storyRepository, ClosetAvatarRepository closetAvatarRepository,
         WishlistRepository wishlistRepository, StoryLikeRepository storyLikeRepository) {
         this.storyRepository = storyRepository;
-        this.avatarRepository = avatarRepository;
+        this.closetAvatarRepository = closetAvatarRepository;
         this.wishlistRepository = wishlistRepository;
         this.storyLikeRepository = storyLikeRepository;
     }
@@ -51,15 +51,16 @@ public class StoryService {
             throw new IllegalArgumentException("아바타 ID가 필요합니다.");
         }
         
-         Avatar avatar = avatarRepository.findById(storyRequestDto.getAvatarId())
-             .orElseThrow(() -> new IllegalArgumentException("아바타를 찾을 수 없습니다."));
+         ClosetAvatar closetAvatar = closetAvatarRepository.findById(storyRequestDto.getAvatarId())
+             .orElseThrow(() -> new IllegalArgumentException("옷장에서 해당 아바타를 찾을 수 없습니다."));
 
         Story newStory = Story.builder()
             .author(author)
-            .avatar(avatar)
+            .closetAvatar(closetAvatar)
             .storyImageUrl(storyRequestDto.getStoryImageUrl())
             .contents(storyRequestDto.getContents())
             .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
             .likeCount(0)
             .build();
 
@@ -69,7 +70,7 @@ public class StoryService {
 
     @Transactional
     public StoryResponseDto updateStory(Member author, Long storyId, StoryPutDto storyPutDto){
-        Story story = storyRepository.findById(storyId)
+        Story story = storyRepository.findByIdWithAuthor(storyId)
             .orElseThrow(() -> new IllegalArgumentException("해당 스토리를 찾을 수 없습니다."));
 
         // 권한 확인
@@ -77,7 +78,7 @@ public class StoryService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "스토리를 수정할 권한이 없습니다.");
         }
 
-        story.update(storyPutDto.getContents());
+        story.update(storyPutDto.getContents(), LocalDateTime.now());
         storyRepository.save(story);
 
         return mapToStoryResponseDto(story, author.getId());
@@ -85,7 +86,7 @@ public class StoryService {
 
     @Transactional
     public boolean deleteStory(Member author, Long storyId){
-        Story story = storyRepository.findById(storyId)
+        Story story = storyRepository.findByIdWithAuthor(storyId)
             .orElseThrow(() -> new IllegalArgumentException("해당 스토리를 찾을 수 없습니다."));
 
         // 권한 확인
@@ -155,7 +156,7 @@ public class StoryService {
                 stories = storyRepository.findByIdLessThanOrderByIdDesc(currentStoryId, pageable);
                 break;
             case POPULAR:
-                Story currentStory = storyRepository.findById(currentStoryId)
+                Story currentStory = storyRepository.findByIdWithAuthor(currentStoryId)
                     .orElseThrow(() -> new NoSuchElementException("ID가 " + currentStoryId + "인 스토리를 찾을 수 없습니다."));
 
                 stories = storyRepository.findPopularStoriesLessThan(currentStoryId, currentStory.getLikeCount(), pageable);
@@ -208,8 +209,8 @@ public class StoryService {
 
         // Products 매핑
         List<ProductResponseDto> productResponseDtos = Collections.emptyList();
-        if (story.getAvatar() != null && story.getAvatar().getItems() != null) {
-            productResponseDtos = story.getAvatar().getItems().stream()
+        if (story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null) {
+            productResponseDtos = story.getClosetAvatar().getItems().stream()
                 .filter(avatarItem -> avatarItem.getProduct() != null)
                 .map(avatarItem -> {
                     // currentUserId를 사용하여 해당 상품의 찜 여부 확인
@@ -273,14 +274,13 @@ public class StoryService {
 
                 // Products 매핑
                 List<ProductResponseDto> productResponseDtos = Collections.emptyList();
-                if (story.getAvatar() != null && story.getAvatar().getItems() != null) {
-                    productResponseDtos = story.getAvatar().getItems().stream()
+                if (story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null) {
+                    productResponseDtos = story.getClosetAvatar().getItems().stream()
                         .filter(avatarItem -> avatarItem.getProduct() != null)
                         .map(avatarItem -> {
                             // currentUserId를 사용하여 해당 상품의 찜 여부 확인
                             boolean isProductLiked = false;
                             if (currentUserId != null) {
-                                // wishlistRepository에 Member ID와 Product ID로 찜 여부를 확인하는 메서드가 필요
                                 isProductLiked = wishlistRepository.existsByUserIdAndProductId(currentUserId, avatarItem.getProduct().getId());
                             }
                             return new ProductResponseDto(avatarItem.getProduct(), isProductLiked);
@@ -293,8 +293,6 @@ public class StoryService {
                 if (story.getComments() != null) {
                     comments = story.getComments().stream()
                         .map(comment -> {
-                            // CommentResponseDto.username은 comment.getAuthor().getUsername()에서 가져와야 함.
-                            // Position은 @Embeddable이므로 직접 사용 가능.
                             return CommentResponseDto.builder()
                                 .id(comment.getId())
                                 .username(comment.getAuthor() != null ? comment.getAuthor().getUsername() : null) // comment.getAuthor()의 null 체크
@@ -332,4 +330,3 @@ public class StoryService {
             .build();
     }
 }
-

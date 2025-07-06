@@ -8,6 +8,7 @@ import com.tryiton.core.story.entity.Comment;
 import com.tryiton.core.story.entity.Story;
 import com.tryiton.core.story.repository.CommentRepository;
 import com.tryiton.core.story.repository.StoryRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -35,6 +36,8 @@ public class CommentService {
             .author(author)
             .contents(requestDto.getContents())
             .position(requestDto.getPosition())
+            .createdAt(LocalDateTime.now())
+            .updatedAt(LocalDateTime.now())
             .build();
 
         commentRepository.save(newComment);
@@ -64,7 +67,7 @@ public class CommentService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "댓글을 수정할 권한이 없습니다.");
         }
 
-        comment.update(requestDto.getContents(), requestDto.getPosition());
+        comment.update(requestDto.getContents(), requestDto.getPosition(), LocalDateTime.now());
         commentRepository.save(comment);
 
         return mapToCommentResponseDto(comment);

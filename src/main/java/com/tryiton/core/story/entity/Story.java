@@ -1,6 +1,6 @@
 package com.tryiton.core.story.entity;
 
-import com.tryiton.core.avatar.entity.Avatar;
+import com.tryiton.core.closet.entity.ClosetAvatar;
 import com.tryiton.core.member.entity.Member;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -18,10 +18,11 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
-import software.amazon.awssdk.services.s3.endpoints.internal.Value.Str;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
+@NoArgsConstructor
 public class Story {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,8 +34,8 @@ public class Story {
     private Member author;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "avatar_id", nullable = false)
-    private Avatar avatar;
+    @JoinColumn(name = "closet_avatar_id", nullable = false)
+    private ClosetAvatar closetAvatar;
 
     @Column(name = "story_image_url", nullable = false, length = 600)
     private String storyImageUrl;
@@ -42,25 +43,29 @@ public class Story {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @Column(name = "contents", columnDefinition = "TEXT")
     private String contents;
-
-    @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Comment> comments;
 
     @Column(name = "like_count", nullable = false)
     private int likeCount;
 
     @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments;
+
+    @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StoryLike> likes; // 이 스토리에 대한 좋아요 목록
 
     @Builder
-    public Story(Member author, Avatar avatar, String storyImageUrl, LocalDateTime createdAt,
+    public Story(Member author, ClosetAvatar closetAvatar, String storyImageUrl, LocalDateTime createdAt, LocalDateTime updatedAt,
         String contents, int likeCount) {
         this.author = author;
-        this.avatar = avatar;
+        this.closetAvatar = closetAvatar;
         this.storyImageUrl = storyImageUrl;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
         this.contents = contents;
         this.comments = new ArrayList<>();
         this.likeCount = likeCount;
@@ -78,7 +83,8 @@ public class Story {
     }
 
     // 스토리 수정
-    public void update(String contents){
+    public void update(String contents, LocalDateTime updatedAt){
         this.contents = contents;
+        this.updatedAt = updatedAt;
     }
 }
