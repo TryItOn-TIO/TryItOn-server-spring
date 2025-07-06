@@ -1,5 +1,7 @@
 package com.tryiton.core.avatar.controller;
 
+import com.tryiton.core.auth.security.CustomUserDetails;
+import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +25,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/avatars") // API 버전 관리를 위한 경로 설정
 public class AvatarController {
     private final AvatarService avatarService;
+
+    /**
+     * 최신 아바타 정보 조회 API
+     * 사용자의 가장 최근 아바타 이미지와 착용 상품 정보를 반환합니다.
+     */
+    @GetMapping("/latest-info")
+    public ResponseEntity<AvatarProductInfoDto> getLatestAvatarInfo(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails
+    ) {
+        Long currentUserId = customUserDetails.getUser().getId();
+        
+        AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(currentUserId);
+        
+        if (avatarInfo == null) {
+            return ResponseEntity.noContent().build();
+        }
+        
+        return ResponseEntity.ok(avatarInfo);
+    }
 
     /**
      * 아바타 에셋 생성 API
