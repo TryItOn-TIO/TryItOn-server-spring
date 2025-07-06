@@ -32,7 +32,7 @@ public class StoryController {
     @PostMapping
     public ResponseEntity<Boolean> createStory(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
-        StoryRequestDto storyRequestDto
+        @RequestBody StoryRequestDto storyRequestDto
     ){
         boolean res = storyService.postStory(customUserDetails.getUser(), storyRequestDto);
         return ResponseEntity.ok(res);
