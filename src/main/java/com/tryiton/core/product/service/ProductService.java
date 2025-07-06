@@ -9,7 +9,6 @@ import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
 import java.util.List;
-import java.util.NoSuchElementException;
 import com.tryiton.core.product.repository.TagRepository;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
@@ -83,15 +82,15 @@ public class ProductService {
 
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
         int size) {
-        List<Category> categoriesToSearch = new ArrayList<>();
-        collectAllSubCategories(category, categoriesToSearch);
+        // 🔧 카테고리 계층 구조를 고려한 상품 조회로 변경
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Set<Long> likedProductIds = new HashSet<>(
             wishlistRepository.findProductIdsByUserId(userId));
-        return productRepository.findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(
-            categoriesToSearch, pageable).map(
-            product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())));
+
+        return productRepository.findByCategoryHierarchyAndDeletedFalse(category.getId(), pageable)
+            .map(product -> new ProductResponseDto(product,
+                likedProductIds.contains(product.getId())));
     }
 
     private void collectAllSubCategories(Category category, List<Category> categoryList) {
@@ -105,7 +104,8 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
         boolean liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
 
