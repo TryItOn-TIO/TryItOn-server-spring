@@ -1,6 +1,7 @@
 package com.tryiton.core.payment.service;
 
 import com.tryiton.core.common.exception.BusinessException;
+import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.order.entity.Order;
 import com.tryiton.core.order.repository.OrderRepository;
 import com.tryiton.core.payment.dto.PaymentConfirmRequestDto;
@@ -32,7 +33,7 @@ public class PaymentService {
     private final String TOSS_API_URL = "https://api.tosspayments.com/v1/payments/confirm";
 
     @Transactional
-    public JSONObject confirmPayment(PaymentConfirmRequestDto requestDto) {
+    public JSONObject confirmPayment(PaymentConfirmRequestDto requestDto, Member member) {
         // 필수 파라미터 검증
         if (requestDto.getOrderId() == null || requestDto.getOrderId().trim().isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "주문 ID가 필요합니다.");
@@ -48,6 +49,10 @@ public class PaymentService {
         
         Order order = orderRepository.findByOrderUid(requestDto.getOrderId())
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다: " + requestDto.getOrderId()));
+
+        if (!order.getUser().getId().equals(member.getId())) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "주문자만 결제할 수 있습니다.");
+        }
         
         if (order.getTotalAmount().longValue() != requestDto.getAmount()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "주문 금액이 일치하지 않습니다.");

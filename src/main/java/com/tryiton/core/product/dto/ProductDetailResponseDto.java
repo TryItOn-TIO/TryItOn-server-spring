@@ -11,8 +11,9 @@ public class ProductDetailResponseDto {
     private final Long id;
     private final String productName;
     private final String brand;
-    private final int price;
-    private final int sale;
+    private final int price; // 정가
+    private final int sale; // 할인율 (%)
+    private final int salePrice; // 할인된 가격
     private final String content;
     private final List<String> images;
     private final int wishlistCount;
@@ -29,6 +30,13 @@ public class ProductDetailResponseDto {
         this.wishlistCount = product.getWishlistCount();
         this.variant = variant;
         this.liked = liked;
+        
+        // 할인된 가격 계산
+        if (product.getSale() > 0) {
+            this.salePrice = (int) Math.round(product.getPrice() * (100.0 - product.getSale()) / 100.0);
+        } else {
+            this.salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
+        }
 
         // 이미지 필드를 List로 구성
         this.images = new ArrayList<>();
