@@ -15,6 +15,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -118,5 +119,18 @@ public class Product extends BaseTimeEntity {
      */
     public boolean isLowerGarment() {
         return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 1;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Product product)) return false;
+        if (this.id == null || product.id == null) return false;
+        return this.id.equals(product.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
     }
 }
