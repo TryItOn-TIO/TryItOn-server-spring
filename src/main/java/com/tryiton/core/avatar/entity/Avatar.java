@@ -34,14 +34,14 @@ public class Avatar extends BaseTimeEntity {
     @Column(name = "avatar_id")
     private Long id;
 
-    @Column(name = "pose_img", nullable = false)
-    private String poseImg;
-
-    @Column(name = "upper_mask_img", nullable = false)
-    private String upperMaskImg;
-
-    @Column(name = "lower_mask_img", nullable = false)
-    private String lowerMaskImg;
+//    @Column(name = "pose_img", nullable = false)
+//    private String poseImg;
+//
+//    @Column(name = "upper_mask_img", nullable = false)
+//    private String upperMaskImg;
+//
+//    @Column(name = "lower_mask_img", nullable = false)
+//    private String lowerMaskImg;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -53,15 +53,14 @@ public class Avatar extends BaseTimeEntity {
     @OneToMany(mappedBy = "avatar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AvatarItem> items = new ArrayList<>();
 
+//    @Column(nullable = false)
+//    private boolean isBookmarked = false; // 기본값은 false
+
     @Builder
-    public Avatar(Long id, String poseImg, String upperMaskImg, String lowerMaskImg, Member member, String avatarImg, boolean isBookmarked) {
+    public Avatar(Long id, Member member, String avatarImg, boolean isBookmarked) {
         this.id = id;
-        this.poseImg = poseImg;
-        this.upperMaskImg = upperMaskImg;
-        this.lowerMaskImg = lowerMaskImg;
         this.member = member;
         this.avatarImg = avatarImg;
-        this.isBookmarked = isBookmarked;
     }
 
     // 일 대 다 매핑
@@ -69,10 +68,6 @@ public class Avatar extends BaseTimeEntity {
         this.member = member;
         member.getAvatars().add(this);
     }
-
-    @Setter
-    @Column(name = "is_bookmarked", nullable = false)
-    private boolean isBookmarked;
 
     public void addItem(AvatarItem item) {
         items.add(item);
