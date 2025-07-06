@@ -1,7 +1,6 @@
 package com.tryiton.core.avatar.service;
 
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
-import com.tryiton.core.avatar.dto.request.FastApiTogetherRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
@@ -15,6 +14,7 @@ import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,14 +47,13 @@ class AvatarServiceImplTest {
     @Mock
     private WebClient fastApiWebClient;
 
+    private Avatar avatar;
+
     @Mock
-    private Avatar mockAvatar;
-    @Mock
-    private Product newTop, existingBottom, newBottom;
+    private Product newTop, existingBottom;
     @Mock
     private Category topCategory, bottomCategory;
 
-    // WebClient Mocking을 위한 객체들
     @Mock
     private WebClient.RequestBodyUriSpec requestBodyUriSpec;
     @Mock
@@ -64,57 +63,65 @@ class AvatarServiceImplTest {
     @Mock
     private WebClient.ResponseSpec responseSpec;
 
-//    @Test
-//    @DisplayName("하의를 입은 아바타가 새 상의를 입으면, 착용 목록과 DTO가 올바르게 업데이트 되어야 한다")
-//    void tryOn_whenWearingBottom_shouldWearNewTopAndReturnCorrectDto() {
-//        // given
-//        Long userId = 1L;
-//        Long newTopId = 10L;
-//        String newAvatarImgUrl = "http://s3.new-avatar.com/image.jpg";
-//        Member member = Member.builder().id(userId).build();
-//        AvatarTryOnRequest request = new AvatarTryOnRequest(Long.toString(newTopId));
-//
-//        // Repository 동작 정의
-//        when(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId)).thenReturn(mockAvatar);
-//        when(productRepository.findById(newTopId)).thenReturn(Optional.of(newTop));
-//
-//        // Mock 객체들 정보 정의
-//        when(newTop.isUpperGarment()).thenReturn(true);
-//        when(newTop.getImg2()).thenReturn("newTop.jpg");
-//        when(newTop.getProductName()).thenReturn("새로운 상의");
-//        when(newTop.getCategory()).thenReturn(topCategory);
-//        when(topCategory.getCategoryName()).thenReturn("상의");
-//
-//        when(existingBottom.getProductName()).thenReturn("기존 하의");
-//        when(existingBottom.getCategory()).thenReturn(bottomCategory);
-//        when(bottomCategory.getCategoryName()).thenReturn("하의");
-//
-//        // wearGarment가 호출된 '이후'의 최종 상태를 정의
-//        when(mockAvatar.getItems()).thenReturn(List.of(new AvatarItem(mockAvatar, existingBottom), new AvatarItem(mockAvatar, newTop)));
-//        when(mockAvatar.getAvatarImg()).thenReturn("base.jpg");
-//
-//        // FastAPI 응답 Mocking
-//        FastApiTryOnResponse mockedFastApiResponse = mock(FastApiTryOnResponse.class);
-//        when(mockedFastApiResponse.getTryOnImgUrl()).thenReturn(newAvatarImgUrl);
-//        when(fastApiWebClient.post()).thenReturn(requestBodyUriSpec);
-//        when(requestBodyUriSpec.uri("/tryon")).thenReturn(requestBodySpec);
-//        when(requestBodySpec.bodyValue(any(FastApiTryOnRequest.class))).thenReturn(requestHeadersSpec);
-//        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-//        when(responseSpec.bodyToMono(FastApiTryOnResponse.class)).thenReturn(Mono.just(mockedFastApiResponse));
-//
-//        // when
-//        AvatarTryOnResponse response = avatarService.tryOn(member, request);
-//
-//        // then
-//        verify(mockAvatar).wearGarment(newTop);
-//        verify(mockAvatar).update(newAvatarImgUrl);
-//
-//        assertThat(response).isNotNull();
-//        assertThat(response.getAvatarImgUrl()).isEqualTo(newAvatarImgUrl);
-//        assertThat(response.getProducts()).hasSize(2);
-//        assertThat(response.getProducts()).extracting(AvatarTryOnResponse.ProductInfo::getProductName)
-//            .containsExactlyInAnyOrder("기존 하의", "새로운 상의");
-//    }
+    @BeforeEach
+    void setUp() {
+        avatar = Avatar.builder()
+            .id(1L)
+            .avatarImg("base.jpg")
+            .member(Member.builder().id(1L).build())
+            .build();
+    }
+
+    @Test
+    @DisplayName("하의를 입은 아바타가 새 상의를 입으면, 착용 목록과 DTO가 올바르게 업데이트 되어야 한다")
+    void tryOn_whenWearingBottom_shouldWearNewTopAndReturnCorrectDto() {
+        // given
+        Long userId = 1L;
+        Long newTopId = 10L;
+        String newAvatarImgUrl = "http://s3.new-avatar.com/image.jpg";
+        Member member = Member.builder().id(userId).build();
+        AvatarTryOnRequest request = new AvatarTryOnRequest(Long.toString(newTopId));
+
+        // ⭐️ 'lenient()'를 사용하여 Mockito의 엄격한 검사를 완화합니다.
+        lenient().when(existingBottom.isUpperGarment()).thenReturn(false);
+        lenient().when(existingBottom.isLowerGarment()).thenReturn(true);
+        lenient().when(existingBottom.getProductName()).thenReturn("기존 하의");
+        lenient().when(existingBottom.getCategory()).thenReturn(bottomCategory);
+        lenient().when(bottomCategory.getCategoryName()).thenReturn("하의");
+
+        // 실제 Avatar 객체에 초기 상태(하의 착용)를 설정
+        avatar.wearGarment(existingBottom);
+
+        // Repository 동작 정의
+        when(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId)).thenReturn(avatar);
+        when(productRepository.findById(newTopId)).thenReturn(Optional.of(newTop));
+
+        // Mock 객체들 정보 정의
+        when(newTop.isUpperGarment()).thenReturn(true);
+        when(newTop.getImg2()).thenReturn("newTop.jpg");
+        when(newTop.getProductName()).thenReturn("새로운 상의");
+        when(newTop.getCategory()).thenReturn(topCategory);
+        when(topCategory.getCategoryName()).thenReturn("상의");
+
+        // FastAPI 응답 Mocking
+        FastApiTryOnResponse mockedFastApiResponse = new FastApiTryOnResponse(newAvatarImgUrl);
+        when(fastApiWebClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri("/tryon")).thenReturn(requestBodySpec);
+        when(requestBodySpec.bodyValue(any(FastApiTryOnRequest.class))).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(FastApiTryOnResponse.class)).thenReturn(Mono.just(mockedFastApiResponse));
+
+        // when
+        AvatarTryOnResponse response = avatarService.tryOn(member, request);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getAvatarImgUrl()).isEqualTo(newAvatarImgUrl);
+        assertThat(avatar.getItems()).hasSize(2);
+        assertThat(response.getProducts()).hasSize(2);
+        assertThat(response.getProducts()).extracting(AvatarTryOnResponse.ProductInfo::getProductName)
+            .containsExactlyInAnyOrder("기존 하의", "새로운 상의");
+    }
 
     @DisplayName("상의-하의 순차 피팅 성공")
     @Test
@@ -150,32 +157,26 @@ class AvatarServiceImplTest {
         when(productRepository.findAllById(topIds)).thenReturn(List.of(top1));
         when(productRepository.findAllById(bottomIds)).thenReturn(List.of(bottom1, bottom2));
 
-        // WebClient 모킹: 호출 순서에 따라 다른 값을 반환하도록 설정
+        // WebClient 모킹
         when(fastApiWebClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri("/tryon")).thenReturn(requestBodySpec);
         when(requestBodySpec.bodyValue(any(FastApiTryOnRequest.class))).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        // bodyToMono가 호출될 때마다 순서대로 다른 Mono 객체를 반환
         when(responseSpec.bodyToMono(FastApiTryOnResponse.class))
-            .thenReturn(Mono.just(topApiResponse))      // 1. 첫 번째 호출(상의) 결과
-            .thenReturn(Mono.just(finalApiResponse1))   // 2. 두 번째 호출(하의1) 결과
-            .thenReturn(Mono.just(finalApiResponse2));  // 3. 세 번째 호출(하의2) 결과
+            .thenReturn(Mono.just(topApiResponse))
+            .thenReturn(Mono.just(finalApiResponse1))
+            .thenReturn(Mono.just(finalApiResponse2));
 
         // --- Act (When) ---
         TryonAvatarTogetherNodeResponse response = avatarService.tryonTogether(member, request);
 
         // --- Assert (Then) ---
         assertNotNull(response);
-        // 1개 상의 * 2개 하의 = 총 2개 조합 결과
         assertEquals(2, response.getCombinations().size());
-
-        // 결과 검증
         assertEquals(finalImgUrl1, response.getCombinations().get(0).getTryonImgUrl());
         assertEquals(top1.getProductName(), response.getCombinations().get(0).getTopProductName());
         assertEquals(bottom1.getProductName(), response.getCombinations().get(0).getBottomProductName());
         assertEquals(finalImgUrl2, response.getCombinations().get(1).getTryonImgUrl());
-
-        // 총 API 호출 횟수 검증 (상의 1번 + 하의 2번 = 3번)
         verify(fastApiWebClient, times(3)).post();
     }
 
@@ -195,10 +196,9 @@ class AvatarServiceImplTest {
         });
 
         assertEquals("가상 피팅을 진행할 아바타가 존재하지 않습니다.", exception.getMessage());
-        verify(productRepository, never()).findAllById(any()); // 아바타가 없으면 상품 조회는 일어나지 않아야 함
+        verify(productRepository, never()).findAllById(any());
     }
 
-    // 테스트 데이터 생성을 위한 헬퍼 메서드
     private Product createProduct(Long id, String name, String categoryName) {
         Category category = Category.builder().categoryName(categoryName).build();
         return Product.builder()

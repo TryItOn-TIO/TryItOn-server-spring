@@ -12,15 +12,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource; // 👈 추가
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ActiveProfiles("test")
 @DataJpaTest
+// 👇 테스트 환경 설정 추가
+@TestPropertySource(properties = "spring.devtools.restart.enabled=false")
 class AvatarRepositoryTest {
 
     @Autowired
@@ -43,13 +45,13 @@ class AvatarRepositoryTest {
         entityManager.persist(user);
 
         // 아바타 생성 (생성 시간 순서 보장)
-        avatar1 = createAvatar("avatar1.jpg", user); // 북마크 O
+        avatar1 = createAvatar("avatar1.jpg", user);
         Thread.sleep(10);
-        avatar2 = createAvatar("avatar2.jpg", user); // 북마크 X
+        avatar2 = createAvatar("avatar2.jpg", user);
         Thread.sleep(10);
-        avatar3 = createAvatar("avatar3.jpg", user); // 북마크 O
+        avatar3 = createAvatar("avatar3.jpg", user);
         Thread.sleep(10);
-        latestAvatar = createAvatar("latest.jpg", user); // 북마크 X, 가장 최신
+        latestAvatar = createAvatar("latest.jpg", user);
 
         entityManager.flush();
         entityManager.clear();
@@ -64,63 +66,53 @@ class AvatarRepositoryTest {
         return entityManager.persist(avatar);
     }
 
-//    @Test
-//    @DisplayName("특정 사용자의 북마크된 착장 목록을 최신순으로 조회해야 한다")
-//    void findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc_ShouldReturnBookmarkedAvatars() {
-//        // when
-//        Member persistedUser = entityManager.find(Member.class, user.getId());
-//        List<Avatar> bookmarkedAvatars = avatarRepository.findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc(persistedUser);
-//
-//        // then
-//        assertThat(bookmarkedAvatars).hasSize(2);
-//        // 최신순 정렬 확인 (avatar3가 avatar1보다 나중에 생성됨)
-//        assertThat(bookmarkedAvatars.get(0).getId()).isEqualTo(avatar3.getId());
-//        assertThat(bookmarkedAvatars.get(1).getId()).isEqualTo(avatar1.getId());
-//    }
+    // 👇 isBookmarked 필드를 사용하던 테스트는 삭제합니다.
+    // @Test
+    // @DisplayName("특정 사용자의 북마크된 착장 목록을 최신순으로 조회해야 한다")
+    // void findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc_ShouldReturnBookmarkedAvatars() { ... }
 
-//    @Test
-//    @DisplayName("특정 사용자의 가장 최근에 입혀본 착장 1개를 조회해야 한다")
-//    void findTopByMemberIdOrderByCreatedAtDesc_ShouldReturnLatestAvatar() {
-//        // when
-//        // @Query("... a.member.id = :userId ...")는 Long 타입의 userId를 파라미터로 받습니다.
-//        Avatar foundAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId());
-//
-//        // then
-//        assertThat(foundAvatar).isNotNull();
-//        assertThat(foundAvatar.getId()).isEqualTo(latestAvatar.getId());
-//        assertThat(foundAvatar.getAvatarImg()).isEqualTo("latest.jpg");
-//    }
+    @Test
+    @DisplayName("특정 사용자의 가장 최근에 입혀본 착장 1개를 조회해야 한다")
+    void findTopByMemberIdOrderByCreatedAtDesc_ShouldReturnLatestAvatar() {
+        // when
+        Avatar foundAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId());
 
-//    @Test
-//    @DisplayName("착장 ID와 사용자 정보로 정확한 착장 1개를 조회해야 한다")
-//    void findByIdAndMember_WhenOwnerMatches_ShouldReturnAvatar() {
-//        // when
-//        Member persistedUser = entityManager.find(Member.class, user.getId());
-//        Optional<Avatar> foundAvatarOpt = avatarRepository.findByIdAndMember(avatar1.getId(), persistedUser);
-//
-//        // then
-//        assertThat(foundAvatarOpt).isPresent();
-//        assertThat(foundAvatarOpt.get().getId()).isEqualTo(avatar1.getId());
-//    }
-//
-//    @Test
-//    @DisplayName("착장 ID가 존재하더라도 사용자 정보가 다르면 조회가 안돼야 한다")
-//    void findByIdAndMember_WhenOwnerDoesNotMatch_ShouldReturnEmpty() {
-//        // given
-//        // 다른 사용자 생성
-//        Member anotherUser = Member.builder()
-//            .email("another@example.com").username("anotherUser")
-//            .birthDate(LocalDate.now()).gender(Gender.F).phoneNum("010-9876-5432")
-//            .provider(AuthProvider.EMAIL).role(UserRole.USER)
-//            .build();
-//        entityManager.persist(anotherUser);
-//        entityManager.flush();
-//
-//        // when
-//        // avatar1은 user의 것이지만, anotherUser로 조회 시도
-//        Optional<Avatar> foundAvatarOpt = avatarRepository.findByIdAndMember(avatar1.getId(), anotherUser);
-//
-//        // then
-//        assertThat(foundAvatarOpt).isNotPresent();
-//    }
+        // then
+        assertThat(foundAvatar).isNotNull();
+        assertThat(foundAvatar.getId()).isEqualTo(latestAvatar.getId());
+        assertThat(foundAvatar.getAvatarImg()).isEqualTo("latest.jpg");
+    }
+
+    @Test
+    @DisplayName("착장 ID와 사용자 정보로 정확한 착장 1개를 조회해야 한다")
+    void findByIdAndMember_WhenOwnerMatches_ShouldReturnAvatar() {
+        // when
+        Member persistedUser = entityManager.find(Member.class, user.getId());
+        Optional<Avatar> foundAvatarOpt = avatarRepository.findByIdAndMember(avatar1.getId(), persistedUser);
+
+        // then
+        assertThat(foundAvatarOpt).isPresent();
+        assertThat(foundAvatarOpt.get().getId()).isEqualTo(avatar1.getId());
+    }
+
+    @Test
+    @DisplayName("착장 ID가 존재하더라도 사용자 정보가 다르면 조회가 안돼야 한다")
+    void findByIdAndMember_WhenOwnerDoesNotMatch_ShouldReturnEmpty() {
+        // given
+        // 다른 사용자 생성
+        Member anotherUser = Member.builder()
+            .email("another@example.com").username("anotherUser")
+            .birthDate(LocalDate.now()).gender(Gender.F).phoneNum("010-9876-5432")
+            .provider(AuthProvider.EMAIL).role(UserRole.USER)
+            .build();
+        entityManager.persist(anotherUser);
+        entityManager.flush();
+
+        // when
+        // avatar1은 user의 것이지만, anotherUser로 조회 시도
+        Optional<Avatar> foundAvatarOpt = avatarRepository.findByIdAndMember(avatar1.getId(), anotherUser);
+
+        // then
+        assertThat(foundAvatarOpt).isNotPresent();
+    }
 }
