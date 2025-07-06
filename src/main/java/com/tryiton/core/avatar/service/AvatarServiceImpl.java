@@ -3,14 +3,11 @@ package com.tryiton.core.avatar.service;
 import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
-import com.tryiton.core.avatar.dto.request.FastApiTogetherRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
-import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
 import com.tryiton.core.avatar.dto.response.FastApiTryOnResponse;
-import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
@@ -42,6 +39,7 @@ public class AvatarServiceImpl implements AvatarService {
 
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
     @Override
+    @Transactional(readOnly = true)
     public AvatarProductInfoDto getLatestAvatarWithProducts(Long userId) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
 
@@ -50,15 +48,11 @@ public class AvatarServiceImpl implements AvatarService {
             return null;
         }
 
-        List<String> productNames = getProductNamesOfAvatar(avatar);
-        return new AvatarProductInfoDto(avatar.getAvatarImg(), productNames);
-    }
-
-    // 공통 로직: 해당 아바타가 입은 상품명 리스트 추출
-    private List<String> getProductNamesOfAvatar(Avatar avatar) {
-        return avatarItemRepository.findAllByAvatar(avatar).stream()
+        List<String> productNames = avatar.getItems().stream()
             .map(item -> item.getProduct().getProductName())
             .collect(Collectors.toList());
+
+        return new AvatarProductInfoDto(avatar.getId(), avatar.getAvatarImg(), productNames);
     }
 
     /**
@@ -85,9 +79,10 @@ public class AvatarServiceImpl implements AvatarService {
 
     /**
      * FastAPI 서버에 가상 피팅을 요청하고 결과 이미지 URL을 반환하는 헬퍼 메서드 //Todo: 메서드 명 바꾸기
+     *
      * @param baseImgUrl 피팅의 기반이 될 이미지 URL
-     * @param garment 피팅할 의류 상품
-     * @param member 요청 사용자 정보
+     * @param garment    피팅할 의류 상품
+     * @param member     요청 사용자 정보
      * @return 생성된 이미지 URL, 실패 시 null 반환
      */
     private String performStatelessTryOn(String baseImgUrl, Product garment, Member member) {
@@ -115,7 +110,6 @@ public class AvatarServiceImpl implements AvatarService {
         }
         return null;
     }
-
 
 
     @Transactional(readOnly = true)
@@ -180,8 +174,10 @@ public class AvatarServiceImpl implements AvatarService {
         }
 
         // 2. 착용할 상품(의류)을 조회합니다.
-        Product newGarment = productRepository.findById(Long.parseLong(avatarTryOnRequest.getProductId()))
-            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
+        Product newGarment = productRepository.findById(
+                Long.parseLong(avatarTryOnRequest.getProductId()))
+            .orElseThrow(() -> new IllegalArgumentException(
+                "상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
         // 3. Avatar 엔티티의 비즈니스 로직을 호출하여 옷을 입힙니다.
         //    (내부적으로 상/하의 중복 착용을 처리합니다)
@@ -204,7 +200,8 @@ public class AvatarServiceImpl implements AvatarService {
             .block();
 
         if (fastApiResponse == null || fastApiResponse.getTryOnImgUrl() == null) {
-            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
         }
 
         // 6. 최종 생성된 이미지로 아바타의 이미지를 업데이트합니다.

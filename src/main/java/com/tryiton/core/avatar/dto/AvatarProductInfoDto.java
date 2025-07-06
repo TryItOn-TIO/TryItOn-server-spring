@@ -10,6 +10,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class AvatarProductInfoDto {
 
+    private Long avatarId; // 아바타 ID 추가
     private String avatarImg;
     private List<String> productNames; // 아바타가 입고 있는 상품들의 이름 목록
 }
