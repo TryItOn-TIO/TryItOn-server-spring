@@ -31,6 +31,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query(value = "SELECT DISTINCT product_id FROM product_tag WHERE tag_id IN :tagIds", nativeQuery = true)
     List<Long> findProductIdsByTagIds(@Param("tagIds") List<Long> tagIds);
 
+    // 🔧 상위 카테고리와 모든 하위 카테고리의 상품을 함께 조회
+    @Query("SELECT p FROM Product p WHERE p.deleted = false AND " +
+        "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
+        "ORDER BY p.createdAt DESC")
+    Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
+
     // 사용자가 이미 구매한 상품 ID 목록 조회
     @Query(value = "SELECT DISTINCT p.product_id FROM orders o JOIN order_item oi ON o.order_id = oi.order_id JOIN product_variant pv ON oi.variant_id = pv.variant_id JOIN product p ON pv.product_id = p.product_id WHERE o.user_id = :userId", nativeQuery = true)
     List<Long> findPurchasedProductIdsByUserId(@Param("userId") Long userId);
