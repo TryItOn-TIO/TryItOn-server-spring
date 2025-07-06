@@ -12,15 +12,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource; // 👈 추가
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ActiveProfiles("test")
 @DataJpaTest
+// 👇 테스트 환경 설정 추가
+@TestPropertySource(properties = "spring.devtools.restart.enabled=false")
 class AvatarRepositoryTest {
 
     @Autowired
@@ -43,52 +45,36 @@ class AvatarRepositoryTest {
         entityManager.persist(user);
 
         // 아바타 생성 (생성 시간 순서 보장)
-        avatar1 = createAvatar("avatar1.jpg", user, true); // 북마크 O
+        avatar1 = createAvatar("avatar1.jpg", user);
         Thread.sleep(10);
-        avatar2 = createAvatar("avatar2.jpg", user, false); // 북마크 X
+        avatar2 = createAvatar("avatar2.jpg", user);
         Thread.sleep(10);
-        avatar3 = createAvatar("avatar3.jpg", user, true); // 북마크 O
+        avatar3 = createAvatar("avatar3.jpg", user);
         Thread.sleep(10);
-        latestAvatar = createAvatar("latest.jpg", user, false); // 북마크 X, 가장 최신
+        latestAvatar = createAvatar("latest.jpg", user);
 
         entityManager.flush();
         entityManager.clear();
     }
 
     // 테스트 데이터 생성을 위한 헬퍼 메서드
-    private Avatar createAvatar(String imgUrl, Member member, boolean isBookmarked) {
+    private Avatar createAvatar(String imgUrl, Member member) {
         Avatar avatar = Avatar.builder()
             .avatarImg(imgUrl)
-            .poseImg("pose.jpg")
-            .upperMaskImg("upper.jpg")
-            .lowerMaskImg("lower.jpg")
-            .isBookmarked(isBookmarked)
             .member(member)
             .build();
         return entityManager.persist(avatar);
     }
 
-    @Test
-    @DisplayName("특정 사용자의 북마크된 착장 목록을 최신순으로 조회해야 한다")
-    void findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc_ShouldReturnBookmarkedAvatars() {
-        // when
-        Member persistedUser = entityManager.find(Member.class, user.getId());
-        List<Avatar> bookmarkedAvatars = avatarRepository.findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc(persistedUser);
-
-        // then
-        assertThat(bookmarkedAvatars).hasSize(2);
-        // 최신순 정렬 확인 (avatar3가 avatar1보다 나중에 생성됨)
-        assertThat(bookmarkedAvatars.get(0).getId()).isEqualTo(avatar3.getId());
-        assertThat(bookmarkedAvatars.get(1).getId()).isEqualTo(avatar1.getId());
-        // 모든 결과가 북마크된 상태인지 확인
-        assertThat(bookmarkedAvatars).allMatch(Avatar::isBookmarked);
-    }
+    // 👇 isBookmarked 필드를 사용하던 테스트는 삭제합니다.
+    // @Test
+    // @DisplayName("특정 사용자의 북마크된 착장 목록을 최신순으로 조회해야 한다")
+    // void findAllByMemberAndIsBookmarkedTrueOrderByCreatedAtDesc_ShouldReturnBookmarkedAvatars() { ... }
 
     @Test
     @DisplayName("특정 사용자의 가장 최근에 입혀본 착장 1개를 조회해야 한다")
     void findTopByMemberIdOrderByCreatedAtDesc_ShouldReturnLatestAvatar() {
         // when
-        // @Query("... a.member.id = :userId ...")는 Long 타입의 userId를 파라미터로 받습니다.
         Avatar foundAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId());
 
         // then
