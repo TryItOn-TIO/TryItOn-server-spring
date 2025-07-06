@@ -54,7 +54,6 @@ public class AvatarController {
      */
     @PostMapping
     public ResponseEntity<AvatarCreateResponse> createAvatarAssets(
-        // @AuthenticationPrincipal Member member, // 실제 Spring Security의 UserDetails 구현체로 변경 필요
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestBody AvatarCreateRequest avatarCreateRequest
     ) {
@@ -76,7 +75,6 @@ public class AvatarController {
      */
     @PostMapping("/try-on")
     public ResponseEntity<AvatarTryOnResponse> performTryOn(
-        //@AuthenticationPrincipal Member member,
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestBody AvatarTryOnRequest avatarTryOnRequest
     ) {
@@ -90,7 +88,6 @@ public class AvatarController {
 
     @PostMapping("/together")
     public ResponseEntity<TryonAvatarTogetherNodeResponse> tryonTogether(
-        //@AuthenticationPrincipal Member member,
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestBody TryonAvatarTogetherNodeRequest tryonAvatarTogetherNodeRequest
     ) {
