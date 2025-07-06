@@ -52,12 +52,12 @@ public class ProductController {
     ) {
         Long userId = customUserDetails.getUser().getId();
 
-        Category category = categoryService.findById(categoryId);
+        Category category = categoryService.findByIdWithChildren(categoryId);
         Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
             page,
             size);
-        AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
+        // AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
 
-        return ResponseEntity.ok(new CategoryProductResponse(products, avatarInfo));
+        return ResponseEntity.ok(new CategoryProductResponse(products));
     }
 }
