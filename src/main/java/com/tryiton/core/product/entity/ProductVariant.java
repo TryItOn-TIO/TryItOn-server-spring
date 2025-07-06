@@ -30,11 +30,21 @@ public class ProductVariant {
     @Column(nullable = false)
     private int quantity;
 
-    // 상품의 실제 가격을 반환하는 편의 메소드
+    // 상품의 실제 가격을 반환하는 편의 메소드 (할인율 적용)
     public BigDecimal getPrice() {
-        // 실제로는 할인율(sale)을 계산해야 하지만, 여기서는 정가(price)를 반환
-        return BigDecimal.valueOf(this.product.getPrice());
+        int originalPrice = this.product.getPrice();
+        int salePercentage = this.product.getSale();
+        
+        // 할인율이 0이면 정가 반환
+        if (salePercentage == 0) {
+            return BigDecimal.valueOf(originalPrice);
+        }
+        
+        // 할인율 적용: 정가 * (100 - 할인율) / 100
+        double discountedPrice = originalPrice * (100.0 - salePercentage) / 100.0;
+        return BigDecimal.valueOf(Math.round(discountedPrice));
     }
+    
     @Builder
     public ProductVariant(Long variantId, Product product, String size, String color,
                           Integer quantity) {
@@ -45,6 +55,4 @@ public class ProductVariant {
         this.quantity = quantity;
     }
 }
-
-
 

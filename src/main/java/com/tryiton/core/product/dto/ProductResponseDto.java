@@ -10,8 +10,9 @@ public class ProductResponseDto {
     private final Long id;
     private final String productName;
     private final String img1;
-    private final int price;
-    private final int sale;
+    private final int price; // 정가
+    private final int sale; // 할인율 (%)
+    private final int salePrice; // 할인된 가격
     private final boolean liked; // 유저가 찜한 상품인지 여부
     private final String brand;
     private final int wishlistCount;
@@ -31,5 +32,12 @@ public class ProductResponseDto {
         this.createdAt = product.getCreatedAt();
         this.categoryId = product.getCategory().getId();
         this.categoryName = product.getCategory().getCategoryName();
+        
+        // 할인된 가격 계산
+        if (product.getSale() > 0) {
+            this.salePrice = (int) Math.round(product.getPrice() * (100.0 - product.getSale()) / 100.0);
+        } else {
+            this.salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
+        }
     }
 }
