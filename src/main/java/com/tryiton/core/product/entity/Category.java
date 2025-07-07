@@ -30,11 +30,11 @@ public class Category {
     private String categoryName;
 
     // 부모 카테고리 (자신)
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_category_id")
     private Category parentCategory;
 
-    // 자식 카테고리 목록 (자신)
+    // 자식 카테고리 목록 (자신)1
     @OneToMany(mappedBy = "parentCategory")
     private List<Category> children = new ArrayList<>();
 
