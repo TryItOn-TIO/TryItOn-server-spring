@@ -220,7 +220,7 @@ public class AuthService {
             if (dto.getAvatarBaseImageUrl() != null && !dto.getAvatarBaseImageUrl().isBlank()) {
                 AvatarCreateRequest avatarRequest = new AvatarCreateRequest(
                     savedMember.getId().toString(),    // userId
-                    dto.getAvatarBaseImageUrl()     // tryOnImgUrl
+                    dto.getUserBaseImageUrl()     // tryOnImgUrl
                 );
                 avatarService.create(savedMember, avatarRequest);
             }
