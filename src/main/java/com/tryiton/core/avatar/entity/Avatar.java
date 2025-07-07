@@ -46,6 +46,7 @@ public class Avatar extends BaseTimeEntity {
 //    @Column(name = "lower_mask_img", nullable = false)
 //    private String lowerMaskImg;
 
+    @Setter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private Member member;
@@ -69,7 +70,9 @@ public class Avatar extends BaseTimeEntity {
     // 일 대 다 매핑
     public void setMappingUser(Member member) {
         this.member = member;
-        member.getAvatars().add(this);
+        // lazy loading 문제를 피하기 위해 컬렉션 접근을 하지 않음
+        // JPA가 자동으로 양방향 관계를 관리하도록 함
+//        member.getAvatars().add(this);
     }
 
     public void addItem(AvatarItem item) {

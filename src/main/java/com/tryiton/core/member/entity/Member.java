@@ -110,4 +110,10 @@ public class Member {
         }
     }
 
+    // Avatar 추가를 위한 보조 메서드
+    public void addAvatar(Avatar avatar) {
+        this.avatars.add(avatar);
+        avatar.setMember(this);
+    }
+
 }

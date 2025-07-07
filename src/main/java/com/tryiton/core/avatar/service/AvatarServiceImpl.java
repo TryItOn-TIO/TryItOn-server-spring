@@ -58,17 +58,20 @@ public class AvatarServiceImpl implements AvatarService {
     /**
      * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다.
      */
+    @Transactional
     public AvatarCreateResponse create(Member member, AvatarCreateRequest avatarCreateRequest) {
         // 1. FastAPI 서버로 보낼 요청 DTO 생성
         String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
 
         // 2. 응답받은 이미지 주소들을 포함하여 Avatar 엔티티 생성
         Avatar newAvatar = Avatar.builder()
+            .member(member)  // 빌더에서 직접 설정
             .avatarImg(originalImgUrl)
             .build();
 
         // 3. 연관관계 매핑
-        newAvatar.setMappingUser(member);
+//        연관관계는 위의 Avatar 빌더에서 설정하도록 함
+//        newAvatar.setMappingUser(member);
 
         // 4. DB에 저장
         Avatar savedAvatar = avatarRepository.save(newAvatar);
