@@ -110,7 +110,7 @@ public class Product extends BaseTimeEntity {
      * @return 상의이면 true, 아니면 false
      */
     public boolean isUpperGarment() {
-        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 3;
+        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 1;
     }
 
     /**
@@ -118,7 +118,7 @@ public class Product extends BaseTimeEntity {
      * @return 하의이면 true, 아니면 false
      */
     public boolean isLowerGarment() {
-        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 1;
+        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 3;
     }
 
     @Override
