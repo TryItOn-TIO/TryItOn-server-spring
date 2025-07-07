@@ -154,7 +154,7 @@ public class EmailAuthService {
         if (dto.getAvatarBaseImageUrl() != null && !dto.getAvatarBaseImageUrl().isBlank()) {
             AvatarCreateRequest avatarRequest = new AvatarCreateRequest(
                 saved.getId().toString(), // userId
-                dto.getAvatarBaseImageUrl()  // tryOnImgUrl
+                dto.getUserBaseImageUrl()  // tryOnImgUrl
             );
             avatarService.create(saved, avatarRequest);
         }

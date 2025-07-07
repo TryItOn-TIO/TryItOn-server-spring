@@ -4,6 +4,7 @@ import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -44,6 +45,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id AND p.deleted = false")
     Optional<Product> findByIdWithCategory(@Param("id") Long id);
+
+    // 카테고리별 최신 8개 상품 조회 (비로그인 사용자용)
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByCreatedAtDesc(Category category);
+
+    // 카테고리별 인기순 8개 상품 조회 (찜 개수 기준)
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(Category category);
 
     // 같은 하위 카테고리의 유사한 상품 조회 (기준 상품 제외, 랜덤 정렬)
     @Query(value = "SELECT * FROM product p WHERE p.category_id = :categoryId AND p.product_id != :excludeProductId AND p.deleted = false ORDER BY RAND() LIMIT :limit", nativeQuery = true)
