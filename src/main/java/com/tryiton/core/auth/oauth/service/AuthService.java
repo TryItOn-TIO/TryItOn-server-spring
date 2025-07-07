@@ -179,7 +179,7 @@ public class AuthService {
             Long userId = savedMember.getId();
 
             // ★ 2. S3 이미지 처리 로직을 먼저 호출하여 새로운 URL을 확보합니다.
-            String newProfileImageUrl = handleProfileImage(googleInfo.getPictureUrl(), userId);
+            String newProfileImageUrl = handleProfileImage(dto.getUserBaseImageUrl(), userId);  //Todo: 이부분 temp -> User로 옮겨야함 (S3)
 
             // ★ 3. OauthCredentials와 Profile 엔티티를 생성합니다.
             OauthCredentials oauthCredentials = OauthCredentials.builder()

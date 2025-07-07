@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,16 @@ public class AvatarServiceImpl implements AvatarService {
     private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucketName;
+
+    @Value("${cloud.aws.region.static}")
+    private String region;
+
+    private String buildS3Url(String key) {
+        return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+    }
 
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
     @Override
@@ -139,7 +150,7 @@ public class AvatarServiceImpl implements AvatarService {
         for (Product top : tops) {
             // 3-1. 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
             String topAppliedImgUrl = performStatelessTryOn(originalAvatarImg,
-                baseAvatar.getMaskUrl(top), baseAvatar.getPoseUrl(), top, member);
+                buildS3Url(baseAvatar.getMaskUrl(top)), buildS3Url(baseAvatar.getPoseUrl()), top, member);
 
             // 상의 피팅에 실패하면 다음 상의로 넘어갑니다.
             if (topAppliedImgUrl == null) {
@@ -149,8 +160,8 @@ public class AvatarServiceImpl implements AvatarService {
             // 4. 하의 목록을 순회합니다.
             for (Product bottom : bottoms) {
                 // 4-1. 상의가 적용된 이미지에 하의를 입혀 최종 결과 이미지를 생성합니다.
-                String finalImgUrl = performStatelessTryOn(topAppliedImgUrl, baseAvatar.getMaskUrl(bottom),
-                    baseAvatar.getPoseUrl(), bottom, member);
+                String finalImgUrl = performStatelessTryOn(topAppliedImgUrl, buildS3Url(baseAvatar.getMaskUrl(bottom)),
+                    buildS3Url(baseAvatar.getPoseUrl()), bottom, member);
 
                 // 최종 피팅에 성공한 경우에만 결과 리스트에 추가합니다.
                 if (finalImgUrl != null) {
@@ -193,8 +204,8 @@ public class AvatarServiceImpl implements AvatarService {
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
             avatar.getAvatarImg(),
             newGarment.getImg2(), // 상품의 착용샷 이미지
-            avatar.getMaskUrl(newGarment),
-            avatar.getPoseUrl(),
+            buildS3Url(avatar.getMaskUrl(newGarment)),
+            buildS3Url(avatar.getPoseUrl()),
             member.getId()
         );
 
