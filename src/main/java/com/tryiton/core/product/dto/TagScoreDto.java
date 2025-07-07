@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@AllArgsConstructor // Native Query 매핑을 위한 생성자
+@AllArgsConstructor // Native Query 매핑을 위한 생성자아
 public class TagScoreDto {
     private Long tagId;
     private Double score;
