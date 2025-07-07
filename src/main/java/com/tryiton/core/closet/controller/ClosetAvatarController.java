@@ -37,12 +37,13 @@ public class ClosetAvatarController {
 
     // 아바타 착장 저장
     @PostMapping
-    public ResponseEntity<Void> saveClosetAvatar(
+    public ResponseEntity<Boolean> saveClosetAvatar(
         @AuthenticationPrincipal CustomUserDetails userDetails,
         @RequestBody ClosetAvatarSaveRequestDto requestDto) {
         Member member = userDetails.getUser();
         closetAvatarService.saveClosetAvatar(member, requestDto);
-        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201 Created
+        return ResponseEntity.ok(true);
+//        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201 Created
     }
 
     // 착장 삭제
