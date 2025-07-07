@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestControllerAdvice
@@ -38,7 +39,7 @@ public class GlobalExceptionHandler {
         log.error("Unhandled Exception: ", e);
         Map<String, Object> body = Map.of(
             "status", HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "message", "서버 내부 오류가 발생했습니다."
+            "message", e.getMessage()
         );
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
