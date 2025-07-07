@@ -51,4 +51,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 카테고리별 인기순 8개 상품 조회 (찜 개수 기준)
     List<Product> findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(Category category);
+
+    // 같은 하위 카테고리의 유사한 상품 조회 (기준 상품 제외, 랜덤 정렬)
+    @Query(value = "SELECT * FROM product p WHERE p.category_id = :categoryId AND p.product_id != :excludeProductId AND p.deleted = false ORDER BY RAND() LIMIT :limit", nativeQuery = true)
+    List<Product> findSimilarProductsByCategory(@Param("categoryId") Long categoryId, @Param("excludeProductId") Long excludeProductId, @Param("limit") int limit);
 }

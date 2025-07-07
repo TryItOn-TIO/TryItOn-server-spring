@@ -76,7 +76,7 @@ public class ProductService {
 
     public List<ProductResponseDto> getTopRankedProducts(Long userId) {
         Set<Long> likedProductIds = new HashSet<>();
-        
+
         // 비로그인 사용자인 경우 빈 Set 사용
         if (userId != null) {
             likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
@@ -95,7 +95,7 @@ public class ProductService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Set<Long> likedProductIds = new HashSet<>();
-        
+
         // 비로그인 사용자인 경우 빈 Set 사용
         if (userId != null) {
             likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
@@ -136,19 +136,19 @@ public class ProductService {
     // 비로그인 사용자용 메인 페이지 상품 조회
     public MainProductGuestResponse getMainPageProductsForGuest() {
         List<CategoryProductGroup> categoryGroups = new ArrayList<>();
-        
+
         // 모든 카테고리 조회
         List<Category> categories = categoryRepository.findAll();
-        
+
         for (Category category : categories) {
             // 각 카테고리별로 8개씩 상품 조회 (인기순)
             List<Product> products = productRepository
                 .findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(category);
-            
+
             List<ProductSummary> productSummaries = products.stream()
                 .map(this::convertToProductSummary)
                 .collect(Collectors.toList());
-            
+
             if (!productSummaries.isEmpty()) {
                 categoryGroups.add(new CategoryProductGroup(
                     category.getId(),
@@ -157,10 +157,10 @@ public class ProductService {
                 ));
             }
         }
-        
+
         return MainProductGuestResponse.success(categoryGroups);
     }
-    
+
     private ProductSummary convertToProductSummary(Product product) {
         // 할인된 가격 계산
         int salePrice;
@@ -169,7 +169,7 @@ public class ProductService {
         } else {
             salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
         }
-        
+
         return new ProductSummary(
             product.getId(),
             product.getProductName(),
@@ -181,5 +181,27 @@ public class ProductService {
             product.getCategory().getCategoryName(),
             product.getWishlistCount()
         );
+    }
+
+    // 유사한 상품 목록 조회 (같은 하위 카테고리의 상품 5개 랜덤 반환)
+    @Transactional(readOnly = true)
+    public List<ProductResponseDto> getSimilarProducts(Long userId, Long productId) {
+        // 기준 상품 조회
+        Product baseProduct = productRepository.findByIdWithCategory(productId)
+            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
+
+        // 사용자가 찜한 상품 목록 조회
+        Set<Long> likedProductIds = new HashSet<>(
+            wishlistRepository.findProductIdsByUserId(userId));
+
+        // 같은 하위 카테고리의 상품들을 랜덤으로 조회 (기준 상품 제외, 최대 5개)
+        List<Product> similarProducts = productRepository.findSimilarProductsByCategory(
+            baseProduct.getCategory().getId(), productId, 5);
+
+        return similarProducts.stream()
+            .map(product -> new ProductResponseDto(product,
+                likedProductIds.contains(product.getId())))
+            .collect(Collectors.toList());
     }
 }
