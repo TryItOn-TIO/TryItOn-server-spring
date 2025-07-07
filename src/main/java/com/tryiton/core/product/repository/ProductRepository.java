@@ -40,4 +40,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 사용자가 이미 구매한 상품 ID 목록 조회
     @Query(value = "SELECT DISTINCT p.product_id FROM orders o JOIN order_item oi ON o.order_id = oi.order_id JOIN product_variant pv ON oi.variant_id = pv.variant_id JOIN product p ON pv.product_id = p.product_id WHERE o.user_id = :userId", nativeQuery = true)
     List<Long> findPurchasedProductIdsByUserId(@Param("userId") Long userId);
+
+    // 카테고리별 최신 8개 상품 조회 (비로그인 사용자용)
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByCreatedAtDesc(Category category);
+    
+    // 카테고리별 인기순 8개 상품 조회 (찜 개수 기준)
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(Category category);
 }
