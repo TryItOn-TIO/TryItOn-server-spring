@@ -44,4 +44,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id AND p.deleted = false")
     Optional<Product> findByIdWithCategory(@Param("id") Long id);
+
+    // 같은 하위 카테고리의 유사한 상품 조회 (기준 상품 제외, 랜덤 정렬)
+    @Query(value = "SELECT * FROM product p WHERE p.category_id = :categoryId AND p.product_id != :excludeProductId AND p.deleted = false ORDER BY RAND() LIMIT :limit", nativeQuery = true)
+    List<Product> findSimilarProductsByCategory(@Param("categoryId") Long categoryId, @Param("excludeProductId") Long excludeProductId, @Param("limit") int limit);
 }
