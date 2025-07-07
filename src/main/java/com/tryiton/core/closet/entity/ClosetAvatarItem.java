@@ -1,5 +1,6 @@
 package com.tryiton.core.closet.entity;
 
+import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.product.entity.Product;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,9 +14,10 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Getter
+@Getter @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ClosetAvatarItem {
 
@@ -52,4 +54,5 @@ public class ClosetAvatarItem {
     public int hashCode() {
         return id != null ? id.hashCode() : 0;
     }
+
 }

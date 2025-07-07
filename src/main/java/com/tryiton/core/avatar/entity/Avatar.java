@@ -1,5 +1,6 @@
 package com.tryiton.core.avatar.entity;
 
+import com.tryiton.core.closet.entity.ClosetAvatarItem;
 import com.tryiton.core.common.BaseTimeEntity;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
@@ -55,11 +56,6 @@ public class Avatar extends BaseTimeEntity {
 
     public void setMappingUser(Member member) {
         this.member = member;
-    }
-
-    public void addItem(AvatarItem item) {
-        items.add(item);
-        item.setAvatar(this);
     }
 
     public void update(String avatarImg) {
