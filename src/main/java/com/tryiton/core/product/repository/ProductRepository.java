@@ -44,4 +44,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id AND p.deleted = false")
     Optional<Product> findByIdWithCategory(@Param("id") Long id);
+
+    // 카테고리별 최신 8개 상품 조회 (비로그인 사용자용)
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByCreatedAtDesc(Category category);
+
+    // 카테고리별 인기순 8개 상품 조회 (찜 개수 기준)
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(Category category);
 }

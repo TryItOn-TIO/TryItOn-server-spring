@@ -29,6 +29,7 @@ public class ProductController {
     public ResponseEntity<MainProductResponse> getMainProducts(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails
     ) {
+        // 인증된 사용자만 접근 가능 (기존 로직 유지)
         Long userId = customUserDetails.getUser().getId();
 
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
@@ -50,13 +51,13 @@ public class ProductController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
-        Long userId = customUserDetails.getUser().getId();
+        // 비로그인 사용자도 접근 가능하도록 수정
+        Long userId = (customUserDetails != null) ? customUserDetails.getUser().getId() : null;
 
         Category category = categoryService.findByIdWithChildren(categoryId);
         Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
             page,
             size);
-        // AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
 
         return ResponseEntity.ok(new CategoryProductResponse(products));
     }

@@ -17,13 +17,14 @@ public class ProductDetailController {
 
     private final ProductService productService;
 
-    // 상품 상세 조회
+    // 상품 상세 조회 (로그인/비로그인 모두 지원)
     @GetMapping("/{productId}")
     public ProductDetailResponseDto getProductDetail(
         @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @PathVariable Long productId) {
 
-        Long userId = customUserDetails.getUser().getId();
+        // 비로그인 사용자인 경우 userId를 null로 처리
+        Long userId = (customUserDetails != null) ? customUserDetails.getUser().getId() : null;
         return productService.getProductDetail(userId, productId);
     }
 }

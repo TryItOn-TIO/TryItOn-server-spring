@@ -1,12 +1,16 @@
 package com.tryiton.core.product.service;
 
 import com.tryiton.core.common.exception.BusinessException;
+import com.tryiton.core.product.dto.CategoryProductGroup;
+import com.tryiton.core.product.dto.MainProductGuestResponse;
 import com.tryiton.core.product.dto.ProductDetailResponseDto;
 import com.tryiton.core.product.dto.ProductResponseDto;
+import com.tryiton.core.product.dto.ProductSummary;
 import com.tryiton.core.product.dto.ProductVariantDto;
 import com.tryiton.core.product.dto.TagScoreDto;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
+import com.tryiton.core.product.repository.CategoryRepository;
 import com.tryiton.core.product.repository.ProductRepository;
 import java.util.List;
 import com.tryiton.core.product.repository.TagRepository;
@@ -32,6 +36,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final TagRepository tagRepository;
     private final WishlistRepository wishlistRepository;
+    private final CategoryRepository categoryRepository;
 
     public List<ProductResponseDto> getPersonalizedRecommendations(Long userId) {
         List<TagScoreDto> favoriteTags = tagRepository.findUserFavoriteTags(userId);
@@ -70,8 +75,12 @@ public class ProductService {
     }
 
     public List<ProductResponseDto> getTopRankedProducts(Long userId) {
-        Set<Long> likedProductIds = new HashSet<>(
-            wishlistRepository.findProductIdsByUserId(userId));
+        Set<Long> likedProductIds = new HashSet<>();
+        
+        // 비로그인 사용자인 경우 빈 Set 사용
+        if (userId != null) {
+            likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
+        }
 
         return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc()
             .stream()
@@ -85,8 +94,12 @@ public class ProductService {
         // 🔧 카테고리 계층 구조를 고려한 상품 조회로 변경
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Set<Long> likedProductIds = new HashSet<>(
-            wishlistRepository.findProductIdsByUserId(userId));
+        Set<Long> likedProductIds = new HashSet<>();
+        
+        // 비로그인 사용자인 경우 빈 Set 사용
+        if (userId != null) {
+            likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
+        }
 
         return productRepository.findByCategoryHierarchyAndDeletedFalse(category.getId(), pageable)
             .map(product -> new ProductResponseDto(product,
@@ -100,19 +113,73 @@ public class ProductService {
         }
     }
 
-    // 상품 상세 조회
+    // 상품 상세 조회 (로그인/비로그인 모두 지원)
     @Transactional(readOnly = true)
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
         Product product = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                 "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
-        boolean liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
+        // 비로그인 사용자인 경우 찜 상태는 false로 처리
+        boolean liked = false;
+        if (userId != null) {
+            liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
+        }
 
         List<ProductVariantDto> variantDto = product.getVariants().stream()
             .map(ProductVariantDto::new)
             .toList();
 
         return new ProductDetailResponseDto(product, variantDto, liked);
+    }
+
+    // 비로그인 사용자용 메인 페이지 상품 조회
+    public MainProductGuestResponse getMainPageProductsForGuest() {
+        List<CategoryProductGroup> categoryGroups = new ArrayList<>();
+        
+        // 모든 카테고리 조회
+        List<Category> categories = categoryRepository.findAll();
+        
+        for (Category category : categories) {
+            // 각 카테고리별로 8개씩 상품 조회 (인기순)
+            List<Product> products = productRepository
+                .findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(category);
+            
+            List<ProductSummary> productSummaries = products.stream()
+                .map(this::convertToProductSummary)
+                .collect(Collectors.toList());
+            
+            if (!productSummaries.isEmpty()) {
+                categoryGroups.add(new CategoryProductGroup(
+                    category.getId(),
+                    category.getCategoryName(),
+                    productSummaries
+                ));
+            }
+        }
+        
+        return MainProductGuestResponse.success(categoryGroups);
+    }
+    
+    private ProductSummary convertToProductSummary(Product product) {
+        // 할인된 가격 계산
+        int salePrice;
+        if (product.getSale() > 0) {
+            salePrice = (int) Math.round(product.getPrice() * (100.0 - product.getSale()) / 100.0);
+        } else {
+            salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
+        }
+        
+        return new ProductSummary(
+            product.getId(),
+            product.getProductName(),
+            product.getBrand(),
+            product.getPrice(),        // 정가
+            product.getSale(),         // 할인율
+            salePrice,                 // 할인된 가격
+            product.getImg1(),
+            product.getCategory().getCategoryName(),
+            product.getWishlistCount()
+        );
     }
 }
