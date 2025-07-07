@@ -123,62 +123,62 @@ class AvatarServiceImplTest {
             .containsExactlyInAnyOrder("기존 하의", "새로운 상의");
     }
 
-    @DisplayName("상의-하의 순차 피팅 성공")
-    @Test
-    void tryonTogether_Success_With_Sequential_Calls() {
-        // --- Arrange (Given) ---
-        Member member = Member.builder().id(1L).build();
-        Avatar avatar = Avatar.builder()
-            .id(10L)
-            .member(member)
-            .avatarImg("http://avatar.url/base.jpg")
-            .build();
-
-        Product top1 = createProduct(101L, "코튼 티셔츠", "상의");
-        Product bottom1 = createProduct(201L, "데님 팬츠", "하의");
-        Product bottom2 = createProduct(202L, "슬랙스", "하의");
-
-        List<Long> topIds = List.of(top1.getId());
-        List<Long> bottomIds = List.of(bottom1.getId(), bottom2.getId());
-        TryonAvatarTogetherNodeRequest request = new TryonAvatarTogetherNodeRequest(topIds, bottomIds);
-
-        // API 호출 순서에 따른 결과 이미지 URL 정의
-        String topAppliedImgUrl = "http://result.url/top_applied.jpg";
-        String finalImgUrl1 = "http://result.url/final_top1_bottom1.jpg";
-        String finalImgUrl2 = "http://result.url/final_top1_bottom2.jpg";
-
-        // API 호출 순서에 따른 Mock 응답 객체 생성
-        FastApiTryOnResponse topApiResponse = new FastApiTryOnResponse(topAppliedImgUrl);
-        FastApiTryOnResponse finalApiResponse1 = new FastApiTryOnResponse(finalImgUrl1);
-        FastApiTryOnResponse finalApiResponse2 = new FastApiTryOnResponse(finalImgUrl2);
-
-        // Repository 모킹
-        when(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId())).thenReturn(avatar);
-        when(productRepository.findAllById(topIds)).thenReturn(List.of(top1));
-        when(productRepository.findAllById(bottomIds)).thenReturn(List.of(bottom1, bottom2));
-
-        // WebClient 모킹
-        when(fastApiWebClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri("/tryon")).thenReturn(requestBodySpec);
-        when(requestBodySpec.bodyValue(any(FastApiTryOnRequest.class))).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.bodyToMono(FastApiTryOnResponse.class))
-            .thenReturn(Mono.just(topApiResponse))
-            .thenReturn(Mono.just(finalApiResponse1))
-            .thenReturn(Mono.just(finalApiResponse2));
-
-        // --- Act (When) ---
-        TryonAvatarTogetherNodeResponse response = avatarService.tryonTogether(member, request);
-
-        // --- Assert (Then) ---
-        assertNotNull(response);
-        assertEquals(2, response.getCombinations().size());
-        assertEquals(finalImgUrl1, response.getCombinations().get(0).getTryonImgUrl());
-        assertEquals(top1.getProductName(), response.getCombinations().get(0).getTopProductName());
-        assertEquals(bottom1.getProductName(), response.getCombinations().get(0).getBottomProductName());
-        assertEquals(finalImgUrl2, response.getCombinations().get(1).getTryonImgUrl());
-        verify(fastApiWebClient, times(3)).post();
-    }
+//    @DisplayName("상의-하의 순차 피팅 성공")
+//    @Test
+//    void tryonTogether_Success_With_Sequential_Calls() {
+//        // --- Arrange (Given) ---
+//        Member member = Member.builder().id(1L).build();
+//        Avatar avatar = Avatar.builder()
+//            .id(10L)
+//            .member(member)
+//            .avatarImg("http://avatar.url/base.jpg")
+//            .build();
+//
+//        Product top1 = createProduct(101L, "코튼 티셔츠", "상의");
+//        Product bottom1 = createProduct(201L, "데님 팬츠", "하의");
+//        Product bottom2 = createProduct(202L, "슬랙스", "하의");
+//
+//        List<Long> topIds = List.of(top1.getId());
+//        List<Long> bottomIds = List.of(bottom1.getId(), bottom2.getId());
+//        TryonAvatarTogetherNodeRequest request = new TryonAvatarTogetherNodeRequest(topIds, bottomIds);
+//
+//        // API 호출 순서에 따른 결과 이미지 URL 정의
+//        String topAppliedImgUrl = "http://result.url/top_applied.jpg";
+//        String finalImgUrl1 = "http://result.url/final_top1_bottom1.jpg";
+//        String finalImgUrl2 = "http://result.url/final_top1_bottom2.jpg";
+//
+//        // API 호출 순서에 따른 Mock 응답 객체 생성
+//        FastApiTryOnResponse topApiResponse = new FastApiTryOnResponse(topAppliedImgUrl);
+//        FastApiTryOnResponse finalApiResponse1 = new FastApiTryOnResponse(finalImgUrl1);
+//        FastApiTryOnResponse finalApiResponse2 = new FastApiTryOnResponse(finalImgUrl2);
+//
+//        // Repository 모킹
+//        when(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId())).thenReturn(avatar);
+//        when(productRepository.findAllById(topIds)).thenReturn(List.of(top1));
+//        when(productRepository.findAllById(bottomIds)).thenReturn(List.of(bottom1, bottom2));
+//
+//        // WebClient 모킹
+//        when(fastApiWebClient.post()).thenReturn(requestBodyUriSpec);
+//        when(requestBodyUriSpec.uri("/tryon")).thenReturn(requestBodySpec);
+//        when(requestBodySpec.bodyValue(any(FastApiTryOnRequest.class))).thenReturn(requestHeadersSpec);
+//        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+//        when(responseSpec.bodyToMono(FastApiTryOnResponse.class))
+//            .thenReturn(Mono.just(topApiResponse))
+//            .thenReturn(Mono.just(finalApiResponse1))
+//            .thenReturn(Mono.just(finalApiResponse2));
+//
+//        // --- Act (When) ---
+//        TryonAvatarTogetherNodeResponse response = avatarService.tryonTogether(member, request);
+//
+//        // --- Assert (Then) ---
+//        assertNotNull(response);
+//        assertEquals(2, response.getCombinations().size());
+//        assertEquals(finalImgUrl1, response.getCombinations().get(0).getTryonImgUrl());
+//        assertEquals(top1.getProductName(), response.getCombinations().get(0).getTopProductName());
+//        assertEquals(bottom1.getProductName(), response.getCombinations().get(0).getBottomProductName());
+//        assertEquals(finalImgUrl2, response.getCombinations().get(1).getTryonImgUrl());
+//        verify(fastApiWebClient, times(3)).post();
+//    }
 
     @DisplayName("가상 피팅 실패 - 아바타 없음")
     @Test

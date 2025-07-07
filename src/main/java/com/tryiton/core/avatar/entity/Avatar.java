@@ -1,6 +1,7 @@
 package com.tryiton.core.avatar.entity;
 
 import com.tryiton.core.common.BaseTimeEntity;
+import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.product.entity.Product;
 import jakarta.persistence.CascadeType;
@@ -22,6 +23,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.parameters.P;
 
 @Entity
 @Getter
@@ -106,4 +109,42 @@ public class Avatar extends BaseTimeEntity {
             isUpper ? item.getProduct().isUpperGarment() : item.getProduct().isLowerGarment()
         );
     }
+
+    /**
+     * S3에 저장된 유저의 포즈 이미지 키(경로)를 반환합니다.
+     * @return "users/{userId}/_pose.png" 형식의 S3 키
+     */
+    public String getPoseUrl() {
+        return getBaseKey() + "_pose.png";
+    }
+
+    /**
+     * S3에 저장된 유저의 마스크 이미지 키(경로)를 상품 종류(상의/하의)에 따라 반환합니다.
+     * todo: getMask, getPose 로직을 객체지향적으로 수정
+     * @param product 마스크를 찾을 대상 상품
+     * @return "_upper_mask.png" 또는 "_lower_mask.png"이 추가된 S3 키
+     */
+    public String getMaskUrl(Product product) {
+        String baseKey = getBaseKey();
+        if (product.isUpperGarment()) {
+            return baseKey + "_upper_mask.png";
+        }
+        if (product.isLowerGarment()) {
+            return baseKey + "_lower_mask.png";
+        }
+        throw new BusinessException(HttpStatus.NOT_FOUND, "옷의 종류를 찾지 못했습니다. (상의/하의)");
+    }
+
+    /**
+     * S3 키 생성을 위한 기본 경로를 생성합니다.
+     * todo: base key 실제 s3 주소랑 연결하기
+     * @return "users/{userId}/" 형식의 기본 경로
+     */
+    private String getBaseKey() {
+        if (this.member == null || this.member.getId() == null) {
+            throw new IllegalStateException("아바타에 유저 정보가 할당되지 않아 S3 키를 생성할 수 없습니다.");
+        }
+        return "users/" + this.member.getId() + "/";
+    }
+
 }
