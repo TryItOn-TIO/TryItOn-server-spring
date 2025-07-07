@@ -22,9 +22,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.parameters.P;
 
 @Entity
 @Getter
@@ -36,15 +34,6 @@ public class Avatar extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "avatar_id")
     private Long id;
-
-//    @Column(name = "pose_img", nullable = false)
-//    private String poseImg;
-//
-//    @Column(name = "upper_mask_img", nullable = false)
-//    private String upperMaskImg;
-//
-//    @Column(name = "lower_mask_img", nullable = false)
-//    private String lowerMaskImg;
 
     @Setter
     @ManyToOne(fetch = FetchType.LAZY)

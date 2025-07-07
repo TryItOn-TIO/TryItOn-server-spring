@@ -191,7 +191,7 @@ public class AvatarServiceImpl implements AvatarService {
         }
 
         // 2. 착용할 상품(의류)을 조회합니다.
-        Product newGarment = productRepository.findById(
+        Product newGarment = productRepository.findByIdWithCategory(
                 Long.parseLong(avatarTryOnRequest.getProductId()))
             .orElseThrow(() -> new IllegalArgumentException(
                 "상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));

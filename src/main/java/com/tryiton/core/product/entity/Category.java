@@ -30,7 +30,7 @@ public class Category {
     private String categoryName;
 
     // 부모 카테고리 (자신)
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "parent_category_id")
     private Category parentCategory;
 

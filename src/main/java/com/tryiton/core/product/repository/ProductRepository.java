@@ -3,6 +3,7 @@ package com.tryiton.core.product.repository;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -40,4 +41,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 사용자가 이미 구매한 상품 ID 목록 조회
     @Query(value = "SELECT DISTINCT p.product_id FROM orders o JOIN order_item oi ON o.order_id = oi.order_id JOIN product_variant pv ON oi.variant_id = pv.variant_id JOIN product p ON pv.product_id = p.product_id WHERE o.user_id = :userId", nativeQuery = true)
     List<Long> findPurchasedProductIdsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id AND p.deleted = false")
+    Optional<Product> findByIdWithCategory(@Param("id") Long id);
 }

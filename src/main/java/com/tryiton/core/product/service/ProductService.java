@@ -103,7 +103,7 @@ public class ProductService {
     // 상품 상세 조회
     @Transactional(readOnly = true)
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                 "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
