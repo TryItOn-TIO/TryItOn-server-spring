@@ -58,17 +58,20 @@ public class AvatarServiceImpl implements AvatarService {
     /**
      * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다.
      */
+    @Transactional
     public AvatarCreateResponse create(Member member, AvatarCreateRequest avatarCreateRequest) {
         // 1. FastAPI 서버로 보낼 요청 DTO 생성
         String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
 
         // 2. 응답받은 이미지 주소들을 포함하여 Avatar 엔티티 생성
         Avatar newAvatar = Avatar.builder()
+            .member(member)  // 빌더에서 직접 설정
             .avatarImg(originalImgUrl)
             .build();
 
         // 3. 연관관계 매핑
-        newAvatar.setMappingUser(member);
+//        연관관계는 위의 Avatar 빌더에서 설정하도록 함
+//        newAvatar.setMappingUser(member);
 
         // 4. DB에 저장
         Avatar savedAvatar = avatarRepository.save(newAvatar);
@@ -85,11 +88,12 @@ public class AvatarServiceImpl implements AvatarService {
      * @param member     요청 사용자 정보
      * @return 생성된 이미지 URL, 실패 시 null 반환
      */
-    private String performStatelessTryOn(String baseImgUrl, Product garment, Member member) {
+    private String performStatelessTryOn(String baseImgUrl, String maskUrl, String poseUrl, Product garment, Member member) {
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
             baseImgUrl,
             garment.getImg2(),
-            garment.getCategory().getCategoryName(), // 마스크 URL 대신 카테고리 이름을 사용
+            maskUrl,
+            poseUrl,
             member.getId()
         );
 
@@ -134,7 +138,8 @@ public class AvatarServiceImpl implements AvatarService {
         // 3. 상의 목록을 순회합니다.
         for (Product top : tops) {
             // 3-1. 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
-            String topAppliedImgUrl = performStatelessTryOn(originalAvatarImg, top, member);
+            String topAppliedImgUrl = performStatelessTryOn(originalAvatarImg,
+                baseAvatar.getMaskUrl(top), baseAvatar.getPoseUrl(), top, member);
 
             // 상의 피팅에 실패하면 다음 상의로 넘어갑니다.
             if (topAppliedImgUrl == null) {
@@ -144,7 +149,8 @@ public class AvatarServiceImpl implements AvatarService {
             // 4. 하의 목록을 순회합니다.
             for (Product bottom : bottoms) {
                 // 4-1. 상의가 적용된 이미지에 하의를 입혀 최종 결과 이미지를 생성합니다.
-                String finalImgUrl = performStatelessTryOn(topAppliedImgUrl, bottom, member);
+                String finalImgUrl = performStatelessTryOn(topAppliedImgUrl, baseAvatar.getMaskUrl(bottom),
+                    baseAvatar.getPoseUrl(), bottom, member);
 
                 // 최종 피팅에 성공한 경우에만 결과 리스트에 추가합니다.
                 if (finalImgUrl != null) {
@@ -187,7 +193,8 @@ public class AvatarServiceImpl implements AvatarService {
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
             avatar.getAvatarImg(),
             newGarment.getImg2(), // 상품의 착용샷 이미지
-            newGarment.getCategory().getCategoryName(), // 마스크 URL 대신 카테고리 이름을 사용
+            avatar.getMaskUrl(newGarment),
+            avatar.getPoseUrl(),
             member.getId()
         );
 

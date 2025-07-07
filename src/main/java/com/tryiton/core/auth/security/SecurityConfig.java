@@ -1,5 +1,6 @@
 package com.tryiton.core.auth.security;
 
+import com.tryiton.core.auth.jwt.JwtAuthenticationEntryPoint;
 import com.tryiton.core.auth.jwt.JwtUtil;
 import com.tryiton.core.auth.jwt.JwtAuthFilter;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
@@ -23,10 +24,13 @@ public class SecurityConfig {
 
     private  final JwtUtil jwtUtil;
     private final CustomUserDetailService customUserDetailService;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    public SecurityConfig(JwtUtil jwtUtil, CustomUserDetailService customUserDetailService) {
+    public SecurityConfig(JwtUtil jwtUtil, CustomUserDetailService customUserDetailService, 
+                         JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
         this.jwtUtil = jwtUtil;
         this.customUserDetailService = customUserDetailService;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     }
 
     @Bean
@@ -72,6 +76,9 @@ public class SecurityConfig {
         http.httpBasic(basic -> basic.disable());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        // JWT 인증 실패 처리
+        http.exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint));
+
         // 인가 정책
         http.authorizeHttpRequests(auth -> auth
             .requestMatchers(EndpointRequest.to("health")).permitAll() // Health Check는 모두에게 허용
@@ -81,7 +88,7 @@ public class SecurityConfig {
         );
 
         // JWT 인증 필터
-        JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtUtil, customUserDetailService);
+        JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtUtil, customUserDetailService, jwtAuthenticationEntryPoint);
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

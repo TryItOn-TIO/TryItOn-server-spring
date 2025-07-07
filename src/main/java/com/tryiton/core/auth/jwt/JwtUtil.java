@@ -1,5 +1,7 @@
 package com.tryiton.core.auth.jwt;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -31,8 +33,15 @@ public class JwtUtil {
     }
 
     public boolean isExpired(String token) {
-
-        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getExpiration().before(new Date());
+        try {
+            return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getExpiration().before(new Date());
+        } catch (ExpiredJwtException e) {
+            // 만료된 토큰인 경우 예외를 다시 던져서 필터에서 처리하도록 함
+            throw e;
+        } catch (JwtException e) {
+            // 기타 JWT 관련 예외도 다시 던져서 필터에서 처리하도록 함
+            throw e;
+        }
     }
 
     public String createJwt(String email, String role, Long expiredMs) {
