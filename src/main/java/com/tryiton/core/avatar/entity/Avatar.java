@@ -1,5 +1,6 @@
 package com.tryiton.core.avatar.entity;
 
+import com.tryiton.core.closet.entity.ClosetAvatarItem;
 import com.tryiton.core.common.BaseTimeEntity;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
@@ -22,9 +23,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.BatchSize;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.parameters.P;
 
 @Entity
 @Getter
@@ -73,11 +72,6 @@ public class Avatar extends BaseTimeEntity {
         // lazy loading 문제를 피하기 위해 컬렉션 접근을 하지 않음
         // JPA가 자동으로 양방향 관계를 관리하도록 함
 //        member.getAvatars().add(this);
-    }
-
-    public void addItem(AvatarItem item) {
-        items.add(item);
-        item.setAvatar(this);
     }
 
     public void update(String avatarImg) {

@@ -1,5 +1,7 @@
 package com.tryiton.core.closet.service;
 
+import com.tryiton.core.avatar.entity.Avatar;
+import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.closet.dto.ClosetAvatarItemRequestDto;
 import com.tryiton.core.closet.dto.ClosetAvatarResponseDto;
 import com.tryiton.core.closet.dto.ClosetAvatarSaveRequestDto;
@@ -23,6 +25,7 @@ public class ClosetAvatarService {
 
     private final ClosetAvatarRepository closetAvatarRepository;
     private final ProductRepository productRepository;
+    private final AvatarRepository avatarRepository;
 
     // 옷장 전체 조회
     @Transactional(readOnly = true)
@@ -68,9 +71,11 @@ public class ClosetAvatarService {
 
     // 새로운 ClosetAvatar 생성
     private ClosetAvatar createClosetAvatar(Member user, ClosetAvatarSaveRequestDto requestDto) {
-        ClosetAvatar avatar = ClosetAvatar.builder()
+        Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId());
+
+        ClosetAvatar closetAvatar = ClosetAvatar.builder()
             .user(user)
-            .avatarImage(requestDto.getAvatarImage())
+            .avatarImage(avatar.getAvatarImg())
             .build();
 
         for (ClosetAvatarItemRequestDto itemDto : requestDto.getItems()) {
@@ -81,11 +86,11 @@ public class ClosetAvatarService {
             ClosetAvatarItem item = ClosetAvatarItem.builder()
                 .product(product)
                 .build();
-            
-            avatar.addItem(item);
+
+            closetAvatar.addItem(item);
         }
 
-        return avatar;
+        return closetAvatar;
     }
 
     // 중복 아바타 검증
