@@ -79,7 +79,7 @@ public class ClosetAvatarService {
             .build();
 
         for (ClosetAvatarItemRequestDto itemDto : requestDto.getItems()) {
-            Product product = productRepository.findById(itemDto.getProductId())
+            Product product = productRepository.findByIdWithCategory(itemDto.getProductId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, 
                     "상품을 찾을 수 없습니다. ID: " + itemDto.getProductId()));
             

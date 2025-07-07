@@ -6,6 +6,6 @@ import lombok.Getter;
 @Getter
 public class ClosetAvatarSaveRequestDto {
 
-//    private String avatarImage;
+    private String avatarImage;
     private List<ClosetAvatarItemRequestDto> items;
 }
