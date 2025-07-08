@@ -151,17 +151,13 @@ public class EmailAuthService {
         cartRepository.save(cart);
 
         // 회원가입 시 첫 아바타를 생성하는 로직 추가
-        if (dto.getAvatarBaseImageUrl() != null && !dto.getAvatarBaseImageUrl().isBlank()) {
+        if (dto.getAvatarBaseImageUrl() != null && !dto.getUserBaseImageUrl().isBlank()) {
             AvatarCreateRequest avatarRequest = new AvatarCreateRequest(
                 saved.getId().toString(), // userId
                 dto.getUserBaseImageUrl()  // tryOnImgUrl
             );
-            avatarService.create(saved, avatarRequest);
+            avatarService.createAvatar(saved, avatarRequest);
         }
-
-        AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(Long.toString(
-            saved.getId()), dto.getUserBaseImageUrl());
-        avatarService.create(member, avatarCreateRequest);
 
         // 인증 정보 삭제
         emailVerificationRepository.delete(ev);

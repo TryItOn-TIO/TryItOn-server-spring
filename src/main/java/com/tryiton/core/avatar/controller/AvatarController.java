@@ -60,7 +60,7 @@ public class AvatarController {
         Member member = customUserDetails.getUser();
 
         // 서비스 레이어의 create 메서드 호출
-        AvatarCreateResponse response = avatarService.create(member, avatarCreateRequest);
+        AvatarCreateResponse response = avatarService.createAvatar(member, avatarCreateRequest);
 
         // 생성 성공 시 201 Created 상태 코드와 함께 결과 반환
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

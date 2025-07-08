@@ -73,7 +73,7 @@ class ClosetAvatarServiceTest {
     @DisplayName("착장 저장 성공")
     void saveClosetAvatar_Success() {
         // given
-        ClosetAvatarSaveRequestDto requestDto = createSaveRequest("avatar.jpg", 101L, 102L);
+        ClosetAvatarSaveRequestDto requestDto = createAvatarSaveRequest("avatar.jpg", 101L, 102L);
 
         given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
         given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(Collections.emptyList());
@@ -111,8 +111,8 @@ class ClosetAvatarServiceTest {
     @DisplayName("착장 저장 실패 - 중복된 착장")
     void saveClosetAvatar_Fail_DuplicateCombination() {
         // given
-        ClosetAvatarSaveRequestDto requestDto = createSaveRequest("new_avatar.jpg", 101L, 102L);
-        ClosetAvatar existingAvatar = createClosetAvatar(user, "old_avatar.jpg", product1, product2);
+        ClosetAvatarSaveRequestDto requestDto = createAvatarSaveRequest("new_avatar.jpg", 101L, 102L);
+        ClosetAvatar existingAvatar = createAvatarClosetAvatar(user, "old_avatar.jpg", product1, product2);
 
         given(closetAvatarRepository.countByUserId(user.getId())).willReturn(1L);
         given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(List.of(existingAvatar));
@@ -138,8 +138,8 @@ class ClosetAvatarServiceTest {
     @DisplayName("착장 목록 조회 성공")
     void getClosetAvatarByUser_Success() {
         // given
-        ClosetAvatar avatar1 = createClosetAvatar(user, "avatar1.jpg", product1);
-        ClosetAvatar avatar2 = createClosetAvatar(user, "avatar2.jpg", product2);
+        ClosetAvatar avatar1 = createAvatarClosetAvatar(user, "avatar1.jpg", product1);
+        ClosetAvatar avatar2 = createAvatarClosetAvatar(user, "avatar2.jpg", product2);
         given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(List.of(avatar1, avatar2));
 
         // when
@@ -186,11 +186,11 @@ class ClosetAvatarServiceTest {
 
     // --- Helper Methods ---
 
-    private ClosetAvatarSaveRequestDto createSaveRequest(String avatarImage, Long... productIds) {
+    private ClosetAvatarSaveRequestDto createAvatarSaveRequest(String avatarImage, Long... productIds) {
         ClosetAvatarSaveRequestDto requestDto = new ClosetAvatarSaveRequestDto();
 
         List<ClosetAvatarItemRequestDto> items = Arrays.stream(productIds) // 이 부분을 수정했습니다.
-            .map(this::createItemRequest)
+            .map(this::createAvatarItemRequest)
             .collect(Collectors.toList());
 
         // Setter가 없으므로 ReflectionTestUtils를 사용해 필드에 값을 주입합니다.
@@ -200,13 +200,13 @@ class ClosetAvatarServiceTest {
         return requestDto;
     }
 
-    private ClosetAvatarItemRequestDto createItemRequest(Long productId) {
+    private ClosetAvatarItemRequestDto createAvatarItemRequest(Long productId) {
         ClosetAvatarItemRequestDto itemDto = new ClosetAvatarItemRequestDto();
         org.springframework.test.util.ReflectionTestUtils.setField(itemDto, "productId", productId);
         return itemDto;
     }
 
-    private ClosetAvatar createClosetAvatar(Member user, String avatarImage, Product... products) {
+    private ClosetAvatar createAvatarClosetAvatar(Member user, String avatarImage, Product... products) {
         ClosetAvatar avatar = ClosetAvatar.builder()
             .user(user)
             .avatarImage(avatarImage)

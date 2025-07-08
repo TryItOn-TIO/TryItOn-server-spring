@@ -199,7 +199,7 @@ class AvatarServiceImplTest {
         verify(productRepository, never()).findAllById(any());
     }
 
-    private Product createProduct(Long id, String name, String categoryName) {
+    private Product createAvatarProduct(Long id, String name, String categoryName) {
         Category category = Category.builder().categoryName(categoryName).build();
         return Product.builder()
             .id(id)
