@@ -127,7 +127,12 @@ public class StoryService {
                 break;
         }
 
-        return mapToStoriesResponseDto(stories, user.getId());
+        if (user == null){
+            return mapToStoriesResponseDto(stories, null);
+        } else{
+            return mapToStoriesResponseDto(stories, user.getId());
+        }
+
     }
 
     /**
@@ -166,7 +171,11 @@ public class StoryService {
                 break;
         }
 
-        return mapToStoriesResponseDto(stories, user.getId());
+        if (user == null){
+            return mapToStoriesResponseDto(stories, null);
+        } else{
+            return mapToStoriesResponseDto(stories, user.getId());
+        }
     }
 
     /**
