@@ -217,16 +217,13 @@ public class AuthService {
             memberRepository.save(savedMember);
 
             // 회원가입 시 첫 아바타를 생성하는 로직 추가
-            if (dto.getAvatarBaseImageUrl() != null && !dto.getAvatarBaseImageUrl().isBlank()) {
+            if (dto.getAvatarBaseImageUrl() != null && !dto.getUserBaseImageUrl().isBlank()) {
                 AvatarCreateRequest avatarRequest = new AvatarCreateRequest(
                     savedMember.getId().toString(),    // userId
                     dto.getUserBaseImageUrl()     // tryOnImgUrl
                 );
-                avatarService.create(savedMember, avatarRequest);
+                avatarService.createAvatar(savedMember, avatarRequest);
             }
-
-            AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(Long.toString(userId), dto.getUserBaseImageUrl());
-            avatarService.create(member, avatarCreateRequest);
 
             String jwt = jwtUtil.createJwt(email, savedMember.getRole().name(), ONE_HOUR);
             return GoogleSignupResponseDto.from(savedMember, jwt);

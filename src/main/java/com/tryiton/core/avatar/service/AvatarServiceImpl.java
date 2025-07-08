@@ -4,10 +4,12 @@ import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
+import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
 import com.tryiton.core.avatar.dto.response.FastApiTryOnResponse;
+import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
@@ -70,24 +72,34 @@ public class AvatarServiceImpl implements AvatarService {
      * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다.
      */
     @Transactional
-    public AvatarCreateResponse create(Member member, AvatarCreateRequest avatarCreateRequest) {
+    public AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest) {
         // 1. FastAPI 서버로 보낼 요청 DTO 생성
         String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
+        InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(member.getId(), originalImgUrl);
 
-        // 2. 응답받은 이미지 주소들을 포함하여 Avatar 엔티티 생성
+        // 2. WebClient를 사용하여 FastAPI 서버의 /generate 엔드포인트에 POST 요청
+        InitialAvatarResponse fastApiResponse = fastApiWebClient.post()
+            .uri("/generate")
+            .bodyValue(fastApiRequest)
+            .retrieve()
+            .bodyToMono(InitialAvatarResponse.class)
+            .block(); // 비동기 결과를 동기적으로 기다림 (실제 프로덕션에서는 비동기 체인 고려)
+
+        // 3. FastAPI 응답 검증
+        if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null || fastApiResponse.getUpperMaskImgUrl() == null || fastApiResponse.getLowerMaskImgUrl() == null) {
+            throw new RuntimeException("FastAPI 서버로부터 유효한 이미지 주소를 받지 못했습니다.");
+        }
+
+        // 4. 응답받은 이미지 주소들을 포함하여 Avatar 엔티티 생성
         Avatar newAvatar = Avatar.builder()
-            .member(member)  // 빌더에서 직접 설정
+            .member(member)
             .avatarImg(originalImgUrl)
             .build();
 
-        // 3. 연관관계 매핑
-//        연관관계는 위의 Avatar 빌더에서 설정하도록 함
-//        newAvatar.setMappingUser(member);
-
-        // 4. DB에 저장
+        // 6. DB에 저장
         Avatar savedAvatar = avatarRepository.save(newAvatar);
 
-        // 5. 최종 결과를 클라이언트에게 보낼 응답 DTO로 변환하여 반환
+        // 7. 최종 결과를 클라이언트에게 보낼 응답 DTO로 변환하여 반환
         return AvatarCreateResponse.fromEntity(savedAvatar);
     }
 
