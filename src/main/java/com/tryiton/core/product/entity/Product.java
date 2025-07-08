@@ -110,7 +110,7 @@ public class Product extends BaseTimeEntity {
      * @return 상의이면 true, 아니면 false
      */
     public boolean isUpperGarment() {
-        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 1;
+        return this.category != null && this.category.getParentCategory() != null && (this.category.getParentCategory().getId() == 1 || this.category.getParentCategory().getId() == 2);
     }
 
     /**
