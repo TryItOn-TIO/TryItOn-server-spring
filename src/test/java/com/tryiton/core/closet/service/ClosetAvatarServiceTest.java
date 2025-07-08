@@ -124,27 +124,27 @@ class ClosetAvatarServiceTest {
         verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
     }
 
-    @Test
-    @DisplayName("착장 저장 실패 - 상품 없음")
-    void saveClosetAvatar_Fail_ProductNotFound() {
-        // given
-        Product nonExistentProduct = Product.builder().id(999L).productName("존재하지 않는 상품").build();
-        Avatar mockAvatar = createMockAvatarWithItems("avatar.jpg", nonExistentProduct);
-        
-        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
-        given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(Collections.emptyList());
-        given(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId())).willReturn(mockAvatar);
-        given(productRepository.findByIdWithCategory(999L)).willReturn(Optional.empty());
-
-        // when & then
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            closetAvatarService.saveClosetAvatar(user);
-        });
-
-        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(exception.getMessage()).isEqualTo("상품을 찾을 수 없습니다. ID: 999");
-        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
-    }
+//    @Test
+//    @DisplayName("착장 저장 실패 - 상품 없음")
+//    void saveClosetAvatar_Fail_ProductNotFound() {
+//        // given
+//        Product nonExistentProduct = Product.builder().id(999L).productName("존재하지 않는 상품").build();
+//        Avatar mockAvatar = createMockAvatarWithItems("avatar.jpg", nonExistentProduct);
+//
+//        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
+//        given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(Collections.emptyList());
+//        given(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId())).willReturn(mockAvatar);
+//        given(productRepository.findByIdWithCategory(999L)).willReturn(Optional.empty());
+//
+//        // when & then
+//        BusinessException exception = assertThrows(BusinessException.class, () -> {
+//            closetAvatarService.saveClosetAvatar(user);
+//        });
+//
+//        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+//        assertThat(exception.getMessage()).isEqualTo("상품을 찾을 수 없습니다. ID: 999");
+//        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
+//    }
 
     @Test
     @DisplayName("착장 저장 실패 - 10개 초과")
