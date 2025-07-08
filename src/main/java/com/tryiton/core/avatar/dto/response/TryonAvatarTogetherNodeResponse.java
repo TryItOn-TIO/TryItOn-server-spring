@@ -14,8 +14,10 @@ public class TryonAvatarTogetherNodeResponse {
     @Builder
     public static class TryonResult {
         private String tryonImgUrl;
+        private Long topProductId;
         private String topProductName;
         private String topCategoryName;
+        private Long bottomProductId;
         private String bottomProductName;
         private String bottomCategoryName;
     }

@@ -185,8 +185,10 @@ public class AvatarServiceImpl implements AvatarService {
                 if (finalImgUrl != null) {
                     TryonAvatarTogetherNodeResponse.TryonResult result = TryonAvatarTogetherNodeResponse.TryonResult.builder()
                         .tryonImgUrl(finalImgUrl)
+                        .topProductId(top.getId())
                         .topProductName(top.getProductName())
                         .topCategoryName(top.getCategory().getCategoryName())
+                        .bottomProductId(bottom.getId())
                         .bottomProductName(bottom.getProductName())
                         .bottomCategoryName(bottom.getCategory().getCategoryName())
                         .build();
