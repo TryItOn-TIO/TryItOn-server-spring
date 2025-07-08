@@ -2,6 +2,7 @@ package com.tryiton.core.story.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.common.enums.StorySort;
+import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.story.dto.StoriesResponseDto;
 import com.tryiton.core.story.dto.StoryPutDto;
 import com.tryiton.core.story.dto.StoryRequestDto;
@@ -44,7 +45,9 @@ public class StoryController {
         @RequestParam StorySort sort,
         @RequestParam Integer limit
     ){
-        StoriesResponseDto storiesResponseDto = storyService.getStories(customUserDetails.getUser(), sort, limit);
+        // 비로그인 사용자도 접근 가능하도록 수정
+        Member user = (customUserDetails != null) ? customUserDetails.getUser() : null;
+        StoriesResponseDto storiesResponseDto = storyService.getStories(user, sort, limit);
         return ResponseEntity.ok(storiesResponseDto);
     }
 
@@ -55,7 +58,9 @@ public class StoryController {
         @RequestParam StorySort sort,
         @RequestParam Integer limit
     ){
-        StoriesResponseDto storiesResponseDto = storyService.getNextStories(customUserDetails.getUser(), currentStoryId, sort, limit);
+        // 비로그인 사용자도 접근 가능하도록 수정
+        Member user = (customUserDetails != null) ? customUserDetails.getUser() : null;
+        StoriesResponseDto storiesResponseDto = storyService.getNextStories(user, currentStoryId, sort, limit);
         return ResponseEntity.ok(storiesResponseDto);
     }
 
