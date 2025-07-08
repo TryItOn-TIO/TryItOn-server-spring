@@ -13,9 +13,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TryonAvatarTogetherNodeRequest {
 
-    // 가상 피팅을 시도할 상의 상품 ID 리스트 (최대 5개)
-    private List<Long> topProductIds;
+    // 가상 피팅을 시도할 상품 ID 리스트
+    private List<Long> productIds;
 
-    // 가상 피팅을 시도할 하의 상품 ID 리스트 (최대 5개)
-    private List<Long> bottomProductIds;
 }
