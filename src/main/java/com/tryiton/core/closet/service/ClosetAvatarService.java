@@ -4,7 +4,6 @@ import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.entity.AvatarItem;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.closet.dto.ClosetAvatarResponseDto;
-import com.tryiton.core.closet.dto.ClosetAvatarSaveRequestDto;
 import com.tryiton.core.closet.entity.ClosetAvatar;
 import com.tryiton.core.closet.entity.ClosetAvatarItem;
 import com.tryiton.core.closet.repository.ClosetAvatarRepository;
@@ -38,12 +37,12 @@ public class ClosetAvatarService {
 
     // 착장 저장
     @Transactional
-    public void saveClosetAvatar(Member user, ClosetAvatarSaveRequestDto requestDto) {
+    public void saveClosetAvatar(Member user) {
         // 최대 10개 제한 확인
         validateMaxAvatarLimit(user.getId());
         
         // 새로운 아바타 생성
-        ClosetAvatar newAvatar = createClosetAvatar(user, requestDto);
+        ClosetAvatar newAvatar = createClosetAvatar(user);
         
         // 중복 확인
         validateDuplicateAvatar(user.getId(), newAvatar);
@@ -70,8 +69,11 @@ public class ClosetAvatarService {
     }
 
     // 새로운 ClosetAvatar 생성
-    private ClosetAvatar createClosetAvatar(Member user, ClosetAvatarSaveRequestDto requestDto) {
+    private ClosetAvatar createClosetAvatar(Member user) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId());
+        if (avatar == null) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "사용자의 아바타를 찾을 수 없습니다.");
+        }
 
         ClosetAvatar closetAvatar = ClosetAvatar.builder()
             .user(user)
