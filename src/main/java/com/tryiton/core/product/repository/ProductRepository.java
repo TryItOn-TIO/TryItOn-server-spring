@@ -38,6 +38,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
         "ORDER BY p.createdAt DESC")
     Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
+    
+    // 시드 기반 랜덤 정렬로 페이지네이션 지원
+    @Query(value = "SELECT * FROM product WHERE deleted = false AND category_id IN " +
+        "(SELECT category_id FROM category WHERE category_id = :categoryId OR parent_category_id = :categoryId) " +
+        "ORDER BY RAND(:seed)",
+        countQuery = "SELECT count(*) FROM product WHERE deleted = false AND category_id IN " +
+        "(SELECT category_id FROM category WHERE category_id = :categoryId OR parent_category_id = :categoryId)",
+        nativeQuery = true)
+    Page<Product> findRandomByCategoryWithSeed(@Param("categoryId") Long categoryId, 
+                                             @Param("seed") int seed, 
+                                             Pageable pageable);
 
     // 사용자가 이미 구매한 상품 ID 목록 조회
     @Query(value = "SELECT DISTINCT p.product_id FROM orders o JOIN order_item oi ON o.order_id = oi.order_id JOIN product_variant pv ON oi.variant_id = pv.variant_id JOIN product p ON pv.product_id = p.product_id WHERE o.user_id = :userId", nativeQuery = true)

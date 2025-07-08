@@ -1,7 +1,6 @@
 package com.tryiton.core.product.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
-import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.product.dto.CategoryProductResponse;
 import com.tryiton.core.product.dto.MainProductResponse;
@@ -36,12 +35,10 @@ public class ProductController {
         List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
             userId);
         List<ProductResponseDto> ranked = productService.getTopRankedProducts(userId);
-        AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(userId);
 
         return ResponseEntity.ok(MainProductResponse.builder()
             .recommended(recommended)
             .ranked(ranked)
-            .avatarInfo(avatarInfo)
             .build());
     }
 
