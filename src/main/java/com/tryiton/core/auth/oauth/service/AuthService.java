@@ -225,6 +225,9 @@ public class AuthService {
                 avatarService.create(savedMember, avatarRequest);
             }
 
+            AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(Long.toString(userId), dto.getUserBaseImageUrl());
+            avatarService.create(member, avatarCreateRequest);
+
             String jwt = jwtUtil.createJwt(email, savedMember.getRole().name(), ONE_HOUR);
             return GoogleSignupResponseDto.from(savedMember, jwt);
 
