@@ -16,6 +16,7 @@ import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
+import com.tryiton.core.member.entity.Profile;
 import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
@@ -144,13 +145,9 @@ public class AvatarServiceImpl implements AvatarService {
     public TryonAvatarTogetherNodeResponse tryonTogether(Member member,
         TryonAvatarTogetherNodeRequest request) {
 
-        Long userId = member.getId();
-        // 1. 피팅의 기반이 될 사용자의 가장 최근 아바타를 조회합니다.  // todo: 리펙토링 해야함 / 피팅의 기반이 되어선 안됨 = 사용자의 가장 최신 아바타
-        Avatar baseAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
-        if (baseAvatar == null) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "가상 피팅을 진행할 아바타가 존재하지 않습니다.");
-        }
-        String originalAvatarImg = baseAvatar.getAvatarImg();
+        Profile profile = member.getProfile();
+
+        Avatar baseAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId());
 
         // 2. 착용할 상의 및 하의 상품 목록을 조회합니다.
         List<Product> tops = productRepository.findAllById(request.getTopProductIds());
@@ -160,8 +157,9 @@ public class AvatarServiceImpl implements AvatarService {
 
         // 3. 상의 목록을 순회합니다.
         for (Product top : tops) {
+            String baseUrl = profile.getUserBaseImageUrl();
             // 3-1. 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
-            String topAppliedImgUrl = performStatelessTryOn(originalAvatarImg,
+            String topAppliedImgUrl = performStatelessTryOn(baseUrl,
                 buildS3Url(baseAvatar.getMaskUrl(top)), buildS3Url(baseAvatar.getPoseUrl()), top, member);
 
             // 상의 피팅에 실패하면 다음 상의로 넘어갑니다.
