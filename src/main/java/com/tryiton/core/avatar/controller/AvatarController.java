@@ -1,7 +1,6 @@
 package com.tryiton.core.avatar.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
-import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
@@ -31,12 +30,12 @@ public class AvatarController {
      * 최신 아바타 정보 조회 API 사용자의 가장 최근 아바타 이미지와 착용 상품 정보를 반환합니다.
      */
     @GetMapping("/latest-info")
-    public ResponseEntity<AvatarProductInfoDto> getLatestAvatarInfo(
+    public ResponseEntity<AvatarTryOnResponse> getLatestAvatarInfo(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails
     ) {
         Long currentUserId = customUserDetails.getUser().getId();
 
-        AvatarProductInfoDto avatarInfo = avatarService.getLatestAvatarWithProducts(currentUserId);
+        AvatarTryOnResponse avatarInfo = avatarService.getLatestAvatarWithProducts(currentUserId);
 
         if (avatarInfo == null) {
             return ResponseEntity.noContent().build();

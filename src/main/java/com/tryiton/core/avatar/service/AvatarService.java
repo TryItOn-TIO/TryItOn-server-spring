@@ -1,6 +1,5 @@
 package com.tryiton.core.avatar.service;
 
-import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
@@ -12,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface AvatarService {
-    AvatarProductInfoDto getLatestAvatarWithProducts(Long userId);
+    AvatarTryOnResponse getLatestAvatarWithProducts(Long userId);
 
     AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest);
 
