@@ -17,11 +17,11 @@ public class AvatarTryOnResponse {
     @Getter
     @AllArgsConstructor
     public static class ProductInfo {
+        private Long productId;
         private String productName;
         private String categoryName;
         // 추후 브랜드, 상품 ID 등 필요한 정보를 여기에 쉽게 추가할 수 있습니다.
         // private String brand;
-        // private Long productId;
     }
 
 

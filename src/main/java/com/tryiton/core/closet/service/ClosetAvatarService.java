@@ -1,8 +1,8 @@
 package com.tryiton.core.closet.service;
 
 import com.tryiton.core.avatar.entity.Avatar;
+import com.tryiton.core.avatar.entity.AvatarItem;
 import com.tryiton.core.avatar.repository.AvatarRepository;
-import com.tryiton.core.closet.dto.ClosetAvatarItemRequestDto;
 import com.tryiton.core.closet.dto.ClosetAvatarResponseDto;
 import com.tryiton.core.closet.dto.ClosetAvatarSaveRequestDto;
 import com.tryiton.core.closet.entity.ClosetAvatar;
@@ -78,11 +78,20 @@ public class ClosetAvatarService {
             .avatarImage(avatar.getAvatarImg())
             .build();
 
-        for (ClosetAvatarItemRequestDto itemDto : requestDto.getItems()) {
-            Product product = productRepository.findByIdWithCategory(itemDto.getProductId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, 
-                    "상품을 찾을 수 없습니다. ID: " + itemDto.getProductId()));
-            
+        List<AvatarItem> avatarItems = avatar.getItems();
+        if (avatarItems == null || avatarItems.isEmpty()){
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "아바타에 착용된 아이템이 없습니다.");
+        }
+
+        for (AvatarItem avatarItem : avatarItems) {
+            if (avatarItem.getProduct() == null){
+                continue;
+            }
+
+            Product product = productRepository.findByIdWithCategory(avatarItem.getProduct().getId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                    "상품을 찾을 수 없습니다. ID: " + avatarItem.getProduct().getId()));
+
             ClosetAvatarItem item = ClosetAvatarItem.builder()
                 .product(product)
                 .build();

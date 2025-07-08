@@ -1,6 +1,5 @@
 package com.tryiton.core.avatar.service;
 
-import com.tryiton.core.avatar.dto.AvatarProductInfoDto;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
@@ -54,7 +53,7 @@ public class AvatarServiceImpl implements AvatarService {
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
     @Override
     @Transactional(readOnly = true)
-    public AvatarProductInfoDto getLatestAvatarWithProducts(Long userId) {
+    public AvatarTryOnResponse getLatestAvatarWithProducts(Long userId) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
 
         // 아바타가 없을 때는?
@@ -62,11 +61,19 @@ public class AvatarServiceImpl implements AvatarService {
             return null;
         }
 
-        List<String> productNames = avatar.getItems().stream()
-            .map(item -> item.getProduct().getProductName())
+        List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+            .map(item -> new AvatarTryOnResponse.ProductInfo(
+                item.getProduct().getId(),
+                item.getProduct().getProductName(),
+                item.getProduct().getCategory().getCategoryName()
+            ))
             .collect(Collectors.toList());
 
-        return new AvatarProductInfoDto(avatar.getId(), avatar.getAvatarImg(), productNames);
+        return AvatarTryOnResponse.builder()
+            .avatarId(avatar.getId())
+            .avatarImgUrl(avatar.getAvatarImg())
+            .products(productInfos)
+            .build();
     }
 
     /**
@@ -248,6 +255,7 @@ public class AvatarServiceImpl implements AvatarService {
         // 7. 현재 아바타가 입고 있는 모든 아이템 정보를 DTO 리스트로 변환합니다.
         List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
             .map(item -> new AvatarTryOnResponse.ProductInfo(
+                item.getProduct().getId(),
                 item.getProduct().getProductName(),
                 item.getProduct().getCategory().getCategoryName()
             ))

@@ -38,6 +38,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
         "ORDER BY p.createdAt DESC")
     Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
+    
+    // 시드 기반 랜덤 정렬로 페이지네이션 지원
+    @Query(value = "SELECT * FROM product WHERE deleted = false AND category_id IN " +
+        "(SELECT category_id FROM category WHERE category_id = :categoryId OR parent_category_id = :categoryId) " +
+        "ORDER BY RAND(:seed)",
+        countQuery = "SELECT count(*) FROM product WHERE deleted = false AND category_id IN " +
+        "(SELECT category_id FROM category WHERE category_id = :categoryId OR parent_category_id = :categoryId)",
+        nativeQuery = true)
+    Page<Product> findRandomByCategoryWithSeed(@Param("categoryId") Long categoryId, 
+                                             @Param("seed") int seed, 
+                                             Pageable pageable);
 
     // 사용자가 이미 구매한 상품 ID 목록 조회
     @Query(value = "SELECT DISTINCT p.product_id FROM orders o JOIN order_item oi ON o.order_id = oi.order_id JOIN product_variant pv ON oi.variant_id = pv.variant_id JOIN product p ON pv.product_id = p.product_id WHERE o.user_id = :userId", nativeQuery = true)
@@ -55,4 +66,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 같은 하위 카테고리의 유사한 상품 조회 (기준 상품 제외, 랜덤 정렬)
     @Query(value = "SELECT * FROM product p WHERE p.category_id = :categoryId AND p.product_id != :excludeProductId AND p.deleted = false ORDER BY RAND() LIMIT :limit", nativeQuery = true)
     List<Product> findSimilarProductsByCategory(@Param("categoryId") Long categoryId, @Param("excludeProductId") Long excludeProductId, @Param("limit") int limit);
+
+    // 자동완성 추천 키워드 (6개 제한)
+    @Query("SELECT DISTINCT p.productName FROM Product p WHERE p.productName LIKE %:query% OR p.brand LIKE %:query%")
+    List<String> findSuggestionsByProductNameOrBrand(@Param("query") String query, Pageable pageable);
+
+    // 검색 (상품명 or 브랜드)
+    Page<Product> findByProductNameContainingOrBrandContaining(
+        String productName, String brand, Pageable pageable
+    );
 }
