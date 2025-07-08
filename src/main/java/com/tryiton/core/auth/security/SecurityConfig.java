@@ -84,6 +84,7 @@ public class SecurityConfig {
             .requestMatchers(EndpointRequest.to("health")).permitAll() // Health Check는 모두에게 허용
             .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
             .requestMatchers("/api/products/**").permitAll() // 모든 상품 관련 API 허용 (비로그인 접근 가능)
+            .requestMatchers("/api/home/products/suggestions").permitAll() // 자동완성 검색어 추천 (로그인 없이 접근 가능)
             .requestMatchers("/api/wishlist/**", "/api/payment/**", "/api/orders/**", "/api/closet/**", "/api/avatar/**", "/api/home/**").authenticated() // 인증 필요
             .anyRequest().permitAll()
         );

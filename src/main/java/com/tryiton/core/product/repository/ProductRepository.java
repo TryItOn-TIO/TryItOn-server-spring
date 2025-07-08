@@ -55,4 +55,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 같은 하위 카테고리의 유사한 상품 조회 (기준 상품 제외, 랜덤 정렬)
     @Query(value = "SELECT * FROM product p WHERE p.category_id = :categoryId AND p.product_id != :excludeProductId AND p.deleted = false ORDER BY RAND() LIMIT :limit", nativeQuery = true)
     List<Product> findSimilarProductsByCategory(@Param("categoryId") Long categoryId, @Param("excludeProductId") Long excludeProductId, @Param("limit") int limit);
+
+    // 자동완성 추천 키워드 (6개 제한)
+    @Query("SELECT DISTINCT p.productName FROM Product p WHERE p.productName LIKE %:query% OR p.brand LIKE %:query%")
+    List<String> findSuggestionsByProductNameOrBrand(@Param("query") String query, Pageable pageable);
+
+    // 검색 (상품명 or 브랜드)
+    Page<Product> findByProductNameContainingOrBrandContaining(
+        String productName, String brand, Pageable pageable
+    );
 }
