@@ -40,4 +40,8 @@ public class ProductResponseDto {
             this.salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
         }
     }
+
+    public static ProductResponseDto from(Product product, boolean liked) {
+        return new ProductResponseDto(product, liked);
+    }
 }

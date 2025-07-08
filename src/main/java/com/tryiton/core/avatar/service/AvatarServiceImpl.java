@@ -222,7 +222,7 @@ public class AvatarServiceImpl implements AvatarService {
         // 4. FastAPI 서버에 보낼 요청 DTO를 구성합니다.
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
             avatar.getAvatarImg(),
-            newGarment.getImg2(), // 상품의 착용샷 이미지
+            newGarment.getImg1(), // 상품의 착용샷 이미지
             buildS3Url(avatar.getMaskUrl(newGarment)),
             buildS3Url(avatar.getPoseUrl()),
             member.getId()

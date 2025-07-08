@@ -7,6 +7,7 @@ import com.tryiton.core.product.dto.ProductDetailResponseDto;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.dto.ProductSummary;
 import com.tryiton.core.product.dto.ProductVariantDto;
+import com.tryiton.core.product.dto.SearchProductResponse;
 import com.tryiton.core.product.dto.TagScoreDto;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
@@ -238,5 +239,26 @@ public class ProductService {
             .map(product -> new ProductResponseDto(product,
                 likedProductIds.contains(product.getId())))
             .collect(Collectors.toList());
+    }
+
+    public List<String> getSearchSuggestions(String query) {
+        Pageable limit = PageRequest.of(0, 6); // 최대 6개만
+        return productRepository.findSuggestionsByProductNameOrBrand(query, limit);
+    }
+
+    public SearchProductResponse searchProducts(String query, Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Product> productPage = productRepository.findByProductNameContainingOrBrandContaining(query, query, pageable);
+
+        Set<Long> likedProductIds = new HashSet<>();
+        if (userId != null) {
+            likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
+        }
+
+        List<ProductResponseDto> productDto = productPage.stream()
+            .map(product -> ProductResponseDto.from(product, likedProductIds.contains(product.getId())))
+            .collect(Collectors.toList());
+
+        return new SearchProductResponse(productDto, productPage.getTotalElements());
     }
 }

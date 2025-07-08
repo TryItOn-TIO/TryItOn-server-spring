@@ -5,6 +5,7 @@ import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.product.dto.CategoryProductResponse;
 import com.tryiton.core.product.dto.MainProductResponse;
 import com.tryiton.core.product.dto.ProductResponseDto;
+import com.tryiton.core.product.dto.SearchProductResponse;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.service.CategoryService;
 import com.tryiton.core.product.service.ProductService;
@@ -57,5 +58,24 @@ public class ProductController {
             size);
 
         return ResponseEntity.ok(new CategoryProductResponse(products));
+    }
+
+    // 검색 기능
+    @GetMapping("/suggestions")
+    public ResponseEntity<List<String>> getSearchSuggestions(@RequestParam String query) {
+        List<String> suggestions = productService.getSearchSuggestions(query);
+        return ResponseEntity.ok(suggestions);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<SearchProductResponse> searchProducts(
+        @RequestParam String query,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Long userId = (userDetails != null) ? userDetails.getUser().getId() : null;
+        SearchProductResponse result = productService.searchProducts(query, userId, page, size);
+        return ResponseEntity.ok(result);
     }
 }
