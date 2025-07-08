@@ -98,7 +98,7 @@ class AvatarServiceImplTest {
 
         // Mock 객체들 정보 정의
         when(newTop.isUpperGarment()).thenReturn(true);
-        when(newTop.getImg2()).thenReturn("newTop.jpg");
+        when(newTop.getImg1()).thenReturn("newTop.jpg");
         when(newTop.getProductName()).thenReturn("새로운 상의");
         when(newTop.getCategory()).thenReturn(topCategory);
         when(topCategory.getCategoryName()).thenReturn("상의");
@@ -199,12 +199,12 @@ class AvatarServiceImplTest {
         verify(productRepository, never()).findAllById(any());
     }
 
-    private Product createProduct(Long id, String name, String categoryName) {
+    private Product createAvatarProduct(Long id, String name, String categoryName) {
         Category category = Category.builder().categoryName(categoryName).build();
         return Product.builder()
             .id(id)
             .productName(name)
-            .img2("http://product.url/" + name + ".jpg")
+            .img1("http://product.url/" + name + ".jpg")
             .category(category)
             .build();
     }
