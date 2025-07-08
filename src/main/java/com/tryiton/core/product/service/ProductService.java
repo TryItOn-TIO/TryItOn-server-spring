@@ -91,7 +91,8 @@ public class ProductService {
 
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
         int size) {
-        // 🔧 카테고리 계층 구조를 고려한 상품 조회로 변경
+        // 기존 생성일 기준 정렬
+        /*
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         Set<Long> likedProductIds = new HashSet<>();
@@ -104,6 +105,40 @@ public class ProductService {
         return productRepository.findByCategoryHierarchyAndDeletedFalse(category.getId(), pageable)
             .map(product -> new ProductResponseDto(product,
                 likedProductIds.contains(product.getId())));
+        }
+
+        private void collectAllSubCategories(Category category, List<Category> categoryList) {
+            categoryList.add(category);
+            for (Category child : category.getChildren()) {
+                collectAllSubCategories(child, categoryList);
+        }
+         */
+
+        // 페이지네이션을 유지하면서 매번 다른 순서로 보여주기 위한 시드 생성
+        // 사용자별 + 시간 기반으로 시드 생성하여 일정 시간 동안은 같은 순서 유지
+        int seed = generateRandomSeed(userId);
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Set<Long> likedProductIds = new HashSet<>();
+
+        if (userId != null) {
+            likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
+        }
+
+        return productRepository.findRandomByCategoryWithSeed(category.getId(), seed, pageable)
+            .map(product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())));
+    }
+
+    // 사용자별 + 시간 기반 시드 생성 (10분마다 변경)
+    private int generateRandomSeed(Long userId) {
+        long currentTime = System.currentTimeMillis();
+        long timeWindow = currentTime / (10 * 60 * 1000); // 10분 단위
+        
+        if (userId != null) {
+            return (int) ((userId + timeWindow) % Integer.MAX_VALUE);
+        } else {
+            return (int) (timeWindow % Integer.MAX_VALUE);
+        }
     }
 
     private void collectAllSubCategories(Category category, List<Category> categoryList) {
