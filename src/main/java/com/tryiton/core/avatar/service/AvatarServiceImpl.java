@@ -149,16 +149,24 @@ public class AvatarServiceImpl implements AvatarService {
 
         Avatar baseAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId());
 
-        // 2. 착용할 상의 및 하의 상품 목록을 조회합니다.
-        List<Product> tops = productRepository.findAllById(request.getTopProductIds());
-        List<Product> bottoms = productRepository.findAllById(request.getBottomProductIds());
+        // 2. 착용할 상품 목록을 조회합니다.
+        List<Product> products = productRepository.findAllById(request.getProductIds());
+
+        // 3. 상품을 상의와 하의로 분류합니다.
+        List<Product> tops = products.stream()
+            .filter(Product::isUpperGarment)
+            .toList();
+
+        List<Product> bottoms = products.stream()
+            .filter(Product::isLowerGarment)
+            .toList();
 
         List<TryonAvatarTogetherNodeResponse.TryonResult> results = new ArrayList<>();
 
-        // 3. 상의 목록을 순회합니다.
+        // 4. 상의 목록을 순회합니다.
         for (Product top : tops) {
             String baseUrl = profile.getUserBaseImageUrl();
-            // 3-1. 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
+            // 4-1. 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
             String topAppliedImgUrl = performStatelessTryOn(baseUrl,
                 buildS3Url(baseAvatar.getMaskUrl(top)), buildS3Url(baseAvatar.getPoseUrl()), top, member);
 
@@ -167,9 +175,9 @@ public class AvatarServiceImpl implements AvatarService {
                 continue;
             }
 
-            // 4. 하의 목록을 순회합니다.
+            // 5. 하의 목록을 순회합니다.
             for (Product bottom : bottoms) {
-                // 4-1. 상의가 적용된 이미지에 하의를 입혀 최종 결과 이미지를 생성합니다.
+                // 5-1. 상의가 적용된 이미지에 하의를 입혀 최종 결과 이미지를 생성합니다.
                 String finalImgUrl = performStatelessTryOn(topAppliedImgUrl, buildS3Url(baseAvatar.getMaskUrl(bottom)),
                     buildS3Url(baseAvatar.getPoseUrl()), bottom, member);
 
