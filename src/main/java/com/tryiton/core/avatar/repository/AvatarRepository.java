@@ -7,8 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AvatarRepository extends JpaRepository<Avatar, Long> {
 
-    // 👇 isBookmarked를 사용했던 메서드 삭제
-
     // 가장 최근 입혀본 착장 (1장)
     Avatar findTopByMemberIdOrderByCreatedAtDesc(Long userId);
 
