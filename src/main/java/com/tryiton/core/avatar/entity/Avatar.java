@@ -99,4 +99,9 @@ public class Avatar extends BaseTimeEntity {
         return "users/" + this.member.getId() + "/";
     }
 
+    public void resetAvatar(String baseUrl) {
+        avatarImg = baseUrl;
+        items.clear();
+    }
+
 }

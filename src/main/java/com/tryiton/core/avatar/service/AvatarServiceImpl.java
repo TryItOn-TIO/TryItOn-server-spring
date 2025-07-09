@@ -9,6 +9,7 @@ import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
 import com.tryiton.core.avatar.dto.response.FastApiTryOnResponse;
 import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
+import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
@@ -267,6 +268,14 @@ public class AvatarServiceImpl implements AvatarService {
             .avatarImgUrl(fastApiResponse.getTryOnImgUrl())
             .products(productInfos)
             .build();
+    }
+
+    @Transactional
+    @Override
+    public ResetAvatarResponse resetAvatar(Member member) {
+        Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId());
+        avatar.resetAvatar(member.getProfile().getUserBaseImageUrl());
+        return new ResetAvatarResponse();
     }
 
 
