@@ -6,6 +6,7 @@ import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
+import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.member.entity.Member;
@@ -15,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -95,4 +97,15 @@ public class AvatarController {
             tryonAvatarTogetherNodeRequest);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/reset")
+    public ResponseEntity<ResetAvatarResponse> resetAvatar(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails
+    ) {
+        Member member = customUserDetails.getUser();
+        ResetAvatarResponse response = avatarService.resetAvatar(member);
+        return ResponseEntity.ok(response);
+    }
+
+
 }

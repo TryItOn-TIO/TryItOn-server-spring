@@ -1,6 +1,7 @@
 package com.tryiton.core.avatar.service;
 
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
+import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
@@ -18,4 +19,6 @@ public interface AvatarService {
     AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest);
 
     TryonAvatarTogetherNodeResponse tryonTogether(Member member, TryonAvatarTogetherNodeRequest tryonAvatarTogetherNodeRequest);
+
+    ResetAvatarResponse resetAvatar(Member member);
 }
