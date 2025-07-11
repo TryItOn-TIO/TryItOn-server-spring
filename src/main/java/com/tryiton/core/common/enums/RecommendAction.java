@@ -5,7 +5,8 @@ public enum RecommendAction {
     WISHLIST(1.0f),
     CART(2.0f),
     BUY(3.0f),
-    TRYON(2.0f);
+    TRYON(2.0f),
+    TRYONCLOSET(2.5f);
 
     private final float score;
 

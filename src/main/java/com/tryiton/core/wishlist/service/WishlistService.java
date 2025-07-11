@@ -1,11 +1,13 @@
 package com.tryiton.core.wishlist.service;
 
+import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
+import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import com.tryiton.core.wishlist.entity.Wishlist;
 import com.tryiton.core.wishlist.entity.WishlistItem;
 import com.tryiton.core.wishlist.repository.WishlistItemRepository;
@@ -24,7 +26,8 @@ public class WishlistService {
     private final WishlistRepository wishlistRepository;
     private final WishlistItemRepository wishlistItemRepository;
     private final ProductRepository productRepository;
-    private final MemberRepository memberRepository;
+
+    private final RecommendBehaviorLogService recommendBehaviorLogService;
 
     // 찜 추가 (중복 찜 방지 로직 추가)
     @Transactional
@@ -43,6 +46,9 @@ public class WishlistService {
             wishlist.addItem(item);
             product.increaseWishlistCount(); // 찜 수 증가
         }
+
+        // 유저 행동 로그 비동기 기록
+        recommendBehaviorLogService.logUserAction(user.getId(), productId, RecommendAction.WISHLIST);
     }
 
     // 찜 제거

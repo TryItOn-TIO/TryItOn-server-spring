@@ -12,14 +12,14 @@ import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
-import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
+import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
-import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
+import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,10 +36,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class AvatarServiceImpl implements AvatarService {
 
     private final AvatarRepository avatarRepository;
-    private final AvatarItemRepository avatarItemRepository;
-    private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
+
+    private final RecommendBehaviorLogService recommendBehaviorLogService;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -261,6 +261,9 @@ public class AvatarServiceImpl implements AvatarService {
                 item.getProduct().getCategory().getCategoryName()
             ))
             .collect(Collectors.toList());
+
+        // 유저 행동 로그 비동기 기록
+        recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
 
         // 8. 최종 응답 DTO를 빌더로 생성하여 반환합니다.
         return AvatarTryOnResponse.builder()
