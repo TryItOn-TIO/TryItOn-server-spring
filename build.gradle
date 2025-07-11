@@ -34,6 +34,10 @@ dependencies {
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
 	// springboot 3.3+ 와 호환성 문제있는 paulschwarz dotenv 대신 채택
 	implementation 'io.github.cdimascio:java-dotenv:5.2.2'
+	// Elasticsearch 의존성 추가
+	implementation 'co.elastic.clients:elasticsearch-java:8.17.4'
+	implementation 'jakarta.json:jakarta.json-api:2.1.1'
+	implementation 'org.glassfish:jakarta.json:2.0.1'
 
 	// AWS 관련 의존성 추가
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager' // 비밀 관리자(AWS내 비밀처리된 env 자료들 조회)
