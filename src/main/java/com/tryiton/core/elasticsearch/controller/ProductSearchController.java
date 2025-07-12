@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/search")
+@RequestMapping("/api/home/products")
 @RequiredArgsConstructor
 public class ProductSearchController {
 
@@ -22,7 +22,7 @@ public class ProductSearchController {
         return ResponseEntity.ok(productSearchService.getSuggestions(query));
     }
 
-    @GetMapping
+    @GetMapping("/search")
     public ResponseEntity<List<ProductDocument>> search(@RequestParam String query) {
         return ResponseEntity.ok(productSearchService.searchProducts(query));
     }
