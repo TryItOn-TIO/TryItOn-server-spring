@@ -1,7 +1,8 @@
-package com.tryiton.core.elasticsearch;
+package com.tryiton.core.elasticsearch.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.IndexRequest;
+import com.tryiton.core.elasticsearch.document.ProductDocument;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
 import jakarta.annotation.PostConstruct;
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class ElasticsearchService {
+public class ProductSyncService {
 
     private final ElasticsearchClient elasticsearchClient;
     private final ProductRepository productRepository;
@@ -22,7 +23,7 @@ public class ElasticsearchService {
     @PostConstruct
     public void init() throws IOException {
         createIndexIfNotExists(); // 인덱스 없으면 생성
-        uploadAllProducts(); // 전체 상품 업로드
+        uploadAllProducts(); // 초기 상품 데이터 업로드
     }
 
     private void createIndexIfNotExists() throws IOException {
@@ -32,9 +33,6 @@ public class ElasticsearchService {
 
         if (!exists) {
             elasticsearchClient.indices().create(c -> c.index(INDEX_NAME));
-            System.out.println("인덱스 생성 완료: " + INDEX_NAME);
-        } else {
-            System.out.println("인덱스 이미 존재함: " + INDEX_NAME);
         }
     }
 
@@ -42,13 +40,13 @@ public class ElasticsearchService {
         List<Product> products = productRepository.findAll();
 
         for (Product product : products) {
-            ProductIndex doc = ProductIndex.builder()
+            ProductDocument doc = ProductDocument.builder()
                 .id(product.getId())
                 .productName(product.getProductName())
                 .brand(product.getBrand())
                 .build();
 
-            IndexRequest<ProductIndex> request = IndexRequest.of(i -> i
+            IndexRequest<ProductDocument> request = IndexRequest.of(i -> i
                 .index(INDEX_NAME)
                 .id(String.valueOf(product.getId()))
                 .document(doc)
@@ -56,7 +54,5 @@ public class ElasticsearchService {
 
             elasticsearchClient.index(request);
         }
-
-        System.out.println("상품 업로드 완료: " + products.size() + "개");
     }
 }

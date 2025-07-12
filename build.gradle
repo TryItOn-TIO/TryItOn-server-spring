@@ -38,6 +38,8 @@ dependencies {
 	implementation 'co.elastic.clients:elasticsearch-java:8.17.4'
 	implementation 'jakarta.json:jakarta.json-api:2.1.1'
 	implementation 'org.glassfish:jakarta.json:2.0.1'
+	// Spring Data Elasticsearch
+	implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
 
 	// AWS 관련 의존성 추가
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager' // 비밀 관리자(AWS내 비밀처리된 env 자료들 조회)
