@@ -7,6 +7,8 @@ import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.story.dto.AuthorDto;
+import com.tryiton.core.story.dto.BackgroundRemovalRequest;
+import com.tryiton.core.story.dto.BackgroundRemovalResponse;
 import com.tryiton.core.story.dto.CommentResponseDto;
 import com.tryiton.core.story.dto.StoriesResponseDto;
 import com.tryiton.core.story.dto.StoryPutDto;
@@ -21,12 +23,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 public class StoryService {
@@ -35,13 +41,22 @@ public class StoryService {
     private final ClosetAvatarRepository closetAvatarRepository;
     private final WishlistRepository wishlistRepository;
     private final StoryLikeRepository storyLikeRepository;
+    private final WebClient userServiceWebClient;
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucketName;
+
+    @Value("${cloud.aws.region.static}")
+    private String region;
 
     public StoryService(StoryRepository storyRepository, ClosetAvatarRepository closetAvatarRepository,
-        WishlistRepository wishlistRepository, StoryLikeRepository storyLikeRepository) {
+        WishlistRepository wishlistRepository, StoryLikeRepository storyLikeRepository,
+        WebClient userServiceWebClient) {
         this.storyRepository = storyRepository;
         this.closetAvatarRepository = closetAvatarRepository;
         this.wishlistRepository = wishlistRepository;
         this.storyLikeRepository = storyLikeRepository;
+        this.userServiceWebClient = userServiceWebClient;
     }
 
     @Transactional
@@ -337,5 +352,73 @@ public class StoryService {
             .stories(storyResponseDtos)
             .length(storyResponseDtos.size())
             .build();
+    }
+
+    /**
+     * 스토리 이미지의 배경을 제거합니다 (누끼 따기)
+     */
+    public BackgroundRemovalResponse removeBackground(Member user, String imageUrl) {
+        try {
+            log.info("배경 제거 요청 - userId: {}, imageUrl: {}", user.getId(), imageUrl);
+
+            // AI 서버에 배경 제거 요청
+            BackgroundRemovalRequest request = new BackgroundRemovalRequest(
+                imageUrl,
+                user.getId(),
+                null // storyId는 선택사항
+            );
+
+            // FastAPI 서버 호출
+            String processedImageUrl = userServiceWebClient.post()
+                .uri("/remove-background")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+            if (processedImageUrl == null || processedImageUrl.isBlank()) {
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, 
+                    "배경 제거 처리 중 오류가 발생했습니다.");
+            }
+
+            log.info("배경 제거 완료 - userId: {}, processedUrl: {}", user.getId(), processedImageUrl);
+
+            return BackgroundRemovalResponse.success(imageUrl, processedImageUrl);
+
+        } catch (Exception e) {
+            log.error("배경 제거 실패 - userId: {}, error: {}", user.getId(), e.getMessage());
+            return BackgroundRemovalResponse.failure("배경 제거 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 스토리 작성 시 자동으로 배경을 제거한 이미지를 생성합니다
+     */
+    @Transactional
+    public boolean postStoryWithBackgroundRemoval(Member author, StoryRequestDto storyRequestDto) {
+        try {
+            // 1. 원본 이미지의 배경 제거
+            BackgroundRemovalResponse bgRemovalResponse = removeBackground(author, storyRequestDto.getStoryImageUrl());
+            
+            if (!bgRemovalResponse.isSuccess()) {
+                log.warn("배경 제거 실패, 원본 이미지로 스토리 작성 - userId: {}", author.getId());
+                // 배경 제거 실패 시 원본 이미지로 스토리 작성
+                return postStory(author, storyRequestDto);
+            }
+
+            // 2. 배경 제거된 이미지로 스토리 작성
+            StoryRequestDto modifiedRequest = new StoryRequestDto(
+                storyRequestDto.getAvatarId(),
+                storyRequestDto.getContents(),
+                bgRemovalResponse.getProcessedImageUrl() // 누끼 딴 이미지 사용
+            );
+
+            return postStory(author, modifiedRequest);
+
+        } catch (Exception e) {
+            log.error("배경 제거 스토리 작성 실패 - userId: {}, error: {}", author.getId(), e.getMessage());
+            // 실패 시 원본 이미지로 스토리 작성
+            return postStory(author, storyRequestDto);
+        }
     }
 }
