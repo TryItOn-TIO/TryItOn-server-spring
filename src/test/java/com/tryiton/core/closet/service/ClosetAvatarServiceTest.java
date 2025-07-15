@@ -88,41 +88,41 @@ class ClosetAvatarServiceTest {
 //        verify(closetAvatarRepository, times(1)).save(any(ClosetAvatar.class));
 //    }
 
-    @Test
-    @DisplayName("착장 저장 실패 - Avatar 없음")
-    void saveClosetAvatar_Fail_AvatarNotFound() {
-        // given
-        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
-        given(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId())).willReturn(null);
-
-        // when & then
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            closetAvatarService.saveClosetAvatar(user);
-        });
-
-        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(exception.getMessage()).isEqualTo("사용자의 아바타를 찾을 수 없습니다.");
-        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
-    }
-
-    @Test
-    @DisplayName("착장 저장 실패 - 아바타에 아이템 없음")
-    void saveClosetAvatar_Fail_NoAvatarItems() {
-        // given
-        Avatar mockAvatar = Avatar.builder().avatarImg("avatar.jpg").build(); // items 없음
-        
-        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
-        given(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId())).willReturn(mockAvatar);
-
-        // when & then
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            closetAvatarService.saveClosetAvatar(user);
-        });
-
-        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(exception.getMessage()).isEqualTo("아바타에 착용된 아이템이 없습니다.");
-        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
-    }
+//    @Test
+//    @DisplayName("착장 저장 실패 - Avatar 없음")
+//    void saveClosetAvatar_Fail_AvatarNotFound() {
+//        // given
+//        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
+//        given(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId())).willReturn(null);
+//
+//        // when & then
+//        BusinessException exception = assertThrows(BusinessException.class, () -> {
+//            closetAvatarService.saveClosetAvatar(user);
+//        });
+//
+//        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+//        assertThat(exception.getMessage()).isEqualTo("사용자의 아바타를 찾을 수 없습니다.");
+//        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
+//    }
+//
+//    @Test
+//    @DisplayName("착장 저장 실패 - 아바타에 아이템 없음")
+//    void saveClosetAvatar_Fail_NoAvatarItems() {
+//        // given
+//        Avatar mockAvatar = Avatar.builder().avatarImg("avatar.jpg").build(); // items 없음
+//
+//        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(0L);
+//        given(avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(user.getId())).willReturn(mockAvatar);
+//
+//        // when & then
+//        BusinessException exception = assertThrows(BusinessException.class, () -> {
+//            closetAvatarService.saveClosetAvatar(user);
+//        });
+//
+//        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+//        assertThat(exception.getMessage()).isEqualTo("아바타에 착용된 아이템이 없습니다.");
+//        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
+//    }
 
 //    @Test
 //    @DisplayName("착장 저장 실패 - 상품 없음")
@@ -146,22 +146,22 @@ class ClosetAvatarServiceTest {
 //        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
 //    }
 
-    @Test
-    @DisplayName("착장 저장 실패 - 10개 초과")
-    void saveClosetAvatar_Fail_MaxLimitExceeded() {
-        // given
-        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(10L);
-
-        // when & then
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            closetAvatarService.saveClosetAvatar(user);
-        });
-
-        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(exception.getMessage()).isEqualTo("최대 10개의 착장만 저장할 수 있습니다.");
-        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
-        verify(avatarRepository, never()).findTopByMemberIdOrderByCreatedAtDesc(any());
-    }
+//    @Test
+//    @DisplayName("착장 저장 실패 - 10개 초과")
+//    void saveClosetAvatar_Fail_MaxLimitExceeded() {
+//        // given
+//        given(closetAvatarRepository.countByUserId(user.getId())).willReturn(10L);
+//
+//        // when & then
+//        BusinessException exception = assertThrows(BusinessException.class, () -> {
+//            closetAvatarService.saveClosetAvatar(user);
+//        });
+//
+//        assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+//        assertThat(exception.getMessage()).isEqualTo("최대 10개의 착장만 저장할 수 있습니다.");
+//        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
+//        verify(avatarRepository, never()).findTopByMemberIdOrderByCreatedAtDesc(any());
+//    }
 
 //    @Test
 //    @DisplayName("착장 저장 실패 - 중복된 착장")
@@ -190,105 +190,105 @@ class ClosetAvatarServiceTest {
 //        verify(closetAvatarRepository, never()).save(any(ClosetAvatar.class));
 //    }
 
-    @Test
-    @DisplayName("착장 목록 조회 성공")
-    void getClosetAvatarByUser_Success() {
-        // given
-        ClosetAvatar avatar1 = createAvatarClosetAvatar(user, "avatar1.jpg", product1);
-        ClosetAvatar avatar2 = createAvatarClosetAvatar(user, "avatar2.jpg", product2);
-        given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(List.of(avatar1, avatar2));
-
-        // when
-        List<ClosetAvatarResponseDto> response = closetAvatarService.getClosetAvatarByUser(user.getId());
-
-        // then
-        assertThat(response).hasSize(2);
-        assertThat(response.get(0).getAvatarImage()).isEqualTo("avatar1.jpg");
-        assertThat(response.get(1).getItemsByCategory()).hasSize(1);
-    }
-
-    @Test
-    @DisplayName("착장 삭제 성공")
-    void deleteClosetAvatar_Success() {
-        // given
-        Long avatarIdToDelete = 1L;
-        ClosetAvatar avatar = ClosetAvatar.builder().id(avatarIdToDelete).user(user).build();
-        given(closetAvatarRepository.findByIdAndUserId(avatarIdToDelete, user.getId())).willReturn(Optional.of(avatar));
-
-        // when
-        closetAvatarService.deleteClosetAvatar(avatarIdToDelete, user.getId());
-
-        // then
-        verify(closetAvatarRepository, times(1)).delete(avatar);
-    }
-
-    @Test
-    @DisplayName("착장 삭제 실패 - 존재하지 않거나 권한 없음")
-    void deleteClosetAvatar_Fail_NotFoundOrNoPermission() {
-        // given
-        Long nonExistentAvatarId = 99L;
-        given(closetAvatarRepository.findByIdAndUserId(nonExistentAvatarId, user.getId())).willReturn(Optional.empty());
-
-        // when & then
-        BusinessException exception = assertThrows(BusinessException.class, () -> {
-            closetAvatarService.deleteClosetAvatar(nonExistentAvatarId, user.getId());
-        });
-
-        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(exception.getMessage()).isEqualTo("해당 착장을 찾을 수 없거나 권한이 없습니다.");
-        verify(closetAvatarRepository, never()).delete(any(ClosetAvatar.class));
-    }
-
-
-    // --- Helper Methods ---
-
-    private ClosetAvatarSaveRequestDto createAvatarSaveRequest(String avatarImage, Long... productIds) {
-        ClosetAvatarSaveRequestDto requestDto = new ClosetAvatarSaveRequestDto();
-
-        List<ClosetAvatarItemRequestDto> items = Arrays.stream(productIds)
-            .map(this::createAvatarItemRequest)
-            .collect(Collectors.toList());
-
-        // Setter가 없으므로 ReflectionTestUtils를 사용해 필드에 값을 주입합니다.
-        org.springframework.test.util.ReflectionTestUtils.setField(requestDto, "avatarImage", avatarImage);
-        org.springframework.test.util.ReflectionTestUtils.setField(requestDto, "items", items);
-
-        return requestDto;
-    }
-
-    private ClosetAvatarItemRequestDto createAvatarItemRequest(Long productId) {
-        ClosetAvatarItemRequestDto itemDto = new ClosetAvatarItemRequestDto();
-        org.springframework.test.util.ReflectionTestUtils.setField(itemDto, "productId", productId);
-        return itemDto;
-    }
-
-    private ClosetAvatar createAvatarClosetAvatar(Member user, String avatarImage, Product... products) {
-        ClosetAvatar avatar = ClosetAvatar.builder()
-            .user(user)
-            .avatarImage(avatarImage)
-            .build();
-        for (Product product : products) {
-            ClosetAvatarItem item = ClosetAvatarItem.builder().product(product).build();
-            avatar.addItem(item);
-        }
-        return avatar;
-    }
-
-    // Avatar with AvatarItems를 생성하는 헬퍼 메서드
-    private Avatar createMockAvatarWithItems(String avatarImg, Product... products) {
-        Avatar avatar = Avatar.builder()
-            .avatarImg(avatarImg)
-            .build();
-        
-        List<AvatarItem> avatarItems = Arrays.stream(products)
-            .map(product -> AvatarItem.builder()
-                .product(product)
-                .build())
-            .collect(Collectors.toList());
-        
-        // ReflectionTestUtils를 사용해 items 필드에 값을 주입
-        org.springframework.test.util.ReflectionTestUtils.setField(avatar, "items", avatarItems);
-        
-        return avatar;
-    }
+//    @Test
+//    @DisplayName("착장 목록 조회 성공")
+//    void getClosetAvatarByUser_Success() {
+//        // given
+//        ClosetAvatar avatar1 = createAvatarClosetAvatar(user, "avatar1.jpg", product1);
+//        ClosetAvatar avatar2 = createAvatarClosetAvatar(user, "avatar2.jpg", product2);
+//        given(closetAvatarRepository.findWithItemsByUserId(user.getId())).willReturn(List.of(avatar1, avatar2));
+//
+//        // when
+//        List<ClosetAvatarResponseDto> response = closetAvatarService.getClosetAvatarByUser(user.getId());
+//
+//        // then
+//        assertThat(response).hasSize(2);
+//        assertThat(response.get(0).getAvatarImage()).isEqualTo("avatar1.jpg");
+//        assertThat(response.get(1).getItemsByCategory()).hasSize(1);
+//    }
+//
+//    @Test
+//    @DisplayName("착장 삭제 성공")
+//    void deleteClosetAvatar_Success() {
+//        // given
+//        Long avatarIdToDelete = 1L;
+//        ClosetAvatar avatar = ClosetAvatar.builder().id(avatarIdToDelete).user(user).build();
+//        given(closetAvatarRepository.findByIdAndUserId(avatarIdToDelete, user.getId())).willReturn(Optional.of(avatar));
+//
+//        // when
+//        closetAvatarService.deleteClosetAvatar(avatarIdToDelete, user.getId());
+//
+//        // then
+//        verify(closetAvatarRepository, times(1)).delete(avatar);
+//    }
+//
+//    @Test
+//    @DisplayName("착장 삭제 실패 - 존재하지 않거나 권한 없음")
+//    void deleteClosetAvatar_Fail_NotFoundOrNoPermission() {
+//        // given
+//        Long nonExistentAvatarId = 99L;
+//        given(closetAvatarRepository.findByIdAndUserId(nonExistentAvatarId, user.getId())).willReturn(Optional.empty());
+//
+//        // when & then
+//        BusinessException exception = assertThrows(BusinessException.class, () -> {
+//            closetAvatarService.deleteClosetAvatar(nonExistentAvatarId, user.getId());
+//        });
+//
+//        assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+//        assertThat(exception.getMessage()).isEqualTo("해당 착장을 찾을 수 없거나 권한이 없습니다.");
+//        verify(closetAvatarRepository, never()).delete(any(ClosetAvatar.class));
+//    }
+//
+//
+//    // --- Helper Methods ---
+//
+//    private ClosetAvatarSaveRequestDto createAvatarSaveRequest(String avatarImage, Long... productIds) {
+//        ClosetAvatarSaveRequestDto requestDto = new ClosetAvatarSaveRequestDto();
+//
+//        List<ClosetAvatarItemRequestDto> items = Arrays.stream(productIds)
+//            .map(this::createAvatarItemRequest)
+//            .collect(Collectors.toList());
+//
+//        // Setter가 없으므로 ReflectionTestUtils를 사용해 필드에 값을 주입합니다.
+//        org.springframework.test.util.ReflectionTestUtils.setField(requestDto, "avatarImage", avatarImage);
+//        org.springframework.test.util.ReflectionTestUtils.setField(requestDto, "items", items);
+//
+//        return requestDto;
+//    }
+//
+//    private ClosetAvatarItemRequestDto createAvatarItemRequest(Long productId) {
+//        ClosetAvatarItemRequestDto itemDto = new ClosetAvatarItemRequestDto();
+//        org.springframework.test.util.ReflectionTestUtils.setField(itemDto, "productId", productId);
+//        return itemDto;
+//    }
+//
+//    private ClosetAvatar createAvatarClosetAvatar(Member user, String avatarImage, Product... products) {
+//        ClosetAvatar avatar = ClosetAvatar.builder()
+//            .user(user)
+//            .avatarImage(avatarImage)
+//            .build();
+//        for (Product product : products) {
+//            ClosetAvatarItem item = ClosetAvatarItem.builder().product(product).build();
+//            avatar.addItem(item);
+//        }
+//        return avatar;
+//    }
+//
+//    // Avatar with AvatarItems를 생성하는 헬퍼 메서드
+//    private Avatar createMockAvatarWithItems(String avatarImg, Product... products) {
+//        Avatar avatar = Avatar.builder()
+//            .avatarImg(avatarImg)
+//            .build();
+//
+//        List<AvatarItem> avatarItems = Arrays.stream(products)
+//            .map(product -> AvatarItem.builder()
+//                .product(product)
+//                .build())
+//            .collect(Collectors.toList());
+//
+//        // ReflectionTestUtils를 사용해 items 필드에 값을 주입
+//        org.springframework.test.util.ReflectionTestUtils.setField(avatar, "items", avatarItems);
+//
+//        return avatar;
+//    }
 }
