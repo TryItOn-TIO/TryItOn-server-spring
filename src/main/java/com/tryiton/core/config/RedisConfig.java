@@ -1,5 +1,8 @@
 package com.tryiton.core.config;
 
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SocketOptions;
+import io.lettuce.core.SslOptions;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,8 +29,19 @@ public class RedisConfig {
     public RedisConnectionFactory redisConnectionFactory() {
 
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
+
         LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-            .commandTimeout(Duration.ofSeconds(5))
+            .commandTimeout(Duration.ofSeconds(60))
+            .clientOptions(ClientOptions.builder()
+                .socketOptions(SocketOptions.builder()
+                    .connectTimeout(Duration.ofSeconds(60))
+                    .build())
+                .sslOptions(SslOptions.builder()
+                    .protocols("TLSv1.2")
+                    .jdkSslProvider()
+                    .build())
+                .build())
+            .useSsl()
             .build();
 
         return new LettuceConnectionFactory(redisConfig, clientConfig);
