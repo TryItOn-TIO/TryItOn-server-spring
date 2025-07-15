@@ -70,7 +70,8 @@ public class StoryService {
 
     @Transactional
     public StoryResponseDto updateStory(Member author, Long storyId, StoryPutDto storyPutDto){
-        Story story = storyRepository.findByIdWithAuthor(storyId)
+        // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+        Story story = storyRepository.findByIdWithAllAssociations(storyId)
             .orElseThrow(() -> new IllegalArgumentException("해당 스토리를 찾을 수 없습니다."));
 
         // 권한 확인
@@ -86,7 +87,8 @@ public class StoryService {
 
     @Transactional
     public boolean deleteStory(Member author, Long storyId){
-        Story story = storyRepository.findByIdWithAuthor(storyId)
+        // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+        Story story = storyRepository.findByIdWithAllAssociations(storyId)
             .orElseThrow(() -> new IllegalArgumentException("해당 스토리를 찾을 수 없습니다."));
 
         // 권한 확인
@@ -117,13 +119,16 @@ public class StoryService {
 
         switch (sort) {
             case LATEST:
-                stories = storyRepository.findAllByOrderByIdDesc(pageable);
+                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+                stories = storyRepository.findAllByOrderByIdDescWithAllAssociations(pageable);
                 break;
             case POPULAR:
-                stories = storyRepository.findAllByOrderByLikeCountDescIdDesc(pageable);
+                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+                stories = storyRepository.findAllByOrderByLikeCountDescIdDescWithAllAssociations(pageable);
                 break;
             default:
-                stories = storyRepository.findAllByOrderByIdDesc(pageable);
+                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+                stories = storyRepository.findAllByOrderByIdDescWithAllAssociations(pageable);
                 break;
         }
 
@@ -158,16 +163,20 @@ public class StoryService {
 
         switch (sort) {
             case LATEST:
-                stories = storyRepository.findByIdLessThanOrderByIdDesc(currentStoryId, pageable);
+                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+                stories = storyRepository.findByIdLessThanOrderByIdDescWithAllAssociations(currentStoryId, pageable);
                 break;
             case POPULAR:
-                Story currentStory = storyRepository.findByIdWithAuthor(currentStoryId)
+                // 현재 스토리 정보 조회 (좋아요 수 확인용)
+                Story currentStory = storyRepository.findByIdWithAllAssociations(currentStoryId)
                     .orElseThrow(() -> new NoSuchElementException("ID가 " + currentStoryId + "인 스토리를 찾을 수 없습니다."));
 
-                stories = storyRepository.findPopularStoriesLessThan(currentStoryId, currentStory.getLikeCount(), pageable);
+                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+                stories = storyRepository.findPopularStoriesLessThanWithAllAssociations(currentStoryId, currentStory.getLikeCount(), pageable);
                 break;
             default:
-                stories = storyRepository.findByIdLessThanOrderByIdDesc(currentStoryId, pageable);
+                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+                stories = storyRepository.findByIdLessThanOrderByIdDescWithAllAssociations(currentStoryId, pageable);
                 break;
         }
 
