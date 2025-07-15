@@ -1,5 +1,6 @@
 package com.tryiton.core.product.dto;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tryiton.core.product.entity.Product;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,8 +55,23 @@ public class ProductDetailResponseDto {
         if (product.getImg4() != null) {
             images.add(product.getImg4());
         }
-        if (product.getImg5() != null) {
-            images.add(product.getImg5());
+        if (product.getImg5() != null && !product.getImg5().isEmpty()) {
+            try {
+                // JSON 문자열을 배열로 파싱
+                ObjectMapper objectMapper = new ObjectMapper();
+                String[] img5Array = objectMapper.readValue(product.getImg5(), String[].class);
+
+                // 파싱된 배열의 각 URL을 images 리스트에 추가
+                for (String imgUrl : img5Array) {
+                    if (imgUrl != null && !imgUrl.isEmpty()) {
+                        images.add(imgUrl);
+                    }
+                }
+            } catch (Exception e) {
+                // JSON 파싱 실패 시 로그 출력하고 원본 문자열 추가
+                System.err.println("img5 JSON 파싱 실패: " + e.getMessage());
+                images.add(product.getImg5());
+            }
         }
     }
 }
