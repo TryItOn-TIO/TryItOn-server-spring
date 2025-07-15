@@ -16,12 +16,14 @@ import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
+import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.common.service.S3Service;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
+import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
@@ -46,6 +48,8 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 public class AvatarServiceImpl implements AvatarService {
 
     private final AvatarRepository avatarRepository;
+    private final AvatarItemRepository avatarItemRepository;
+    private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
     private final S3Client s3Client;
@@ -138,19 +142,19 @@ public class AvatarServiceImpl implements AvatarService {
     private String performStatelessTryOn(String baseImgUrl, String maskUrl, String poseUrl, Product garment, Member member) {
         // 캐시 키 생성 (baseImgUrl과 garment 조합으로)
         String cacheKey = generateStatelessCacheKey(member.getId(), garment.getId(), baseImgUrl);
-        
+
         // S3에 캐시된 이미지가 있는지 확인
         if (existsInS3(cacheKey)) {
             String cachedUrl = buildS3PublicUrl(cacheKey);
-            log.info("Stateless 캐시 히트 - userId={}, garmentId={}, url={}", 
+            log.info("Stateless 캐시 히트 - userId={}, garmentId={}, url={}",
                     member.getId(), garment.getId(), cachedUrl);
             return cachedUrl;
         }
-        
+
         // 캐시 미스 - AI 서버에 요청
-        log.info("Stateless 캐시 미스 - AI 서버 요청: userId={}, garmentId={}", 
+        log.info("Stateless 캐시 미스 - AI 서버 요청: userId={}, garmentId={}",
                 member.getId(), garment.getId());
-        
+
         String garmentType = determineGarmentType(garment);
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
             baseImgUrl,
@@ -174,7 +178,7 @@ public class AvatarServiceImpl implements AvatarService {
                 return response.getTryOnImgUrl();
             }
         } catch (Exception e) {
-            log.error("AI 서버 호출 실패: userId={}, garmentId={}, error={}", 
+            log.error("AI 서버 호출 실패: userId={}, garmentId={}, error={}",
                     member.getId(), garment.getId(), e.getMessage());
             return null; // 실패 시 null 반환
         }
@@ -211,19 +215,19 @@ public class AvatarServiceImpl implements AvatarService {
             for (Product bottom : bottoms) {
                 // 캐싱 키 생성
                 String cacheKey = generateCombinationCacheKey(member.getId(), top.getId(), bottom.getId());
-                
+
                 String finalImgUrl = null;
-                
+
                 // S3에 캐시된 이미지가 있는지 확인
                 if (existsInS3(cacheKey)) {
                     finalImgUrl = buildS3PublicUrl(cacheKey);
-                    log.info("캐시 히트 - 조합 이미지 사용: userId={}, topId={}, bottomId={}, url={}", 
+                    log.info("캐시 히트 - 조합 이미지 사용: userId={}, topId={}, bottomId={}, url={}",
                             member.getId(), top.getId(), bottom.getId(), finalImgUrl);
                 } else {
                     // 캐시 미스 - 기존 로직으로 새로 생성 (파이썬이 S3에 업로드)
-                    log.info("캐시 미스 - 새 조합 이미지 생성: userId={}, topId={}, bottomId={}", 
+                    log.info("캐시 미스 - 새 조합 이미지 생성: userId={}, topId={}, bottomId={}",
                             member.getId(), top.getId(), bottom.getId());
-                    
+
                     String baseUrl = profile.getUserBaseImageUrl();
                     // 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
                     String topAppliedImgUrl = performStatelessTryOn(baseUrl,
@@ -264,7 +268,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest) {
         Long userId = member.getId();
         Long productId = Long.parseLong(avatarTryOnRequest.getProductId());
-        
+
         // 1. 사용자의 가장 최근 아바타를 조회합니다.
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
         if (avatar == null) {
@@ -279,16 +283,16 @@ public class AvatarServiceImpl implements AvatarService {
         // 3. 단일 아이템 캐시 키 생성
         String cacheKey = generateSingleItemCacheKey(userId, newGarment);
         String finalImageUrl = null;
-        
+
         // 4. S3에 캐시된 이미지가 있는지 확인
         if (existsInS3(cacheKey)) {
             finalImageUrl = buildS3PublicUrl(cacheKey);
-            log.info("캐시 히트 - 단일 아이템 이미지 사용: userId={}, productId={}, url={}", 
+            log.info("캐시 히트 - 단일 아이템 이미지 사용: userId={}, productId={}, url={}",
                     userId, productId, finalImageUrl);
         } else {
             // 캐시 미스 - 기존 로직으로 새로 생성 (파이썬이 S3에 업로드)
             log.info("캐시 미스 - 새 단일 아이템 이미지 생성: userId={}, productId={}", userId, productId);
-            
+
             // Avatar 엔티티의 비즈니스 로직을 호출하여 옷을 입힙니다.
             avatar.wearGarment(newGarment);
 
@@ -316,7 +320,7 @@ public class AvatarServiceImpl implements AvatarService {
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
             }
-            
+
             finalImageUrl = fastApiResponse.getTryOnImgUrl();
         }
 
@@ -355,7 +359,7 @@ public class AvatarServiceImpl implements AvatarService {
     @Override
     public AvatarBaseImageUpdateResponse updateAvatarBaseImage(Member member, AvatarBaseImageUpdateRequest request) {
         try {
-            log.info("아바타 베이스 이미지 업데이트 시작 - userId: {}, newImageUrl: {}", 
+            log.info("아바타 베이스 이미지 업데이트 시작 - userId: {}, newImageUrl: {}",
                     member.getId(), request.getNewBaseImageUrl());
 
             // 1. 사용자 프로필 조회
@@ -363,7 +367,7 @@ public class AvatarServiceImpl implements AvatarService {
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
             }
-            
+
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
             log.info("기존 베이스 이미지 URL: {}", oldBaseImageUrl);
 
@@ -384,25 +388,25 @@ public class AvatarServiceImpl implements AvatarService {
                 member.getId().toString(),
                 request.getNewBaseImageUrl()
             );
-            
+
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
-            
+
             // 6. 기존 캐시 무효화 (선택사항)
             invalidateUserCache(member.getId());
-            
+
             log.info("아바타 베이스 이미지 업데이트 완료 - userId: {}", member.getId());
-            
+
             return AvatarBaseImageUpdateResponse.success(
                 request.getNewBaseImageUrl(),
                 avatarCreateResponse.getTryOnImgUrl()
             );
-            
+
         } catch (BusinessException e) {
-            log.error("아바타 베이스 이미지 업데이트 실패 - userId: {}, error: {}", 
+            log.error("아바타 베이스 이미지 업데이트 실패 - userId: {}, error: {}",
                     member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure(e.getMessage());
         } catch (Exception e) {
-            log.error("아바타 베이스 이미지 업데이트 중 예상치 못한 오류 - userId: {}, error: {}", 
+            log.error("아바타 베이스 이미지 업데이트 중 예상치 못한 오류 - userId: {}, error: {}",
                     member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure("아바타 베이스 이미지 업데이트 중 오류가 발생했습니다.");
         }
@@ -433,19 +437,19 @@ public class AvatarServiceImpl implements AvatarService {
         try {
             // 사용자별 아바타 에셋 경로 패턴: users/{userId}/
             String baseKey = "users/" + userId + "/";
-            
+
             // 일반적인 아바타 에셋 파일들 삭제
             String[] assetFiles = {
                 "pose.png",
-                "upper_mask.png", 
+                "upper_mask.png",
                 "lower_mask.png"
             };
-            
+
             for (String assetFile : assetFiles) {
                 String assetKey = baseKey + assetFile;
                 s3Service.deleteObject(assetKey);
             }
-            
+
             log.info("기존 아바타 에셋 삭제 완료 - userId: {}", userId);
         } catch (Exception e) {
             log.warn("기존 아바타 에셋 삭제 중 오류 - userId: {}, 에러: {}", userId, e.getMessage());
@@ -513,8 +517,8 @@ public class AvatarServiceImpl implements AvatarService {
             return "bottom";
         } else {
             // 상의도 하의도 아닌 경우 (액세서리 등)
-            log.warn("상품 ID {}는 상의도 하의도 아닙니다. 카테고리: {}", 
-                    product.getId(), 
+            log.warn("상품 ID {}는 상의도 하의도 아닙니다. 카테고리: {}",
+                    product.getId(),
                     product.getCategory() != null ? product.getCategory().getCategoryName() : "null");
             return "unknown"; // 또는 기본값 설정
         }
@@ -527,19 +531,19 @@ public class AvatarServiceImpl implements AvatarService {
     private void invalidateUserCache(Long userId) {
         try {
             log.info("사용자 캐시 무효화 시작 - userId: {}", userId);
-            
+
             // S3에서 해당 사용자의 캐시 파일들을 삭제
             String[] cachePrefixes = {
                 "single/" + userId + "/",
                 "stateless/" + userId + "/"
             };
-            
+
             for (String prefix : cachePrefixes) {
                 deleteS3ObjectsWithPrefix(prefix);
             }
-            
+
             log.info("사용자 캐시 무효화 완료 - userId: {}", userId);
-            
+
         } catch (Exception e) {
             log.warn("캐시 무효화 중 오류 발생 - userId: {}, error: {}", userId, e.getMessage());
             // 캐시 무효화 실패는 치명적이지 않으므로 예외를 던지지 않음
@@ -556,22 +560,22 @@ public class AvatarServiceImpl implements AvatarService {
                     .bucket(bucketName)
                     .prefix(prefix)
                     .build();
-            
+
             var listResponse = s3Client.listObjectsV2(listRequest);
-            
+
             // 각 객체 삭제
             for (var s3Object : listResponse.contents()) {
                 var deleteRequest = software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
                         .bucket(bucketName)
                         .key(s3Object.key())
                         .build();
-                
+
                 s3Client.deleteObject(deleteRequest);
                 log.debug("캐시 파일 삭제: {}", s3Object.key());
             }
-            
+
             log.info("prefix '{}' 캐시 파일 {} 개 삭제 완료", prefix, listResponse.contents().size());
-            
+
         } catch (Exception e) {
             log.error("S3 객체 삭제 실패 - prefix: {}, error: {}", prefix, e.getMessage());
         }
@@ -581,7 +585,7 @@ public class AvatarServiceImpl implements AvatarService {
     @Override
     public AvatarImageUploadCompleteResponse processAvatarImageUploadComplete(Member member, AvatarImageUploadCompleteRequest request) {
         try {
-            log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}", 
+            log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}",
                     member.getId(), request.getNewAvatarImageUrl());
 
             // 1. 사용자 프로필 조회
@@ -589,7 +593,7 @@ public class AvatarServiceImpl implements AvatarService {
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
             }
-            
+
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
             log.info("기존 베이스 이미지 URL: {}", oldBaseImageUrl);
 
@@ -610,25 +614,25 @@ public class AvatarServiceImpl implements AvatarService {
                 member.getId().toString(),
                 request.getNewAvatarImageUrl()
             );
-            
+
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
-            
+
             // 6. 기존 캐시 무효화
             invalidateUserCache(member.getId());
-            
+
             log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
-            
+
             return AvatarImageUploadCompleteResponse.success(
                 request.getNewAvatarImageUrl(),
                 avatarCreateResponse.getTryOnImgUrl()
             );
-            
+
         } catch (BusinessException e) {
-            log.error("아바타 이미지 업로드 완료 처리 실패 - userId: {}, error: {}", 
+            log.error("아바타 이미지 업로드 완료 처리 실패 - userId: {}, error: {}",
                     member.getId(), e.getMessage());
             return AvatarImageUploadCompleteResponse.failure(e.getMessage());
         } catch (Exception e) {
-            log.error("아바타 이미지 업로드 완료 처리 중 예상치 못한 오류 - userId: {}, error: {}", 
+            log.error("아바타 이미지 업로드 완료 처리 중 예상치 못한 오류 - userId: {}, error: {}",
                     member.getId(), e.getMessage());
             return AvatarImageUploadCompleteResponse.failure("아바타 이미지 업로드 완료 처리 중 오류가 발생했습니다.");
         }
