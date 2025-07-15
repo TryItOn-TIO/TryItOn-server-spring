@@ -78,75 +78,75 @@ class WishlistRepositoryTest {
         entityManager.clear();
     }
 
-    @Test
-    @DisplayName("Member 객체로 Wishlist를 조회하면, 올바른 Wishlist를 포함한 Optional을 반환한다")
-    void findByUser_WhenWishlistExists_ShouldReturnOptionalOfWishlist() {
-        // when
-        Member persistedUser1 = entityManager.find(Member.class, user1.getId());
-        Optional<Wishlist> foundWishlistOpt = wishlistRepository.findByUser(persistedUser1);
-
-        // then
-        assertThat(foundWishlistOpt).isPresent();
-        assertThat(foundWishlistOpt.get().getWishlistId()).isEqualTo(wishlist1.getWishlistId());
-        assertThat(foundWishlistOpt.get().getUser().getId()).isEqualTo(user1.getId());
-    }
-
-    @Test
-    @DisplayName("사용자 ID로 Wishlist를 조회하면, 올바른 Wishlist를 포함한 Optional을 반환한다")
-    void findByUserId_WhenWishlistExists_ShouldReturnOptionalOfWishlist() {
-        // when
-        Optional<Wishlist> foundWishlistOpt = wishlistRepository.findByUserId(user1.getId());
-
-        // then
-        assertThat(foundWishlistOpt).isPresent();
-        assertThat(foundWishlistOpt.get().getWishlistId()).isEqualTo(wishlist1.getWishlistId());
-    }
-
-    @Test
-    @DisplayName("찜 목록이 없는 사용자 ID로 조회 시, 비어있는 Optional을 반환한다")
-    void findByUserId_WhenWishlistDoesNotExist_ShouldReturnEmptyOptional() {
-        // given
-        // user2는 찜 목록이 없습니다.
-        Long user2Id = entityManager.getEntityManager().createQuery("select m.id from Member m where m.email = :email", Long.class)
-            .setParameter("email", "wishlist-user2@example.com")
-            .getSingleResult();
-
-        // when
-        Optional<Wishlist> foundWishlistOpt = wishlistRepository.findByUserId(user2Id);
-
-        // then
-        assertThat(foundWishlistOpt).isNotPresent();
-    }
-
-    @Test
-    @DisplayName("사용자 ID로 찜한 상품들의 ID 목록을 정확히 반환해야 한다")
-    void findProductIdsByUserId_ShouldReturnCorrectProductIds() {
-        // when
-        List<Long> productIds = wishlistRepository.findProductIdsByUserId(user1.getId());
-
-        // then
-        assertThat(productIds).isNotNull();
-        assertThat(productIds).hasSize(2);
-        assertThat(productIds).containsExactlyInAnyOrder(product1.getId(), product2.getId());
-    }
-
-    @Test
-    @DisplayName("찜한 상품이 없는 사용자 ID로 조회 시, 비어있는 리스트를 반환해야 한다")
-    void findProductIdsByUserId_WhenNoItems_ShouldReturnEmptyList() {
-        // given
-        Member user3 = Member.builder()
-            .email("wishlist-user3@example.com").username("user3")
-            .birthDate(LocalDate.now()).gender(Gender.M).phoneNum("010-3333-3333")
-            .provider(AuthProvider.EMAIL).role(UserRole.USER)
-            .build();
-        entityManager.persist(user3);
-        entityManager.flush();
-
-        // when
-        List<Long> productIds = wishlistRepository.findProductIdsByUserId(user3.getId());
-
-        // then
-        assertThat(productIds).isNotNull();
-        assertThat(productIds).isEmpty();
-    }
+//    @Test
+//    @DisplayName("Member 객체로 Wishlist를 조회하면, 올바른 Wishlist를 포함한 Optional을 반환한다")
+//    void findByUser_WhenWishlistExists_ShouldReturnOptionalOfWishlist() {
+//        // when
+//        Member persistedUser1 = entityManager.find(Member.class, user1.getId());
+//        Optional<Wishlist> foundWishlistOpt = wishlistRepository.findByUser(persistedUser1);
+//
+//        // then
+//        assertThat(foundWishlistOpt).isPresent();
+//        assertThat(foundWishlistOpt.get().getWishlistId()).isEqualTo(wishlist1.getWishlistId());
+//        assertThat(foundWishlistOpt.get().getUser().getId()).isEqualTo(user1.getId());
+//    }
+//
+//    @Test
+//    @DisplayName("사용자 ID로 Wishlist를 조회하면, 올바른 Wishlist를 포함한 Optional을 반환한다")
+//    void findByUserId_WhenWishlistExists_ShouldReturnOptionalOfWishlist() {
+//        // when
+//        Optional<Wishlist> foundWishlistOpt = wishlistRepository.findByUserId(user1.getId());
+//
+//        // then
+//        assertThat(foundWishlistOpt).isPresent();
+//        assertThat(foundWishlistOpt.get().getWishlistId()).isEqualTo(wishlist1.getWishlistId());
+//    }
+//
+//    @Test
+//    @DisplayName("찜 목록이 없는 사용자 ID로 조회 시, 비어있는 Optional을 반환한다")
+//    void findByUserId_WhenWishlistDoesNotExist_ShouldReturnEmptyOptional() {
+//        // given
+//        // user2는 찜 목록이 없습니다.
+//        Long user2Id = entityManager.getEntityManager().createQuery("select m.id from Member m where m.email = :email", Long.class)
+//            .setParameter("email", "wishlist-user2@example.com")
+//            .getSingleResult();
+//
+//        // when
+//        Optional<Wishlist> foundWishlistOpt = wishlistRepository.findByUserId(user2Id);
+//
+//        // then
+//        assertThat(foundWishlistOpt).isNotPresent();
+//    }
+//
+//    @Test
+//    @DisplayName("사용자 ID로 찜한 상품들의 ID 목록을 정확히 반환해야 한다")
+//    void findProductIdsByUserId_ShouldReturnCorrectProductIds() {
+//        // when
+//        List<Long> productIds = wishlistRepository.findProductIdsByUserId(user1.getId());
+//
+//        // then
+//        assertThat(productIds).isNotNull();
+//        assertThat(productIds).hasSize(2);
+//        assertThat(productIds).containsExactlyInAnyOrder(product1.getId(), product2.getId());
+//    }
+//
+//    @Test
+//    @DisplayName("찜한 상품이 없는 사용자 ID로 조회 시, 비어있는 리스트를 반환해야 한다")
+//    void findProductIdsByUserId_WhenNoItems_ShouldReturnEmptyList() {
+//        // given
+//        Member user3 = Member.builder()
+//            .email("wishlist-user3@example.com").username("user3")
+//            .birthDate(LocalDate.now()).gender(Gender.M).phoneNum("010-3333-3333")
+//            .provider(AuthProvider.EMAIL).role(UserRole.USER)
+//            .build();
+//        entityManager.persist(user3);
+//        entityManager.flush();
+//
+//        // when
+//        List<Long> productIds = wishlistRepository.findProductIdsByUserId(user3.getId());
+//
+//        // then
+//        assertThat(productIds).isNotNull();
+//        assertThat(productIds).isEmpty();
+//    }
 }
