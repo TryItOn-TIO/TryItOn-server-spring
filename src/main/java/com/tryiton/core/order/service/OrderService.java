@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,13 +41,26 @@ public class OrderService {
         Address address = addressRepository.findById(requestDto.getAddressId())
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주소를 찾을 수 없습니다."));
 
+        // 🚀 N+1 쿼리 해결: 모든 variant를 한 번에 조회
+        List<Long> variantIds = requestDto.getOrderItems().stream()
+            .map(OrderItemRequestDto::getVariantId)
+            .toList();
+        
+        List<ProductVariant> variants = productVariantRepository.findAllByIdInWithProduct(variantIds);
+        
+        // variant ID를 키로 하는 Map 생성
+        Map<Long, ProductVariant> variantMap = variants.stream()
+            .collect(Collectors.toMap(ProductVariant::getVariantId, v -> v));
+
         // 1. OrderItem 엔티티 리스트를 생성합니다.
         List<OrderItem> orderItems = requestDto.getOrderItems().stream()
                 .map(itemDto -> {
-                    ProductVariant variant = productVariantRepository.findById(itemDto.getVariantId())
-                        .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "상품 옵션을 찾을 수 없습니다."));
+                    ProductVariant variant = variantMap.get(itemDto.getVariantId());
+                    if (variant == null) {
+                        throw new BusinessException(HttpStatus.NOT_FOUND, "상품 옵션을 찾을 수 없습니다.");
+                    }
                     return OrderItem.builder()
-                            .product(variant.getProduct())
+                            .product(variant.getProduct()) // 이미 fetch join으로 로딩됨
                             .variant(variant)
                             .quantity(itemDto.getQuantity())
                             .unitPrice(variant.getPrice()) // 할인된 가격

@@ -73,11 +73,12 @@ public class WishlistService {
         Wishlist wishlist = wishlistRepository.findByUserId(user.getId())
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "찜 목록이 존재하지 않습니다."));
 
-        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlist_WishlistIdOrderByCreatedAtDesc(
+        // N+1 쿼리 해결: WishlistItem과 Product를 함께 조회
+        List<WishlistItem> sortedItems = wishlistItemRepository.findAllByWishlistIdWithProductOrderByCreatedAtDesc(
             wishlist.getWishlistId());
 
         return sortedItems.stream()
-            .map(item -> new ProductResponseDto(item.getProduct(), true))
+            .map(item -> new ProductResponseDto(item.getProduct(), true)) // 이미 fetch join으로 로딩됨
             .toList();
     }
 }

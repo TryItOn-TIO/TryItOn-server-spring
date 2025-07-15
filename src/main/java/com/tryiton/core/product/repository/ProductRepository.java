@@ -28,6 +28,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 여러 ID 목록으로 상품들을 한 번에 조회
     @Query("SELECT p FROM Product p WHERE p.id IN :ids AND p.deleted = false")
     List<Product> findByIds(@Param("ids") List<Long> ids);
+    
+    // N+1 쿼리 해결: 상품과 태그를 함께 조회
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tags WHERE p.id IN :ids AND p.deleted = false")
+    List<Product> findByIdsWithTags(@Param("ids") List<Long> ids);
 
     // 태그 ID 목록을 기반으로 관련 상품 ID 목록을 조회
     @Query(value = "SELECT DISTINCT product_id FROM product_tag WHERE tag_id IN :tagIds", nativeQuery = true)
@@ -56,6 +60,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p JOIN FETCH p.category WHERE p.id = :id AND p.deleted = false")
     Optional<Product> findByIdWithCategory(@Param("id") Long id);
+    
+    // N+1 쿼리 해결: 상품과 카테고리, variants를 함께 조회
+    @Query("SELECT p FROM Product p JOIN FETCH p.category LEFT JOIN FETCH p.variants WHERE p.id = :id AND p.deleted = false")
+    Optional<Product> findByIdWithCategoryAndVariants(@Param("id") Long id);
 
     // 카테고리별 최신 8개 상품 조회 (비로그인 사용자용)
     List<Product> findTop8ByCategoryAndDeletedFalseOrderByCreatedAtDesc(Category category);
@@ -75,4 +83,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByProductNameContainingOrBrandContaining(
         String productName, String brand, Pageable pageable
     );
+
+    // 모든 카테고리별 상위 8개 상품을 한 번에 조회
+    @Query("""
+            SELECT p FROM Product p
+            JOIN FETCH p.category c
+            WHERE p.deleted = false
+            AND p.id IN (
+                SELECT p2.id FROM Product p2
+                WHERE p2.category = p.category
+                AND p2.deleted = false
+                ORDER BY p2.wishlistCount DESC, p2.createdAt DESC
+                LIMIT 8
+            )
+            ORDER BY c.id, p.wishlistCount DESC, p.createdAt DESC
+            """)
+    List<Product> findTop8ProductsPerCategoryWithCategory();
 }
