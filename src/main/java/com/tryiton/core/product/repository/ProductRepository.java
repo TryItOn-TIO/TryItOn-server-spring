@@ -16,6 +16,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 전체 상품 중 찜 많은 순으로 페이징 조회 (인기 상품 후보군)
     List<Product> findAllByDeletedFalseOrderByWishlistCountDesc();
 
+    //  성능 최적화: 상위 100개만 조회
+    List<Product> findTop100ByDeletedFalseOrderByWishlistCountDesc();
+
     // 특정 카테고리의 상품 중 페이징 조회
     Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);
 

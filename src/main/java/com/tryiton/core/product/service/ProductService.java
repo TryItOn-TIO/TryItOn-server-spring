@@ -88,7 +88,8 @@ public class ProductService {
             likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
         }
 
-        return productRepository.findAllByDeletedFalseOrderByWishlistCountDesc()
+        // 성능 최적화: 상위 100개만 조회하도록 제한
+        return productRepository.findTop100ByDeletedFalseOrderByWishlistCountDesc()
             .stream()
             .map(product -> new ProductResponseDto(product,
                 likedProductIds.contains(product.getId())))
