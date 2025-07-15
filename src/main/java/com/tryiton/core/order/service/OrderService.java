@@ -2,6 +2,7 @@ package com.tryiton.core.order.service;
 
 import com.tryiton.core.address.entity.Address;
 import com.tryiton.core.address.repository.AddressRepository;
+import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
@@ -10,6 +11,7 @@ import com.tryiton.core.order.entity.*;
 import com.tryiton.core.order.repository.*;
 import com.tryiton.core.product.entity.ProductVariant;
 import com.tryiton.core.product.repository.ProductVariantRepository;
+import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,8 @@ public class OrderService {
     private final MemberRepository memberRepository;
     private final AddressRepository addressRepository;
     private final ProductVariantRepository productVariantRepository;
+
+    private final RecommendBehaviorLogService recommendBehaviorLogService;
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto requestDto, String userEmail) {
@@ -67,6 +71,13 @@ public class OrderService {
         orderRepository.save(order);
 
         String orderName = createOrderName(orderItems);
+
+        // 유저 행동 로그 비동기 기록
+        for (OrderItem orderItem: order.getOrderItems()){
+            Long productId = orderItem.getProduct().getId();
+            recommendBehaviorLogService.logUserAction(user.getId(), productId, RecommendAction.BUY);
+        }
+
         return new OrderResponseDto(order, orderName);
     }
 

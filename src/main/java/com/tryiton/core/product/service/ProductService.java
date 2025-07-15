@@ -1,5 +1,6 @@
 package com.tryiton.core.product.service;
 
+import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.product.dto.CategoryProductGroup;
 import com.tryiton.core.product.dto.MainProductGuestResponse;
@@ -13,6 +14,7 @@ import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.CategoryRepository;
 import com.tryiton.core.product.repository.ProductRepository;
+import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import java.util.List;
 import com.tryiton.core.product.repository.TagRepository;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
@@ -38,6 +40,8 @@ public class ProductService {
     private final TagRepository tagRepository;
     private final WishlistRepository wishlistRepository;
     private final CategoryRepository categoryRepository;
+
+    private final RecommendBehaviorLogService recommendBehaviorLogService;
 
     public List<ProductResponseDto> getPersonalizedRecommendations(Long userId) {
         List<TagScoreDto> favoriteTags = tagRepository.findUserFavoriteTags(userId);
@@ -165,6 +169,11 @@ public class ProductService {
         List<ProductVariantDto> variantDto = product.getVariants().stream()
             .map(ProductVariantDto::new)
             .toList();
+
+        if(userId != null) {
+            // 유저 행동 로그 비동기 기록
+            recommendBehaviorLogService.logUserAction(userId, productId, RecommendAction.CLICK);
+        }
 
         return new ProductDetailResponseDto(product, variantDto, liked);
     }

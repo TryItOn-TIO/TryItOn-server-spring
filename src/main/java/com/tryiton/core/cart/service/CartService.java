@@ -6,12 +6,15 @@ import com.tryiton.core.cart.entity.Cart;
 import com.tryiton.core.cart.entity.CartItem;
 import com.tryiton.core.cart.repository.CartRepository;
 import com.tryiton.core.cart.repository.CartItemRepository;
+import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
+import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.entity.ProductVariant;
+import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.product.repository.ProductVariantRepository;
-import jakarta.persistence.EntityNotFoundException;
+import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ public class CartService {
     private final MemberRepository memberRepository;
     private final ProductVariantRepository productVariantRepository;
     private final CartItemRepository cartItemRepository;
+
+    private final RecommendBehaviorLogService recommendBehaviorLogService;
 
     @Transactional(readOnly = true)
     public List<CartItemDto> getCartItems(Long userId) {
@@ -54,6 +59,9 @@ public class CartService {
                             cart.getCartItems().add(newCartItem);
                         }
                 );
+
+        // 유저 행동 로그 비동기 기록
+        recommendBehaviorLogService.logUserAction(userId, variant.getProduct().getId(), RecommendAction.CART);
     }
     // ★★★ [신규] 수량 변경 로직 ★★★
     @Transactional

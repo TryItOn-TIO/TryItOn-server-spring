@@ -7,10 +7,12 @@ import com.tryiton.core.closet.dto.ClosetAvatarResponseDto;
 import com.tryiton.core.closet.entity.ClosetAvatar;
 import com.tryiton.core.closet.entity.ClosetAvatarItem;
 import com.tryiton.core.closet.repository.ClosetAvatarRepository;
+import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
+import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,8 @@ public class ClosetAvatarService {
     private final ClosetAvatarRepository closetAvatarRepository;
     private final ProductRepository productRepository;
     private final AvatarRepository avatarRepository;
+
+    private final RecommendBehaviorLogService recommendBehaviorLogService;
 
     // 옷장 전체 조회
     @Transactional(readOnly = true)
@@ -49,6 +53,12 @@ public class ClosetAvatarService {
         
         // 저장
         closetAvatarRepository.save(newAvatar);
+
+        // 유저 행동 로그 비동기 기록
+        for (ClosetAvatarItem avatarItem: newAvatar.getItems()){
+            recommendBehaviorLogService.logUserAction(user.getId(), avatarItem.getProduct().getId(),
+                RecommendAction.TRYONCLOSET);
+        }
     }
 
     // 착장 삭제
