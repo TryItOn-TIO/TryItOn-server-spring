@@ -40,7 +40,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 🔧 상위 카테고리와 모든 하위 카테고리의 상품을 함께 조회
     @Query("SELECT p FROM Product p WHERE p.deleted = false AND " +
         "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
-        "ORDER BY p.createdAt DESC")
+        "ORDER BY p.createAt DESC")
     Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
@@ -92,13 +92,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             AND p.product_id IN (
                 SELECT p2.product_id FROM (
                     SELECT p2.product_id,
-                           ROW_NUMBER() OVER (PARTITION BY p2.category_id ORDER BY p2.wishlist_count DESC, p2.created_at DESC) as rn
+                           ROW_NUMBER() OVER (PARTITION BY p2.category_id ORDER BY p2.wishlist_count DESC, p2.create_at DESC) as rn
                     FROM product p2
                     WHERE p2.deleted = false
                 ) ranked
                 WHERE ranked.rn <= 8
             )
-            ORDER BY c.category_id, p.wishlist_count DESC, p.created_at DESC
+            ORDER BY c.category_id, p.wishlist_count DESC, p.create_at DESC
             """, nativeQuery = true)
     List<Product> findTop8ProductsPerCategoryWithCategory();
 }
