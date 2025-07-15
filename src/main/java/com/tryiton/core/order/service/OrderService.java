@@ -41,9 +41,9 @@ public class OrderService {
         Address address = addressRepository.findById(requestDto.getAddressId())
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주소를 찾을 수 없습니다."));
 
-        // 🚀 N+1 쿼리 해결: 모든 variant를 한 번에 조회
+        //  N+1 쿼리 해결: 모든 variant를 한 번에 조회
         List<Long> variantIds = requestDto.getOrderItems().stream()
-            .map(OrderItemRequestDto::getVariantId)
+            .map(OrderRequestDto.OrderItemRequest::getVariantId)
             .toList();
         
         List<ProductVariant> variants = productVariantRepository.findAllByIdInWithProduct(variantIds);

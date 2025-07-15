@@ -35,7 +35,7 @@ public class CartService {
 
     @Transactional(readOnly = true)
     public List<CartItemDto> getCartItems(Long userId) {
-        // 🚀 N+1 쿼리 해결: CartItem과 연관 엔티티들을 한 번에 조회
+        //  N+1 쿼리 해결: CartItem과 연관 엔티티들을 한 번에 조회
         Cart cart = cartRepository.findByMemberIdWithItems(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "장바구니 상품을 찾을 수 없습니다."));
         

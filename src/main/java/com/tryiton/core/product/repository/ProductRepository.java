@@ -84,19 +84,21 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         String productName, String brand, Pageable pageable
     );
 
-    // 모든 카테고리별 상위 8개 상품을 한 번에 조회
-    @Query("""
-            SELECT p FROM Product p
-            JOIN FETCH p.category c
+    // 🚀 N+1 쿼리 해결: 모든 카테고리별 상위 8개 상품을 한 번에 조회 (네이티브 쿼리 사용)
+    @Query(value = """
+            SELECT p.*, c.* FROM product p
+            INNER JOIN category c ON p.category_id = c.category_id
             WHERE p.deleted = false
-            AND p.id IN (
-                SELECT p2.id FROM Product p2
-                WHERE p2.category = p.category
-                AND p2.deleted = false
-                ORDER BY p2.wishlistCount DESC, p2.createdAt DESC
-                LIMIT 8
+            AND p.product_id IN (
+                SELECT p2.product_id FROM (
+                    SELECT p2.product_id,
+                           ROW_NUMBER() OVER (PARTITION BY p2.category_id ORDER BY p2.wishlist_count DESC, p2.created_at DESC) as rn
+                    FROM product p2
+                    WHERE p2.deleted = false
+                ) ranked
+                WHERE ranked.rn <= 8
             )
-            ORDER BY c.id, p.wishlistCount DESC, p.createdAt DESC
-            """)
+            ORDER BY c.category_id, p.wishlist_count DESC, p.created_at DESC
+            """, nativeQuery = true)
     List<Product> findTop8ProductsPerCategoryWithCategory();
 }
