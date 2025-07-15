@@ -100,7 +100,10 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest) {
         // 1. FastAPI 서버로 보낼 요청 DTO 생성
         String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
+        log.info("FastAPI 요청 준비 - userId: {}, originalImgUrl: {}", member.getId(), originalImgUrl);
+        
         InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(member.getId(), originalImgUrl);
+        log.info("FastAPI 요청 데이터: {}", fastApiRequest);
 
         // 2. WebClient를 사용하여 FastAPI 서버의 /generate 엔드포인트에 POST 요청
         InitialAvatarResponse fastApiResponse = fastApiWebClient.post()
@@ -587,6 +590,12 @@ public class AvatarServiceImpl implements AvatarService {
         try {
             log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}",
                     member.getId(), request.getNewAvatarImageUrl());
+
+            // 요청 데이터 검증
+            if (request.getNewAvatarImageUrl() == null || request.getNewAvatarImageUrl().trim().isEmpty()) {
+                log.error("새 아바타 이미지 URL이 비어있습니다 - userId: {}", member.getId());
+                return AvatarImageUploadCompleteResponse.failure("새 아바타 이미지 URL이 제공되지 않았습니다.");
+            }
 
             // 1. 사용자 프로필 조회
             Profile profile = member.getProfile();

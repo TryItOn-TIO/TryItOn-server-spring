@@ -15,14 +15,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 전체 상품 중 찜 많은 순으로 페이징 조회 (인기 상품 후보군)
     List<Product> findAllByDeletedFalseOrderByWishlistCountDesc();
-    
+
     //  성능 최적화: 상위 100개만 조회
     List<Product> findTop100ByDeletedFalseOrderByWishlistCountDesc();
 
     // 특정 카테고리의 상품 중 페이징 조회
     Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);
 
-    Page<Product> findByCategoryInAndDeletedFalseOrderByCreatedAtDesc(List<Category> categories,
+    Page<Product> findByCategoryInAndDeletedFalseOrderByCreateAtDesc(List<Category> categories,
         Pageable pageable);
 
     // 추천 알고리즘을 위해 특정 ID 리스트 기반으로 상품 조회
@@ -43,7 +43,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 🔧 상위 카테고리와 모든 하위 카테고리의 상품을 함께 조회
     @Query("SELECT p FROM Product p WHERE p.deleted = false AND " +
         "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
-        "ORDER BY p.createdAt DESC")
+        "ORDER BY p.createAt DESC")
     Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
@@ -69,10 +69,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByIdWithCategoryAndVariants(@Param("id") Long id);
 
     // 카테고리별 최신 8개 상품 조회 (비로그인 사용자용)
-    List<Product> findTop8ByCategoryAndDeletedFalseOrderByCreatedAtDesc(Category category);
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByCreateAtDesc(Category category);
 
     // 카테고리별 인기순 8개 상품 조회 (찜 개수 기준)
-    List<Product> findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(Category category);
+    List<Product> findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreateAtDesc(Category category);
 
     // 같은 하위 카테고리의 유사한 상품 조회 (기준 상품 제외, 랜덤 정렬)
     @Query(value = "SELECT * FROM product p WHERE p.category_id = :categoryId AND p.product_id != :excludeProductId AND p.deleted = false ORDER BY RAND() LIMIT :limit", nativeQuery = true)
@@ -87,21 +87,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         String productName, String brand, Pageable pageable
     );
 
-    //  N+1 쿼리 해결: 모든 카테고리별 상위 8개 상품을 한 번에 조회 (네이티브 쿼리 사용)
+    // 각 카테고리별 상위 8개 상품 조회 (LIMIT 추가로 성능 최적화)
     @Query(value = """
-            SELECT p.*, c.* FROM product p
-            INNER JOIN category c ON p.category_id = c.category_id
+            SELECT p.* FROM product p
             WHERE p.deleted = false
-            AND p.product_id IN (
-                SELECT p2.product_id FROM (
-                    SELECT p2.product_id,
-                           ROW_NUMBER() OVER (PARTITION BY p2.category_id ORDER BY p2.wishlist_count DESC, p2.created_at DESC) as rn
-                    FROM product p2
-                    WHERE p2.deleted = false
-                ) ranked
-                WHERE ranked.rn <= 8
-            )
-            ORDER BY c.category_id, p.wishlist_count DESC, p.created_at DESC
+            ORDER BY p.category_id, p.wishlist_count DESC, p.create_at DESC
+            LIMIT 200
             """, nativeQuery = true)
     List<Product> findTop8ProductsPerCategoryWithCategory();
 }
