@@ -46,6 +46,8 @@ public class Product extends BaseTimeEntity {
     private String img2;
     private String img3;
     private String img4;
+
+    @Column(columnDefinition = "LONGTEXT")
     private String img5;
 
     @Column(length = 1500)
