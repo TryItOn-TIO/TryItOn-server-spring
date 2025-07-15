@@ -60,7 +60,8 @@ public class ProductService {
         if (candidateIds.isEmpty()) {
             return Collections.emptyList();
         }
-        List<Product> finalCandidates = productRepository.findByIds(new ArrayList<>(candidateIds));
+        // N+1 쿼리 해결: 상품과 태그를 함께 조회
+        List<Product> finalCandidates = productRepository.findByIdsWithTags(new ArrayList<>(candidateIds));
 
         return finalCandidates.stream()
             .map(product -> {
@@ -156,7 +157,8 @@ public class ProductService {
     // 상품 상세 조회 (로그인/비로그인 모두 지원)
     @Transactional(readOnly = true)
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
-        Product product = productRepository.findByIdWithCategory(productId)
+        // N+1 쿼리 해결: 상품과 카테고리, variants를 함께 조회
+        Product product = productRepository.findByIdWithCategoryAndVariants(productId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                 "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
@@ -166,6 +168,7 @@ public class ProductService {
             liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
         }
 
+        // 이미 fetch join으로 variants가 로딩되어 추가 쿼리 없음
         List<ProductVariantDto> variantDto = product.getVariants().stream()
             .map(ProductVariantDto::new)
             .toList();
@@ -180,28 +183,29 @@ public class ProductService {
 
     // 비로그인 사용자용 메인 페이지 상품 조회
     public MainProductGuestResponse getMainPageProductsForGuest() {
-        List<CategoryProductGroup> categoryGroups = new ArrayList<>();
-
         // 모든 카테고리 조회
-        List<Category> categories = categoryRepository.findAll();
+        List<Product> allProducts = productRepository.findTop8ProductsPerCategoryWithCategory();
 
-        for (Category category : categories) {
-            // 각 카테고리별로 8개씩 상품 조회 (인기순)
-            List<Product> products = productRepository
-                .findTop8ByCategoryAndDeletedFalseOrderByWishlistCountDescCreatedAtDesc(category);
+        Map<Category, List<Product>> productsByCategory = allProducts.stream()
+                .collect(Collectors.groupingBy(Product::getCategory));
 
-            List<ProductSummary> productSummaries = products.stream()
-                .map(this::convertToProductSummary)
+        List<CategoryProductGroup> categoryGroups = productsByCategory.entrySet().stream()
+                .map(entry -> {
+                    Category category = entry.getKey();
+                    List<Product> products = entry.getValue();
+
+                    List<ProductSummary> productSummaries = products.stream()
+                            .map(this::convertToProductSummary)
+                            .collect(Collectors.toList());
+
+                    return new CategoryProductGroup(
+                        category.getId(),
+                        category.getCategoryName(),
+                        productSummaries
+                    );
+                })
+                .filter(group -> !group.getProducts().isEmpty())
                 .collect(Collectors.toList());
-
-            if (!productSummaries.isEmpty()) {
-                categoryGroups.add(new CategoryProductGroup(
-                    category.getId(),
-                    category.getCategoryName(),
-                    productSummaries
-                ));
-            }
-        }
 
         return MainProductGuestResponse.success(categoryGroups);
     }
