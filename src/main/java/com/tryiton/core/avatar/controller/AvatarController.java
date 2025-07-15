@@ -3,10 +3,12 @@ package com.tryiton.core.avatar.controller;
 import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
+import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarBaseImageUpdateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
+import com.tryiton.core.avatar.dto.response.AvatarImageUploadCompleteResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
@@ -159,6 +161,26 @@ public class AvatarController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body("배경 제거 실패: " + e.getMessage());
+        }
+    }
+
+    @Operation(
+        summary = "아바타 이미지 업로드 완료 처리",
+        description = "프리사인드 URL로 업로드된 아바타 이미지의 후처리를 수행합니다. " +
+                     "기존 이미지 삭제, DB 업데이트, 새 아바타 에셋 생성을 처리합니다."
+    )
+    @PostMapping("/upload-complete")
+    public ResponseEntity<AvatarImageUploadCompleteResponse> processAvatarImageUploadComplete(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails,
+        @RequestBody AvatarImageUploadCompleteRequest request
+    ) {
+        Member member = customUserDetails.getUser();
+        AvatarImageUploadCompleteResponse response = avatarService.processAvatarImageUploadComplete(member, request);
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
 

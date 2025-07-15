@@ -2,12 +2,14 @@ package com.tryiton.core.avatar.service;
 
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
+import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
 import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarBaseImageUpdateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
+import com.tryiton.core.avatar.dto.response.AvatarImageUploadCompleteResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
 import com.tryiton.core.avatar.dto.response.FastApiTryOnResponse;
 import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
@@ -17,6 +19,7 @@ import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.exception.BusinessException;
+import com.tryiton.core.common.service.S3Service;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
 import com.tryiton.core.member.repository.MemberRepository;
@@ -48,6 +51,7 @@ public class AvatarServiceImpl implements AvatarService {
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
     private final S3Client s3Client;
+    private final S3Service s3Service;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -351,18 +355,28 @@ public class AvatarServiceImpl implements AvatarService {
             log.info("아바타 베이스 이미지 업데이트 시작 - userId: {}, newImageUrl: {}", 
                     member.getId(), request.getNewBaseImageUrl());
 
-            // 1. 사용자 프로필의 베이스 이미지 URL 업데이트
+            // 1. 사용자 프로필 조회
             Profile profile = member.getProfile();
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
             }
             
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
+            log.info("기존 베이스 이미지 URL: {}", oldBaseImageUrl);
+
+            // 2. 기존 베이스 이미지 삭제 (S3에서)
+            if (oldBaseImageUrl != null && !oldBaseImageUrl.isEmpty()) {
+                deleteOldAvatarImage(oldBaseImageUrl);
+            }
+
+            // 3. 기존 아바타 관련 이미지들 삭제 (마스크, 포즈 등)
+            deleteOldAvatarAssets(member.getId());
+
+            // 4. 프로필의 베이스 이미지 URL 업데이트
             profile.setUserBaseImageUrl(request.getNewBaseImageUrl());
-            
             log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewBaseImageUrl());
 
-            // 2. 새로운 베이스 이미지로 아바타 에셋 생성 (마스크, 포즈 이미지)
+            // 5. 새로운 베이스 이미지로 아바타 에셋 생성 (마스크, 포즈 이미지)
             AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
                 member.getId().toString(),
                 request.getNewBaseImageUrl()
@@ -370,7 +384,7 @@ public class AvatarServiceImpl implements AvatarService {
             
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
             
-            // 3. 기존 캐시 무효화 (선택사항)
+            // 6. 기존 캐시 무효화 (선택사항)
             invalidateUserCache(member.getId());
             
             log.info("아바타 베이스 이미지 업데이트 완료 - userId: {}", member.getId());
@@ -388,6 +402,51 @@ public class AvatarServiceImpl implements AvatarService {
             log.error("아바타 베이스 이미지 업데이트 중 예상치 못한 오류 - userId: {}, error: {}", 
                     member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure("아바타 베이스 이미지 업데이트 중 오류가 발생했습니다.");
+        }
+    }
+
+    /**
+     * 기존 아바타 베이스 이미지를 S3에서 삭제합니다.
+     */
+    private void deleteOldAvatarImage(String oldAvatarUrl) {
+        try {
+            String s3Key = s3Service.extractS3KeyFromUrl(oldAvatarUrl);
+            if (s3Key != null) {
+                s3Service.deleteObject(s3Key);
+                log.info("기존 아바타 베이스 이미지 삭제 완료: {}", s3Key);
+            } else {
+                log.warn("S3 키 추출 실패, 삭제 건너뜀: {}", oldAvatarUrl);
+            }
+        } catch (Exception e) {
+            log.warn("기존 아바타 베이스 이미지 삭제 실패: {}, 에러: {}", oldAvatarUrl, e.getMessage());
+            // 삭제 실패해도 업데이트는 계속 진행
+        }
+    }
+
+    /**
+     * 기존 아바타 관련 에셋들(마스크, 포즈 등)을 S3에서 삭제합니다.
+     */
+    private void deleteOldAvatarAssets(Long userId) {
+        try {
+            // 사용자별 아바타 에셋 경로 패턴: users/{userId}/
+            String baseKey = "users/" + userId + "/";
+            
+            // 일반적인 아바타 에셋 파일들 삭제
+            String[] assetFiles = {
+                "pose.png",
+                "upper_mask.png", 
+                "lower_mask.png"
+            };
+            
+            for (String assetFile : assetFiles) {
+                String assetKey = baseKey + assetFile;
+                s3Service.deleteObject(assetKey);
+            }
+            
+            log.info("기존 아바타 에셋 삭제 완료 - userId: {}", userId);
+        } catch (Exception e) {
+            log.warn("기존 아바타 에셋 삭제 중 오류 - userId: {}, 에러: {}", userId, e.getMessage());
+            // 삭제 실패해도 업데이트는 계속 진행
         }
     }
 
@@ -512,6 +571,63 @@ public class AvatarServiceImpl implements AvatarService {
             
         } catch (Exception e) {
             log.error("S3 객체 삭제 실패 - prefix: {}, error: {}", prefix, e.getMessage());
+        }
+    }
+
+    @Transactional
+    @Override
+    public AvatarImageUploadCompleteResponse processAvatarImageUploadComplete(Member member, AvatarImageUploadCompleteRequest request) {
+        try {
+            log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}", 
+                    member.getId(), request.getNewAvatarImageUrl());
+
+            // 1. 사용자 프로필 조회
+            Profile profile = member.getProfile();
+            if (profile == null) {
+                throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
+            }
+            
+            String oldBaseImageUrl = profile.getUserBaseImageUrl();
+            log.info("기존 베이스 이미지 URL: {}", oldBaseImageUrl);
+
+            // 2. 기존 베이스 이미지 삭제 (S3에서)
+            if (oldBaseImageUrl != null && !oldBaseImageUrl.isEmpty()) {
+                deleteOldAvatarImage(oldBaseImageUrl);
+            }
+
+            // 3. 기존 아바타 관련 이미지들 삭제 (마스크, 포즈 등)
+            deleteOldAvatarAssets(member.getId());
+
+            // 4. 프로필의 베이스 이미지 URL 업데이트
+            profile.setUserBaseImageUrl(request.getNewAvatarImageUrl());
+            log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewAvatarImageUrl());
+
+            // 5. 새로운 베이스 이미지로 아바타 에셋 생성 (마스크, 포즈 이미지)
+            AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
+                member.getId().toString(),
+                request.getNewAvatarImageUrl()
+            );
+            
+            AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
+            
+            // 6. 기존 캐시 무효화
+            invalidateUserCache(member.getId());
+            
+            log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
+            
+            return AvatarImageUploadCompleteResponse.success(
+                request.getNewAvatarImageUrl(),
+                avatarCreateResponse.getTryOnImgUrl()
+            );
+            
+        } catch (BusinessException e) {
+            log.error("아바타 이미지 업로드 완료 처리 실패 - userId: {}, error: {}", 
+                    member.getId(), e.getMessage());
+            return AvatarImageUploadCompleteResponse.failure(e.getMessage());
+        } catch (Exception e) {
+            log.error("아바타 이미지 업로드 완료 처리 중 예상치 못한 오류 - userId: {}, error: {}", 
+                    member.getId(), e.getMessage());
+            return AvatarImageUploadCompleteResponse.failure("아바타 이미지 업로드 완료 처리 중 오류가 발생했습니다.");
         }
     }
 
