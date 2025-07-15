@@ -29,7 +29,7 @@ public class ProductResponseDto {
         this.liked = liked;
         this.brand = product.getBrand();
         this.wishlistCount = product.getWishlistCount();
-        this.createdAt = product.getCreatedAt();
+        this.createdAt = product.getCreateAt();
         this.categoryId = product.getCategory().getId();
         this.categoryName = product.getCategory().getCategoryName();
         
