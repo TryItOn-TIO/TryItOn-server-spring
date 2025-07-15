@@ -1,9 +1,12 @@
 package com.tryiton.core.config;
 
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,17 +22,22 @@ public class RedisConfig {
     @Value("${spring.data.redis.port}")
     private int port;
 
-//    @Bean
-//    public RedisConnectionFactory redisConnectionFactory() {
-//        LettuceConnectionFactory factory = new LettuceConnectionFactory(host, port);
-//        factory.setUseSsl(true); // TLS 연결 추가
-//        factory.setValidateConnection(false);
-//        return factory;
-//    }
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        return new LettuceConnectionFactory(host, port);
+
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+            .commandTimeout(Duration.ofSeconds(5))
+            .build();
+
+        return new LettuceConnectionFactory(redisConfig, clientConfig);
     }
+
+    // 로컬 환경에서는 위 코드를 주석 처리한 후, 아래를 주석 해제합니다.
+//    @Bean
+//    public RedisConnectionFactory redisConnectionFactory() {
+//        return new LettuceConnectionFactory(host, port);
+//    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {
