@@ -15,6 +15,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 전체 상품 중 찜 많은 순으로 페이징 조회 (인기 상품 후보군)
     List<Product> findAllByDeletedFalseOrderByWishlistCountDesc();
+    
+    //  성능 최적화: 상위 100개만 조회
+    List<Product> findTop100ByDeletedFalseOrderByWishlistCountDesc();
 
     // 특정 카테고리의 상품 중 페이징 조회
     Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);
@@ -84,7 +87,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         String productName, String brand, Pageable pageable
     );
 
-    // 🚀 N+1 쿼리 해결: 모든 카테고리별 상위 8개 상품을 한 번에 조회 (네이티브 쿼리 사용)
+    //  N+1 쿼리 해결: 모든 카테고리별 상위 8개 상품을 한 번에 조회 (네이티브 쿼리 사용)
     @Query(value = """
             SELECT p.*, c.* FROM product p
             INNER JOIN category c ON p.category_id = c.category_id
