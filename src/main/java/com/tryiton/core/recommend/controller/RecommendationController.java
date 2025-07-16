@@ -1,5 +1,6 @@
 package com.tryiton.core.recommend.controller;
 
+import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.recommend.service.PersonalizedService;
 import com.tryiton.core.recommend.service.RecommendationService;
@@ -25,11 +26,11 @@ public class RecommendationController {
     }
 
     @GetMapping("/for-you")
-    public ResponseEntity<List<Product>> getPersonalizedRecommendations(
+    public ResponseEntity<List<ProductResponseDto>> getPersonalizedRecommendations(
         @RequestParam Long userId,
         @RequestParam(defaultValue = "12") Integer limit) {
 
-        List<Product> products = personalizedService
+        List<ProductResponseDto> products = personalizedService
             .getPersonalizedRecommendations(userId, limit);
         return ResponseEntity.ok(products);
     }
