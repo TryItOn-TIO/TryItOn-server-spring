@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -37,6 +38,7 @@ public class RecommendationService {
     }
 
     // 트렌딩 상품 조회 - ProductResponseDto 반환 (비로그인 사용자용)
+    @Transactional(readOnly = true)
     public List<ProductResponseDto> getTrendingProducts() {
         try {
             String data = (String) redisTemplate.opsForValue().get("recommend:trending");
@@ -65,6 +67,7 @@ public class RecommendationService {
     }
 
     // 연령대별 추천 - ProductResponseDto 반환 (비로그인 사용자용)
+    @Transactional(readOnly = true)
     public List<ProductResponseDto> getAgeGroupRecommendations(String ageRange, String gender) {
         String genderKey = gender != null ? gender : "all";
         String key = String.format("recommend:age_group:%s:%s", ageRange, genderKey);
@@ -81,6 +84,7 @@ public class RecommendationService {
     }
 
     // 유사 상품 추천 - ProductResponseDto 반환 (비로그인 사용자용)
+    @Transactional(readOnly = true)
     public List<ProductResponseDto> getSimilarProducts(Long productId) {
         String key = "recommend:similar_to:" + productId;
         String data = (String) redisTemplate.opsForValue().get(key);
@@ -96,6 +100,7 @@ public class RecommendationService {
     }
 
     // Try-on 기반 추천 - ProductResponseDto 반환 (로그인 사용자용)
+    @Transactional(readOnly = true)
     public List<ProductResponseDto> getTryonBasedRecommendations(Long userId) {
         String key = "recommend:tryon_based:" + userId;
         String data = (String) redisTemplate.opsForValue().get(key);
@@ -145,8 +150,8 @@ public class RecommendationService {
             .map(LambdaBatchDto::getProductId)
             .toList();
 
-        // DB에서 실제 Product 정보 조회
-        List<Product> products = productRepository.findAllById(productIds);
+        // DB에서 실제 Product 정보 조회 (Category와 함께 조회하여 Lazy Loading 문제 해결)
+        List<Product> products = productRepository.findByIdsWithCategory(productIds);
         Set<Long> likedProductIds = getUserLikedProductIds(userId);
         Map<Long, Product> productMap = products.stream()
             .collect(Collectors.toMap(Product::getId, product -> product));
