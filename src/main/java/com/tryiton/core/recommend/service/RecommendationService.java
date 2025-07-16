@@ -6,7 +6,7 @@ import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.recommend.dto.CollaborativeFilteringMatrix;
-import com.tryiton.core.recommend.dto.LambdaProductDto;
+import com.tryiton.core.recommend.dto.LambdaBatchDto;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +40,9 @@ public class RecommendationService {
     public List<ProductResponseDto> getTrendingProducts() {
         try {
             String data = (String) redisTemplate.opsForValue().get("recommend:trending");
+            log.info("트렌딩 상품 조회 데이터: {}", data);
             if (data != null && !data.isEmpty()) {
+                log.info("트렌딩 상품 조회 데이터 존재");
                 return parseRedisDataToProductResponseDto(data, null);
             }
         } catch (Exception e) {
@@ -124,17 +126,9 @@ public class RecommendationService {
     // Redis 데이터를 ProductResponseDto로 변환하는 공통 메서드
     private List<ProductResponseDto> parseRedisDataToProductResponseDto(String data, Long userId) {
         try {
-            // 먼저 Lambda 형식(LambdaProductDto)으로 파싱 시도
-            try {
-                List<LambdaProductDto> lambdaProducts = objectMapper.readValue(data, 
-                    new TypeReference<List<LambdaProductDto>>() {});
-                return convertLambdaProductsToResponseDto(lambdaProducts, userId);
-            } catch (Exception e) {
-                // Lambda 형식이 아니면 Product 엔티티 형식으로 파싱 시도
-                List<Product> products = objectMapper.readValue(data, 
-                    new TypeReference<List<Product>>() {});
-                return convertProductsToResponseDto(products, userId);
-            }
+            List<LambdaBatchDto> lambdaProducts = objectMapper.readValue(data, new TypeReference<List<LambdaBatchDto>>() {});
+            log.info("트렌딩 상품 조회 데이터(LambdaBatchDto): {}", lambdaProducts);
+            return convertLambdaProductsToResponseDto(lambdaProducts, userId);
         } catch (Exception e) {
             log.error("Redis 데이터 파싱 실패: {}", e.getMessage());
             return Collections.emptyList();
@@ -142,13 +136,13 @@ public class RecommendationService {
     }
 
     // LambdaProductDto를 ProductResponseDto로 변환
-    private List<ProductResponseDto> convertLambdaProductsToResponseDto(List<LambdaProductDto> lambdaProducts, Long userId) {
+    private List<ProductResponseDto> convertLambdaProductsToResponseDto(List<LambdaBatchDto> lambdaProducts, Long userId) {
         if (lambdaProducts.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<Long> productIds = lambdaProducts.stream()
-            .map(LambdaProductDto::getProductId)
+            .map(LambdaBatchDto::getProductId)
             .toList();
 
         // DB에서 실제 Product 정보 조회
@@ -163,36 +157,23 @@ public class RecommendationService {
                 if (product != null) {
                     return new ProductResponseDto(product, likedProductIds.contains(product.getId()));
                 } else {
-                    return createProductResponseDtoFromLambda(lambdaProduct, 
-                        likedProductIds.contains(lambdaProduct.getProductId()));
+                    return createProductResponseDtoFromLambda(lambdaProduct, likedProductIds.contains(lambdaProduct.getProductId()));
                 }
             })
             .filter(dto -> dto != null)
             .toList();
     }
 
-    // Product 엔티티를 ProductResponseDto로 변환
-    private List<ProductResponseDto> convertProductsToResponseDto(List<Product> products, Long userId) {
-        if (products.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Set<Long> likedProductIds = getUserLikedProductIds(userId);
-        return products.stream()
-            .map(product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())))
-            .toList();
-    }
-
     // Lambda 데이터로 ProductResponseDto 생성
-    private ProductResponseDto createProductResponseDtoFromLambda(LambdaProductDto lambdaProduct, boolean liked) {
+    private ProductResponseDto createProductResponseDtoFromLambda(LambdaBatchDto lambdaProduct, boolean liked) {
         try {
             return new ProductResponseDto(
                 lambdaProduct.getProductId(),
                 lambdaProduct.getProductName() != null ? lambdaProduct.getProductName() : "상품명 없음",
                 lambdaProduct.getImg1() != null ? lambdaProduct.getImg1() : "",
-                lambdaProduct.getPrice() != null ? lambdaProduct.getPrice() : 0,
+                0, // price
                 0, // sale
-                lambdaProduct.getPrice() != null ? lambdaProduct.getPrice() : 0, // salePrice
+                0, // salePrice
                 liked,
                 lambdaProduct.getBrand() != null ? lambdaProduct.getBrand() : "브랜드 없음",
                 0, // wishlistCount
