@@ -1,6 +1,6 @@
 package com.tryiton.core.recommend.controller;
 
-import com.tryiton.core.product.entity.Product;
+import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.recommend.service.PersonalizedService;
 import com.tryiton.core.recommend.service.RecommendationService;
 import java.util.List;
@@ -25,41 +25,41 @@ public class RecommendationController {
     }
 
     @GetMapping("/for-you")
-    public ResponseEntity<List<Product>> getPersonalizedRecommendations(
+    public ResponseEntity<List<ProductResponseDto>> getPersonalizedRecommendations(
         @RequestParam Long userId,
         @RequestParam(defaultValue = "12") Integer limit) {
 
-        List<Product> products = personalizedService
+        List<ProductResponseDto> products = personalizedService
             .getPersonalizedRecommendations(userId, limit);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/trending")
-    public ResponseEntity<List<Product>> getTrending() {
-        List<Product> products = recommendationService.getTrendingProducts();
+    public ResponseEntity<List<ProductResponseDto>> getTrending() {
+        List<ProductResponseDto> products = recommendationService.getTrendingProducts();
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/age-group")
-    public ResponseEntity<List<Product>> getAgeGroupRecommendations(
+    public ResponseEntity<List<ProductResponseDto>> getAgeGroupRecommendations(
         @RequestParam String ageRange,
         @RequestParam(required = false) String gender) {
-        List<Product> products = recommendationService
+        List<ProductResponseDto> products = recommendationService
             .getAgeGroupRecommendations(ageRange, gender);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/similar-to/{productId}")
-    public ResponseEntity<List<Product>> getSimilarProducts(
+    public ResponseEntity<List<ProductResponseDto>> getSimilarProducts(
         @PathVariable Long productId) {
-        List<Product> products = recommendationService.getSimilarProducts(productId);
+        List<ProductResponseDto> products = recommendationService.getSimilarProducts(productId);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/tryon-based")
-    public ResponseEntity<List<Product>> getTryonRecommendations(
+    public ResponseEntity<List<ProductResponseDto>> getTryonRecommendations(
         @RequestParam Long userId) {
-        List<Product> products = recommendationService
+        List<ProductResponseDto> products = recommendationService
             .getTryonBasedRecommendations(userId);
         return ResponseEntity.ok(products);
     }

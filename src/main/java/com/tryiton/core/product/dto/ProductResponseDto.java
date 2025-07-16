@@ -41,6 +41,24 @@ public class ProductResponseDto {
         }
     }
 
+    // Lambda 데이터로부터 ProductResponseDto 생성하는 생성자
+    public ProductResponseDto(Long id, String productName, String img1, int price, int sale, 
+                             int salePrice, boolean liked, String brand, int wishlistCount, 
+                             LocalDateTime createdAt, Long categoryId, String categoryName) {
+        this.id = id;
+        this.productName = productName;
+        this.img1 = img1;
+        this.price = price;
+        this.sale = sale;
+        this.salePrice = salePrice;
+        this.liked = liked;
+        this.brand = brand;
+        this.wishlistCount = wishlistCount;
+        this.createdAt = createdAt;
+        this.categoryId = categoryId;
+        this.categoryName = categoryName;
+    }
+
     public static ProductResponseDto from(Product product, boolean liked) {
         return new ProductResponseDto(product, liked);
     }
