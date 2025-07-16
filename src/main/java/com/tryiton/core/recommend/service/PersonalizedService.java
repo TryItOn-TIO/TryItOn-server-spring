@@ -123,6 +123,7 @@ public class PersonalizedService {
 
     private PersonalizedRecommendationResponse parseResponse(String responseBody) {
         try {
+            log.debug("Lambda 원본 응답: {}", responseBody);
             JsonNode responseJson = objectMapper.readTree(responseBody);
 
             if (responseJson.has("statusCode")) {
@@ -133,7 +134,9 @@ public class PersonalizedService {
 
                 if (responseJson.has("body")) {
                     String bodyStr = responseJson.get("body").asText();
+                    log.debug("Lambda body 문자열: {}", bodyStr);
                     JsonNode bodyJson = objectMapper.readTree(bodyStr);
+                    log.debug("파싱된 body JSON: {}", bodyJson);
                     return parseRecommendationData(bodyJson);
                 }
             } else {
@@ -150,6 +153,7 @@ public class PersonalizedService {
 
     private PersonalizedRecommendationResponse parseRecommendationData(JsonNode dataJson) {
         try {
+            log.debug("추천 데이터 파싱 시작: {}", dataJson);
             PersonalizedRecommendationResponse response = new PersonalizedRecommendationResponse();
 
             if (dataJson.has("error")) {
@@ -163,10 +167,20 @@ public class PersonalizedService {
             response.setFromCache(dataJson.has("from_cache") && dataJson.get("from_cache").asBoolean());
 
             if (dataJson.has("recommendations")) {
+                JsonNode recommendationsNode = dataJson.get("recommendations");
+                log.debug("추천 상품 배열: {}", recommendationsNode);
+                
                 List<Product> products = objectMapper.convertValue(
-                    dataJson.get("recommendations"),
+                    recommendationsNode,
                     new TypeReference<List<Product>>() {}
                 );
+                log.debug("파싱된 상품 개수: {}", products.size());
+                if (!products.isEmpty()) {
+                    log.debug("첫 번째 상품: ID={}, Name={}, Brand={}", 
+                        products.get(0).getId(), 
+                        products.get(0).getProductName(), 
+                        products.get(0).getBrand());
+                }
                 response.setRecommendations(products);
             } else {
                 response.setRecommendations(Collections.emptyList());
@@ -175,7 +189,7 @@ public class PersonalizedService {
             return response;
 
         } catch (Exception e) {
-            log.error("추천 데이터 파싱 오류: {}", e.getMessage());
+            log.error("추천 데이터 파싱 오류: {}", e.getMessage(), e);
             PersonalizedRecommendationResponse errorResponse = new PersonalizedRecommendationResponse();
             errorResponse.setSuccess(false);
             errorResponse.setError("데이터 파싱 실패");

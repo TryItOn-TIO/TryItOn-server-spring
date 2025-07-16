@@ -1,6 +1,6 @@
 package com.tryiton.core.product.entity;
 
-import com.tryiton.core.common.BaseTimeEntity;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,10 +33,12 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "product_id")
+    @JsonProperty("product_id")  // Lambda 응답의 product_id와 매핑
     private Long id;
 
     @CreatedDate
     @Column(name = "create_at", updatable = false)
+    @JsonProperty("create_at")  // Lambda 응답의 create_at과 매핑
     private LocalDateTime createAt;
 
     @LastModifiedDate
@@ -47,6 +49,7 @@ public class Product {
     private Category category;
 
     @Column(nullable = false, length = 150)
+    @JsonProperty("product_name")  // Lambda 응답의 product_name과 매핑
     private String productName;
 
     @Column(nullable = false, length = 600)
