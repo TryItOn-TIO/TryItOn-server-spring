@@ -32,6 +32,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.id IN :ids AND p.deleted = false")
     List<Product> findByIds(@Param("ids") List<Long> ids);
     
+    // 여러 ID 목록으로 상품들을 카테고리와 함께 조회 (N+1 문제 해결)
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.id IN :ids AND p.deleted = false")
+    List<Product> findByIdsWithCategory(@Param("ids") List<Long> ids);
+    
     // N+1 쿼리 해결: 상품과 태그를 함께 조회
     @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.tags LEFT JOIN FETCH p.category WHERE p.id IN :ids AND p.deleted = false")
     List<Product> findByIdsWithTags(@Param("ids") List<Long> ids);
