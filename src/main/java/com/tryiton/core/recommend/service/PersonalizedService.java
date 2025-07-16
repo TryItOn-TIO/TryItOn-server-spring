@@ -232,7 +232,7 @@ public class PersonalizedService {
     private List<ProductResponseDto> getFallbackRecommendations(Long userId, Integer limit) {
         try {
             log.info("폴백 추천 실행 (트렌딩 상품)");
-            List<Product> products = fallbackService.getTrendingProducts()
+            List<Product> products = fallbackService.getTrendingProductsAsEntity()
                 .stream()
                 .limit(limit != null ? limit : 12)
                 .toList();
