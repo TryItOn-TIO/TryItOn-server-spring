@@ -1,10 +1,14 @@
 package com.tryiton.core.recommend.controller;
 
+import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.recommend.service.PersonalizedService;
 import com.tryiton.core.recommend.service.RecommendationService;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,9 +30,9 @@ public class RecommendationController {
 
     @GetMapping("/for-you")
     public ResponseEntity<List<ProductResponseDto>> getPersonalizedRecommendations(
-        @RequestParam Long userId,
-        @RequestParam(defaultValue = "12") Integer limit) {
-
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails,
+        @RequestParam(defaultValue = "8") Integer limit) {
+        Long userId = customUserDetails.getUser().getId();
         List<ProductResponseDto> products = personalizedService
             .getPersonalizedRecommendations(userId, limit);
         return ResponseEntity.ok(products);
@@ -42,8 +46,26 @@ public class RecommendationController {
 
     @GetMapping("/age-group")
     public ResponseEntity<List<ProductResponseDto>> getAgeGroupRecommendations(
-        @RequestParam String ageRange,
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestParam(required = false) String gender) {
+        LocalDate birthDate = customUserDetails.getUser().getBirthDate();
+        String ageRange = "20s";
+
+        LocalDate currentDate = LocalDate.now();
+        int age = Period.between(birthDate, currentDate).getYears();
+
+        if (age >= 20 && age <= 29) {
+            ageRange = "20s";
+        } else if (age >= 30 && age <= 39) {
+            ageRange = "30s";
+        } else if (age >= 40 && age <= 49) {
+            ageRange = "40s";
+        } else if (age >= 50 && age <= 59) {
+            ageRange = "50s";
+        } else if (age >= 60) {
+            ageRange = "60s";
+        }
+
         List<ProductResponseDto> products = recommendationService
             .getAgeGroupRecommendations(ageRange, gender);
         return ResponseEntity.ok(products);
@@ -58,9 +80,9 @@ public class RecommendationController {
 
     @GetMapping("/tryon-based")
     public ResponseEntity<List<ProductResponseDto>> getTryonRecommendations(
-        @RequestParam Long userId) {
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails) {
         List<ProductResponseDto> products = recommendationService
-            .getTryonBasedRecommendations(userId);
+            .getTryonBasedRecommendations(customUserDetails.getUser().getId());
         return ResponseEntity.ok(products);
     }
 
