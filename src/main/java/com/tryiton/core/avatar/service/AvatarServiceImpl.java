@@ -360,7 +360,7 @@ public class AvatarServiceImpl implements AvatarService {
             // FastAPI 서버에 보낼 요청 DTO를 구성합니다.
             String garmentType = determineGarmentType(newGarment);
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                avatar.getAvatarImg(),
+                member.getProfile().getUserBaseImageUrl(), // 원본 베이스 이미지 사용
                 newGarment.getImg1(), // 상품의 착용샷 이미지
                 buildS3Url(avatar.getMaskUrl(newGarment)),
                 buildS3Url(avatar.getPoseUrl()),
@@ -562,14 +562,8 @@ public class AvatarServiceImpl implements AvatarService {
             log.info("사용자 캐시 무효화 시작 - userId: {}", userId);
 
             // S3에서 해당 사용자의 캐시 파일들을 삭제
-            String[] cachePrefixes = {
-                "single/" + userId + "/",
-                "stateless/" + userId + "/"
-            };
-
-            for (String prefix : cachePrefixes) {
-                deleteS3ObjectsWithPrefix(prefix);
-            }
+            String cachePrefix = "cache/tryon/" + userId + "/";
+            deleteS3ObjectsWithPrefix(cachePrefix);
 
             log.info("사용자 캐시 무효화 완료 - userId: {}", userId);
 
@@ -640,6 +634,9 @@ public class AvatarServiceImpl implements AvatarService {
             );
             
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
+
+            // 3. 기존 캐시 무효화
+            invalidateUserCache(member.getId());
 
             log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
 
