@@ -1,5 +1,7 @@
 package com.tryiton.core.avatar.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
@@ -222,9 +224,12 @@ public class AvatarServiceImpl implements AvatarService {
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
         String taskId = asyncTaskService.registerTask();
+        log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
         String callbackUrl = springServerUrl + "/api/callbacks/vton";
 
         String garmentType = determineGarmentType(newGarment);
+
+        // 2. FastAPI 요청 객체를 생성합니다.
         FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
             avatar.getAvatarImg(),
             newGarment.getImg1(),
@@ -237,17 +242,29 @@ public class AvatarServiceImpl implements AvatarService {
             callbackUrl
         );
 
+        // ======================= 🔥 중요: 디버깅 로그 추가 🔥 =======================
+        try {
+            String requestBody = objectMapper.writeValueAsString(fastApiRequest);
+            log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
+            log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
+            log.info(">>> 요청 Body: {}", requestBody);
+        } catch (Exception e) {
+            log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
+        }
+        // ========================================================================
+
+
         fastApiWebClient.post()
             .uri("/tryon")
             .bodyValue(fastApiRequest)
             .retrieve()
             .bodyToMono(Void.class)
-            .doOnError(e -> log.error("FastAPI /tryon 호출 실패", e))
+            .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e)) // 네트워크 레벨 에러 로그
             .subscribe();
 
         try {
             CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS); // 60초 타임아웃
+            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
             String finalImageUrl = resultNode.get("tryOnImgUrl").asText();
 
             avatar.wearGarment(newGarment);
