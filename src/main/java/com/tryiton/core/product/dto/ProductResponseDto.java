@@ -29,7 +29,7 @@ public class ProductResponseDto {
         this.liked = liked;
         this.brand = product.getBrand();
         this.wishlistCount = product.getWishlistCount();
-        this.createdAt = product.getCreatedAt();
+        this.createdAt = product.getCreateAt();
         this.categoryId = product.getCategory().getId();
         this.categoryName = product.getCategory().getCategoryName();
         
@@ -39,6 +39,24 @@ public class ProductResponseDto {
         } else {
             this.salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
         }
+    }
+
+    // Lambda 데이터로부터 ProductResponseDto 생성하는 생성자
+    public ProductResponseDto(Long id, String productName, String img1, int price, int sale, 
+                             int salePrice, boolean liked, String brand, int wishlistCount, 
+                             LocalDateTime createdAt, Long categoryId, String categoryName) {
+        this.id = id;
+        this.productName = productName;
+        this.img1 = img1;
+        this.price = price;
+        this.sale = sale;
+        this.salePrice = salePrice;
+        this.liked = liked;
+        this.brand = brand;
+        this.wishlistCount = wishlistCount;
+        this.createdAt = createdAt;
+        this.categoryId = categoryId;
+        this.categoryName = categoryName;
     }
 
     public static ProductResponseDto from(Product product, boolean liked) {

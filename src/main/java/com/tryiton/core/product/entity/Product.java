@@ -1,6 +1,6 @@
 package com.tryiton.core.product.entity;
 
-import com.tryiton.core.common.BaseTimeEntity;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,31 +13,43 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.HashSet;
 import java.util.Set;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Product extends BaseTimeEntity {
+public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "product_id")
+    @JsonProperty("product_id")  // Lambda 응답의 product_id와 매핑
     private Long id;
+
+    @CreatedDate
+    @Column(name = "create_at", updatable = false)
+    @JsonProperty("create_at")  // Lambda 응답의 create_at과 매핑
+    private LocalDateTime createAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
 
     @Column(nullable = false, length = 150)
+    @JsonProperty("product_name")  // Lambda 응답의 product_name과 매핑
     private String productName;
 
     @Column(nullable = false, length = 600)
