@@ -13,4 +13,5 @@ public class UserProfileResponse {
     private final Integer weight;
     private final Integer shoeSize;
     private final AuthProvider loginType;
+    private final boolean canChangePassword;
 }
