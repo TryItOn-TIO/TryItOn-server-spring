@@ -1,14 +1,10 @@
 package com.tryiton.core.avatar.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
-import com.tryiton.core.avatar.dto.request.FastApiGenerateRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
-
 import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarBaseImageUpdateResponse;
@@ -24,7 +20,6 @@ import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
-import com.tryiton.core.common.service.AsyncTaskService;
 import com.tryiton.core.common.service.S3Service;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
@@ -34,8 +29,6 @@ import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -93,7 +86,7 @@ public class AvatarServiceImpl implements AvatarService {
     private String generateCombinationCacheKey(Long userId, Long topId, Long bottomId) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append("cache/tryon/").append(userId).append("/");
-
+        
         if (topId != null && bottomId != null) {
             keyBuilder.append("top-").append(topId).append("_bottom-").append(bottomId);
         } else if (topId != null) {
@@ -103,7 +96,7 @@ public class AvatarServiceImpl implements AvatarService {
         } else {
             keyBuilder.append("base");
         }
-
+        
         keyBuilder.append(".jpg");
         return keyBuilder.toString();
     }
@@ -117,7 +110,7 @@ public class AvatarServiceImpl implements AvatarService {
                 .bucket(bucketName)
                 .key(key)
                 .build();
-
+            
             s3Client.headObject(headObjectRequest);
             return true;
         } catch (NoSuchKeyException e) {
@@ -444,14 +437,8 @@ public class AvatarServiceImpl implements AvatarService {
             log.info("사용자 캐시 무효화 시작 - userId: {}", userId);
 
             // S3에서 해당 사용자의 캐시 파일들을 삭제
-            String[] cachePrefixes = {
-                "single/" + userId + "/",
-                "stateless/" + userId + "/"
-            };
-
-            for (String prefix : cachePrefixes) {
-                deleteS3ObjectsWithPrefix(prefix);
-            }
+            String cachePrefix = "cache/tryon/" + userId + "/";
+            deleteS3ObjectsWithPrefix(cachePrefix);
 
             log.info("사용자 캐시 무효화 완료 - userId: {}", userId);
 
@@ -510,7 +497,7 @@ public class AvatarServiceImpl implements AvatarService {
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
             }
-
+            
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
             profile.setUserBaseImageUrl(request.getNewAvatarImageUrl());
             log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewAvatarImageUrl());
@@ -520,8 +507,11 @@ public class AvatarServiceImpl implements AvatarService {
                 member.getId().toString(),
                 request.getNewAvatarImageUrl()
             );
-
+            
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
+
+            // 3. 기존 캐시 무효화
+            invalidateUserCache(member.getId());
 
             log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
 
