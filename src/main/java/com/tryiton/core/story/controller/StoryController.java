@@ -3,11 +3,14 @@ package com.tryiton.core.story.controller;
 import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.common.enums.StorySort;
 import com.tryiton.core.member.entity.Member;
+import com.tryiton.core.story.dto.BackgroundRemovalResponse;
 import com.tryiton.core.story.dto.StoriesResponseDto;
 import com.tryiton.core.story.dto.StoryPutDto;
 import com.tryiton.core.story.dto.StoryRequestDto;
 import com.tryiton.core.story.dto.StoryResponseDto;
 import com.tryiton.core.story.service.StoryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/stories")
+@Tag(name = "스토리", description = "스토리 관리 API")
 public class StoryController {
 
     private final StoryService storyService;
@@ -80,6 +84,38 @@ public class StoryController {
         @PathVariable Long storyId
     ){
         boolean res = storyService.deleteStory(customUserDetails.getUser(), storyId);
+        return ResponseEntity.ok(res);
+    }
+
+    @Operation(
+        summary = "이미지 배경 제거",
+        description = "스토리용 이미지의 배경을 제거합니다 (누끼 따기)"
+    )
+    @PostMapping("/remove-background")
+    public ResponseEntity<BackgroundRemovalResponse> removeBackground(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails,
+        @RequestParam String imageUrl
+    ) {
+        Member user = customUserDetails.getUser();
+        BackgroundRemovalResponse response = storyService.removeBackground(user, imageUrl);
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @Operation(
+        summary = "누끼 딴 스토리 작성",
+        description = "이미지 배경을 자동으로 제거한 후 스토리를 작성합니다"
+    )
+    @PostMapping("/with-background-removal")
+    public ResponseEntity<Boolean> createStoryWithBackgroundRemoval(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails,
+        @RequestBody StoryRequestDto storyRequestDto
+    ) {
+        boolean res = storyService.postStoryWithBackgroundRemoval(customUserDetails.getUser(), storyRequestDto);
         return ResponseEntity.ok(res);
     }
 }
