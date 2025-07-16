@@ -1,10 +1,14 @@
 package com.tryiton.core.avatar.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
+import com.tryiton.core.avatar.dto.request.FastApiGenerateRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
+
 import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
 import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarBaseImageUpdateResponse;
@@ -20,6 +24,7 @@ import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
+import com.tryiton.core.common.service.AsyncTaskService;
 import com.tryiton.core.common.service.S3Service;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
@@ -29,6 +34,8 @@ import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,14 +55,17 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 public class AvatarServiceImpl implements AvatarService {
 
     private final AvatarRepository avatarRepository;
-    private final AvatarItemRepository avatarItemRepository;
-    private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
     private final S3Client s3Client;
     private final S3Service s3Service;
+    private final AsyncTaskService asyncTaskService;
+    private final ObjectMapper objectMapper;
 
     private final RecommendBehaviorLogService recommendBehaviorLogService;
+
+    @Value("${server.url}")
+    private String springServerUrl;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucketName;
@@ -94,257 +104,117 @@ public class AvatarServiceImpl implements AvatarService {
     }
 
     /**
-     * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다.
+     * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다. (비동기 콜백 방식)
      */
+    @Override
     @Transactional
     public AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest) {
-        // 1. FastAPI 서버로 보낼 요청 DTO 생성
-        String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
-        InitialAvatarRequest fastApiRequest = new InitialAvatarRequest(member.getId(), originalImgUrl);
+        String taskId = asyncTaskService.registerTask();
+        String callbackUrl = springServerUrl + "/api/callbacks/vton";
 
-        // 2. WebClient를 사용하여 FastAPI 서버의 /generate 엔드포인트에 POST 요청
-        InitialAvatarResponse fastApiResponse = fastApiWebClient.post()
+        String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
+        FastApiGenerateRequest fastApiRequest = new FastApiGenerateRequest(originalImgUrl, member.getId(), taskId, callbackUrl);
+
+        fastApiWebClient.post()
             .uri("/generate")
             .bodyValue(fastApiRequest)
             .retrieve()
-            .bodyToMono(InitialAvatarResponse.class)
-            .block(); // 비동기 결과를 동기적으로 기다림 (실제 프로덕션에서는 비동기 체인 고려)
-
-        // 3. FastAPI 응답 검증
-        if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null || fastApiResponse.getUpperMaskImgUrl() == null || fastApiResponse.getLowerMaskImgUrl() == null) {
-            throw new RuntimeException("FastAPI 서버로부터 유효한 이미지 주소를 받지 못했습니다.");
-        }
-
-        // 4. 응답받은 이미지 주소들을 포함하여 Avatar 엔티티 생성
-        Avatar newAvatar = Avatar.builder()
-            .member(member)
-            .avatarImg(originalImgUrl)
-            .build();
-
-        // 6. DB에 저장
-        Avatar savedAvatar = avatarRepository.save(newAvatar);
-
-        // 7. 최종 결과를 클라이언트에게 보낼 응답 DTO로 변환하여 반환
-        return AvatarCreateResponse.fromEntity(savedAvatar);
-    }
-
-    /**
-     * FastAPI 서버에 가상 피팅을 요청하고 결과 이미지 URL을 반환하는 헬퍼 메서드
-     * 캐싱 기능이 추가되어 동일한 조합은 S3에서 바로 반환합니다.
-     *
-     * @param baseImgUrl 피팅의 기반이 될 이미지 URL
-     * @param maskUrl    마스크 이미지 URL
-     * @param poseUrl    포즈 이미지 URL
-     * @param garment    피팅할 의류 상품
-     * @param member     요청 사용자 정보
-     * @return 생성된 이미지 URL, 실패 시 null 반환
-     */
-    private String performStatelessTryOn(String baseImgUrl, String maskUrl, String poseUrl, Product garment, Member member) {
-        // 캐시 키 생성 (baseImgUrl과 garment 조합으로)
-        String cacheKey = generateStatelessCacheKey(member.getId(), garment.getId(), baseImgUrl);
-
-        // S3에 캐시된 이미지가 있는지 확인
-        if (existsInS3(cacheKey)) {
-            String cachedUrl = buildS3PublicUrl(cacheKey);
-            log.info("Stateless 캐시 히트 - userId={}, garmentId={}, url={}",
-                    member.getId(), garment.getId(), cachedUrl);
-            return cachedUrl;
-        }
-
-        // 캐시 미스 - AI 서버에 요청
-        log.info("Stateless 캐시 미스 - AI 서버 요청: userId={}, garmentId={}",
-                member.getId(), garment.getId());
-
-        String garmentType = determineGarmentType(garment);
-        FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-            baseImgUrl,
-            garment.getImg2(),
-            maskUrl,
-            poseUrl,
-            member.getId(),
-            garment.getId(),
-            garmentType
-        );
+            .bodyToMono(Void.class)
+            .doOnError(e -> log.error("FastAPI /generate 호출 실패", e))
+            .subscribe();
 
         try {
-            FastApiTryOnResponse response = fastApiWebClient.post()
-                .uri("/tryon") // 단일 피팅 엔드포인트
-                .bodyValue(fastApiRequest)
-                .retrieve()
-                .bodyToMono(FastApiTryOnResponse.class)
-                .block(); // 비동기 작업을 동기적으로 기다립니다.
+            CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
+            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS); // 60초 타임아웃
+            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(resultNode, InitialAvatarResponse.class);
 
-            if (response != null && response.getTryOnImgUrl() != null) {
-                return response.getTryOnImgUrl();
+            if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null) {
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 유효한 응답을 받지 못했습니다.");
             }
+
+            Avatar newAvatar = Avatar.builder()
+                .member(member)
+                .avatarImg(originalImgUrl)
+                .build();
+
+            Avatar savedAvatar = avatarRepository.save(newAvatar);
+
+            return AvatarCreateResponse.fromEntity(savedAvatar);
+
         } catch (Exception e) {
-            log.error("AI 서버 호출 실패: userId={}, garmentId={}, error={}",
-                    member.getId(), garment.getId(), e.getMessage());
-            return null; // 실패 시 null 반환
+            log.error("아바타 생성 작업 대기 중 오류 발생", e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "아바타 생성에 실패했습니다: " + e.getMessage());
         }
-        return null;
     }
 
-    // TODO: together 기능은 현재 사용하지 않음 - 필요시 주석 해제
-    /*
-    @Transactional(readOnly = true)
+
+    /**
+     * 가상 피팅을 비동기적으로 수행하고 결과를 반환합니다.
+     */
     @Override
-    public TryonAvatarTogetherNodeResponse tryonTogether(Member member,
-        TryonAvatarTogetherNodeRequest request) {
-
-        Profile profile = member.getProfile();
-        Avatar baseAvatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId());
-
-        // 2. 착용할 상품 목록을 조회합니다.
-        List<Product> products = productRepository.findAllById(request.getProductIds());
-
-        // 3. 상품을 상의와 하의로 분류합니다.
-        List<Product> tops = products.stream()
-            .filter(Product::isUpperGarment)
-            .toList();
-
-        List<Product> bottoms = products.stream()
-            .filter(Product::isLowerGarment)
-            .toList();
-
-        List<TryonAvatarTogetherNodeResponse.TryonResult> results = new ArrayList<>();
-
-        // 4. 상의 목록을 순회합니다.
-        for (Product top : tops) {
-            // 5. 하의 목록을 순회합니다.
-            for (Product bottom : bottoms) {
-                // 캐싱 키 생성
-                String cacheKey = generateCombinationCacheKey(member.getId(), top.getId(), bottom.getId());
-
-                String finalImgUrl = null;
-
-                // S3에 캐시된 이미지가 있는지 확인
-                if (existsInS3(cacheKey)) {
-                    finalImgUrl = buildS3PublicUrl(cacheKey);
-                    log.info("캐시 히트 - 조합 이미지 사용: userId={}, topId={}, bottomId={}, url={}",
-                            member.getId(), top.getId(), bottom.getId(), finalImgUrl);
-                } else {
-                    // 캐시 미스 - 기존 로직으로 새로 생성 (파이썬이 S3에 업로드)
-                    log.info("캐시 미스 - 새 조합 이미지 생성: userId={}, topId={}, bottomId={}",
-                            member.getId(), top.getId(), bottom.getId());
-
-                    String baseUrl = profile.getUserBaseImageUrl();
-                    // 원본 아바타에 상의를 입혀 중간 결과 이미지를 생성합니다.
-                    String topAppliedImgUrl = performStatelessTryOn(baseUrl,
-                        buildS3Url(baseAvatar.getMaskUrl(top)), buildS3Url(baseAvatar.getPoseUrl()), top, member);
-
-                    // 상의 피팅에 실패하면 다음 조합으로 넘어갑니다.
-                    if (topAppliedImgUrl == null) {
-                        continue;
-                    }
-
-                    // 상의가 적용된 이미지에 하의를 입혀 최종 결과 이미지를 생성합니다.
-                    finalImgUrl = performStatelessTryOn(topAppliedImgUrl, buildS3Url(baseAvatar.getMaskUrl(bottom)),
-                        buildS3Url(baseAvatar.getPoseUrl()), bottom, member);
-                }
-
-                // 최종 피팅에 성공한 경우에만 결과 리스트에 추가합니다.
-                if (finalImgUrl != null) {
-                    TryonAvatarTogetherNodeResponse.TryonResult result = TryonAvatarTogetherNodeResponse.TryonResult.builder()
-                        .tryonImgUrl(finalImgUrl)
-                        .topProductId(top.getId())
-                        .topProductName(top.getProductName())
-                        .topCategoryName(top.getCategory().getCategoryName())
-                        .bottomProductId(bottom.getId())
-                        .bottomProductName(bottom.getProductName())
-                        .bottomCategoryName(bottom.getCategory().getCategoryName())
-                        .build();
-                    results.add(result);
-                }
-            }
-        }
-
-        return new TryonAvatarTogetherNodeResponse(results);
-    }
-    */
-
     @Transactional
-    @Override
     public AvatarTryOnResponse tryOn(Member member, AvatarTryOnRequest avatarTryOnRequest) {
         Long userId = member.getId();
         Long productId = Long.parseLong(avatarTryOnRequest.getProductId());
 
-        // 1. 사용자의 가장 최근 아바타를 조회합니다.
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
         if (avatar == null) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "가상 피팅을 진행할 아바타가 존재하지 않습니다.");
         }
 
-        // 2. 착용할 상품(의류)을 조회합니다.
         Product newGarment = productRepository.findByIdWithCategory(productId)
-            .orElseThrow(() -> new IllegalArgumentException(
-                "상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
+            .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
-        // 3. 단일 아이템 캐시 키 생성
-        String cacheKey = generateSingleItemCacheKey(userId, newGarment);
-        String finalImageUrl = null;
+        String taskId = asyncTaskService.registerTask();
+        String callbackUrl = springServerUrl + "/api/callbacks/vton";
 
-        // 4. S3에 캐시된 이미지가 있는지 확인
-        if (existsInS3(cacheKey)) {
-            finalImageUrl = buildS3PublicUrl(cacheKey);
-            log.info("캐시 히트 - 단일 아이템 이미지 사용: userId={}, productId={}, url={}",
-                    userId, productId, finalImageUrl);
-        } else {
-            // 캐시 미스 - 기존 로직으로 새로 생성 (파이썬이 S3에 업로드)
-            log.info("캐시 미스 - 새 단일 아이템 이미지 생성: userId={}, productId={}", userId, productId);
+        String garmentType = determineGarmentType(newGarment);
+        FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
+            avatar.getAvatarImg(),
+            newGarment.getImg1(),
+            buildS3Url(avatar.getMaskUrl(newGarment)),
+            buildS3Url(avatar.getPoseUrl()),
+            member.getId(),
+            newGarment.getId(),
+            garmentType,
+            taskId,
+            callbackUrl
+        );
 
-            // Avatar 엔티티의 비즈니스 로직을 호출하여 옷을 입힙니다.
+        fastApiWebClient.post()
+            .uri("/tryon")
+            .bodyValue(fastApiRequest)
+            .retrieve()
+            .bodyToMono(Void.class)
+            .doOnError(e -> log.error("FastAPI /tryon 호출 실패", e))
+            .subscribe();
+
+        try {
+            CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
+            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS); // 60초 타임아웃
+            String finalImageUrl = resultNode.get("tryOnImgUrl").asText();
+
             avatar.wearGarment(newGarment);
+            avatar.update(finalImageUrl);
 
-            // FastAPI 서버에 보낼 요청 DTO를 구성합니다.
-            String garmentType = determineGarmentType(newGarment);
-            FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                avatar.getAvatarImg(),
-                newGarment.getImg1(), // 상품의 착용샷 이미지
-                buildS3Url(avatar.getMaskUrl(newGarment)),
-                buildS3Url(avatar.getPoseUrl()),
-                member.getId(),
-                newGarment.getId(),
-                garmentType
-            );
+            java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+                .map(item -> new AvatarTryOnResponse.ProductInfo(
+                    item.getProduct().getId(),
+                    item.getProduct().getProductName(),
+                    item.getProduct().getCategory().getCategoryName()
+                ))
+                .collect(Collectors.toList());
 
-            // WebClient를 사용하여 FastAPI 서버에 가상 피팅을 요청합니다.
-            FastApiTryOnResponse fastApiResponse = fastApiWebClient.post()
-                .uri("/tryon")
-                .bodyValue(fastApiRequest)
-                .retrieve()
-                .bodyToMono(FastApiTryOnResponse.class)
-                .block();
+            return AvatarTryOnResponse.builder()
+                .avatarId(avatar.getId())
+                .avatarImgUrl(finalImageUrl)
+                .products(productInfos)
+                .build();
 
-            if (fastApiResponse == null || fastApiResponse.getTryOnImgUrl() == null) {
-                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "FastAPI 서버로부터 유효한 응답을 받지 못했습니다.");
-            }
-
-            finalImageUrl = fastApiResponse.getTryOnImgUrl();
+        } catch (Exception e) {
+            log.error("가상 피팅 작업 대기 중 오류 발생", e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
         }
-
-        // 6. 최종 생성된 이미지로 아바타의 이미지를 업데이트합니다.
-        avatar.update(finalImageUrl);
-
-        // 7. 현재 아바타가 입고 있는 모든 아이템 정보를 DTO 리스트로 변환합니다.
-        List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
-            .map(item -> new AvatarTryOnResponse.ProductInfo(
-                item.getProduct().getId(),
-                item.getProduct().getProductName(),
-                item.getProduct().getCategory().getCategoryName()
-            ))
-            .collect(Collectors.toList());
-
-        // 유저 행동 로그 비동기 기록
-        recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
-
-        // 8. 최종 응답 DTO를 빌더로 생성하여 반환합니다.
-        return AvatarTryOnResponse.builder()
-            .avatarId(avatar.getId())
-            .avatarImgUrl(finalImageUrl)
-            .products(productInfos)
-            .build();
     }
 
     @Transactional
