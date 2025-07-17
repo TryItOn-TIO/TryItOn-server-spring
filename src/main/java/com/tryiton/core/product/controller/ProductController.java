@@ -1,9 +1,7 @@
 package com.tryiton.core.product.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
-import com.tryiton.core.avatar.service.AvatarService;
 import com.tryiton.core.product.dto.CategoryProductResponse;
-import com.tryiton.core.product.dto.MainProductResponse;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.dto.SearchProductResponse;
 import com.tryiton.core.product.entity.Category;
@@ -23,24 +21,6 @@ public class ProductController {
 
     private final ProductService productService;
     private final CategoryService categoryService;
-    private final AvatarService avatarService;
-
-    @GetMapping
-    public ResponseEntity<MainProductResponse> getMainProducts(
-        @AuthenticationPrincipal() CustomUserDetails customUserDetails
-    ) {
-        // 인증된 사용자만 접근 가능 (기존 로직 유지)
-        Long userId = customUserDetails.getUser().getId();
-
-        List<ProductResponseDto> recommended = productService.getPersonalizedRecommendations(
-            userId);
-        List<ProductResponseDto> ranked = productService.getTopRankedProducts(userId);
-
-        return ResponseEntity.ok(MainProductResponse.builder()
-            .recommended(recommended)
-            .ranked(ranked)
-            .build());
-    }
 
     @GetMapping("/category")
     public ResponseEntity<CategoryProductResponse> getCategoryProducts(
