@@ -5,8 +5,10 @@ import com.tryiton.core.product.entity.Product;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Getter
+@NoArgsConstructor
 public class ProductDetailResponseDto {
 
     private final Long id;
