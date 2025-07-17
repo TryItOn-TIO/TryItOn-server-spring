@@ -2,7 +2,6 @@ package com.tryiton.core.wishlist.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.product.dto.ProductResponseDto;
-import com.tryiton.core.product.model.CategoryType;
 import com.tryiton.core.wishlist.service.WishlistService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -47,13 +46,13 @@ public class WishlistController {
         return wishlistService.getWishlistProducts(userDetails.getUser());
     }
 
-    @GetMapping("/category/{categoryName}")
+    @GetMapping("/category/{parentCategoryId}")
     public List<ProductResponseDto> getWishlistByParentCategory(
         @AuthenticationPrincipal CustomUserDetails userDetails,
-        @PathVariable String categoryName
+        @PathVariable Long parentCategoryId
     ) {
-        Long parentCategoryId = CategoryType.fromName(categoryName).getParentCategoryId();
-        return wishlistService.getWishlistProductsByParentCategory(userDetails.getUser(),
-            parentCategoryId);
+        return wishlistService.getWishlistProductsByParentCategory(
+            userDetails.getUser(), parentCategoryId
+        );
     }
 }
