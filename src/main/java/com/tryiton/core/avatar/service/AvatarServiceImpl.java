@@ -222,71 +222,93 @@ public class AvatarServiceImpl implements AvatarService {
         Product newGarment = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
-        String taskId = asyncTaskService.registerTask();
-        log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
-        String callbackUrl = springServerUrl + "/api/callbacks/vton";
+        // 1. 캐시 키 생성
+        String cacheKey = generateSingleItemCacheKey(userId, newGarment);
+        String finalImageUrl = null;
 
-        String garmentType = determineGarmentType(newGarment);
+        // 2. 캐시 확인
+        if (existsInS3(cacheKey)) {
+            // 캐시 HIT: S3에서 바로 URL 반환
+            finalImageUrl = buildS3PublicUrl(cacheKey);
+            log.info("캐시 히트 - 기존 이미지 사용: userId={}, productId={}, url={}", 
+                    userId, productId, finalImageUrl);
+        } else {
+            // 캐시 MISS: 비동기 처리로 FastAPI 호출
+            log.info("캐시 미스 - FastAPI 호출: userId={}, productId={}", userId, productId);
+            
+            String taskId = asyncTaskService.registerTask();
+            log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
+            String callbackUrl = springServerUrl + "/api/callbacks/vton";
 
-        // 2. FastAPI 요청 객체를 생성합니다.
-        FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-            avatar.getAvatarImg(),
-            newGarment.getImg1(),
-            buildS3Url(avatar.getMaskUrl(newGarment)),
-            buildS3Url(avatar.getPoseUrl()),
-            member.getId(),
-            newGarment.getId(),
-            garmentType,
-            taskId,
-            callbackUrl
-        );
+            String garmentType = determineGarmentType(newGarment);
 
-        // ======================= 🔥 중요: 디버깅 로그 추가 🔥 =======================
-        try {
-            String requestBody = objectMapper.writeValueAsString(fastApiRequest);
-            log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
-            log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
-            log.info(">>> 요청 Body: {}", requestBody);
-        } catch (Exception e) {
-            log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
+            // FastAPI 요청 객체 생성
+            FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
+                member.getProfile().getUserBaseImageUrl(), // 원본 베이스 이미지 사용
+                newGarment.getImg1(),
+                buildS3Url(avatar.getMaskUrl(newGarment)),
+                buildS3Url(avatar.getPoseUrl()),
+                member.getId(),
+                newGarment.getId(),
+                garmentType,
+                taskId,
+                callbackUrl
+            );
+
+            // 디버깅 로그
+            try {
+                String requestBody = objectMapper.writeValueAsString(fastApiRequest);
+                log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
+                log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
+                log.info(">>> 요청 Body: {}", requestBody);
+            } catch (Exception e) {
+                log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
+            }
+
+            // FastAPI 비동기 호출
+            fastApiWebClient.post()
+                .uri("/tryon")
+                .bodyValue(fastApiRequest)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e))
+                .subscribe();
+
+            try {
+                // 비동기 결과 대기
+                CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
+                JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
+                finalImageUrl = resultNode.get("tryOnImgUrl").asText();
+                
+                // 캐시 저장은 FastAPI에서 자동으로 수행됨
+                log.info("FastAPI 응답 수신 완료 - 이미지 URL: {}", finalImageUrl);
+            } catch (Exception e) {
+                log.error("가상 피팅 작업 대기 중 오류 발생", e);
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
+            }
         }
-        // ========================================================================
 
+        // 아바타 업데이트
+        avatar.wearGarment(newGarment);
+        avatar.update(finalImageUrl);
 
-        fastApiWebClient.post()
-            .uri("/tryon")
-            .bodyValue(fastApiRequest)
-            .retrieve()
-            .bodyToMono(Void.class)
-            .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e)) // 네트워크 레벨 에러 로그
-            .subscribe();
+        // 추천 로그 기록 (비동기)
+        recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
 
-        try {
-            CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
-            String finalImageUrl = resultNode.get("tryOnImgUrl").asText();
+        // 응답 생성
+        java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+            .map(item -> new AvatarTryOnResponse.ProductInfo(
+                item.getProduct().getId(),
+                item.getProduct().getProductName(),
+                item.getProduct().getCategory().getCategoryName()
+            ))
+            .collect(Collectors.toList());
 
-            avatar.wearGarment(newGarment);
-            avatar.update(finalImageUrl);
-
-            java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
-                .map(item -> new AvatarTryOnResponse.ProductInfo(
-                    item.getProduct().getId(),
-                    item.getProduct().getProductName(),
-                    item.getProduct().getCategory().getCategoryName()
-                ))
-                .collect(Collectors.toList());
-
-            return AvatarTryOnResponse.builder()
-                .avatarId(avatar.getId())
-                .avatarImgUrl(finalImageUrl)
-                .products(productInfos)
-                .build();
-
-        } catch (Exception e) {
-            log.error("가상 피팅 작업 대기 중 오류 발생", e);
-            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
-        }
+        return AvatarTryOnResponse.builder()
+            .avatarId(avatar.getId())
+            .avatarImgUrl(finalImageUrl)
+            .products(productInfos)
+            .build();
     }
 
     @Transactional
