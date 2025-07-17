@@ -27,6 +27,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.scheduling.annotation.Scheduled;
+
 /* 나이대 별 인기 상품 구현 해야함!! */
 import java.util.*;
 import java.util.stream.Collectors;
@@ -42,6 +44,20 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
 
     private final RecommendBehaviorLogService recommendBehaviorLogService;
+
+    @org.springframework.cache.annotation.CacheEvict(value = "productDetail", key = "#product.id + \"_\" + '*' ")
+    @Transactional
+    public void updateProduct(Product product) {
+        productRepository.save(product);
+    }
+
+    @Scheduled(fixedRate = 3600000)// 1시간마다 실행
+    @org.springframework.cache.annotation.CacheEvict(value = "productList", allEntries = true)
+    public void clearProductListCache() {
+        // log.info("상품 목록 캐시 초기화");
+    }
+
+
 
     public List<ProductResponseDto> getPersonalizedRecommendations(Long userId) {
         List<TagScoreDto> favoriteTags = tagRepository.findUserFavoriteTags(userId);
@@ -157,6 +173,7 @@ public class ProductService {
 
     // 상품 상세 조회 (로그인/비로그인 모두 지원)
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "productDetail", key = "#productId + '_' + (#userId != null ? #userId : 'guest')")
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
         // N+1 쿼리 해결: 상품과 카테고리, variants를 함께 조회
         Product product = productRepository.findByIdWithCategoryAndVariants(productId)
