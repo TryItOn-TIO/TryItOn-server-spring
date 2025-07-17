@@ -91,12 +91,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         String productName, String brand, Pageable pageable
     );
 
-    // 각 카테고리별 상위 8개 상품 조회 (LIMIT 추가로 성능 최적화)
+    // 각 카테고리별 상위 4개 상품 조회
     @Query(value = """
-            SELECT p.* FROM product p
-            WHERE p.deleted = false
-            ORDER BY p.category_id, p.wishlist_count DESC, p.create_at DESC
-            LIMIT 200
+            WITH RankedProducts AS (
+                SELECT p.*,
+                       ROW_NUMBER() OVER (PARTITION BY p.category_id
+                                        ORDER BY p.wishlist_count DESC, p.create_at DESC) as rn
+                FROM product p
+                WHERE p.deleted = false
+            )
+            SELECT * FROM RankedProducts
+            WHERE rn <= 4
+            ORDER BY category_id, wishlist_count DESC, create_at DESC
             """, nativeQuery = true)
-    List<Product> findTop8ProductsPerCategoryWithCategory();
+    List<Product> findTop4ProductsPerCategory();
 }

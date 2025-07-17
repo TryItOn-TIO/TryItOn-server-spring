@@ -96,8 +96,7 @@ public class ProductService {
             .toList();
     }
 
-    public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
-        int size) {
+    public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page, int size) {
         // wishlistCount 기준으로 내림차순 정렬
         Pageable pageable = PageRequest.of(page, size, Sort.by("wishlistCount").descending().and(Sort.by("createAt").descending()));
 
@@ -111,25 +110,7 @@ public class ProductService {
         return productRepository.findByCategoryHierarchyAndDeletedFalse(category.getId(), pageable)
             .map(product -> new ProductResponseDto(product,
                 likedProductIds.contains(product.getId())));
-        }
-
-        /*
-
-        // 페이지네이션을 유지하면서 매번 다른 순서로 보여주기 위한 시드 생성
-        // 사용자별 + 시간 기반으로 시드 생성하여 일정 시간 동안은 같은 순서 유지
-        int seed = generateRandomSeed(userId);
-
-        Pageable pageable = PageRequest.of(page, size);
-        Set<Long> likedProductIds = new HashSet<>();
-
-        if (userId != null) {
-            likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
-        }
-
-        return productRepository.findRandomByCategoryWithSeed(category.getId(), seed, pageable)
-            .map(product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())));
-         */
-
+    }
 
     // 상품 상세 조회 (로그인/비로그인 모두 지원)
     @Transactional(readOnly = true)
@@ -162,7 +143,7 @@ public class ProductService {
     // 비로그인 사용자용 메인 페이지 상품 조회
     public MainProductGuestResponse getMainPageProductsForGuest() {
         // 모든 카테고리 조회
-        List<Product> allProducts = productRepository.findTop8ProductsPerCategoryWithCategory();
+        List<Product> allProducts = productRepository.findTop4ProductsPerCategory();
 
         Map<Category, List<Product>> productsByCategory = allProducts.stream()
                 .collect(Collectors.groupingBy(Product::getCategory));
