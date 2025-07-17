@@ -51,8 +51,8 @@ public class ProductService {
         productRepository.save(product);
     }
 
-    @Scheduled(fixedRate = 3600000)// 1시간마다 실행
-    @org.springframework.cache.annotation.CacheEvict(value = "productList", allEntries = true)
+    @Scheduled(fixedRate = 3600000, zone = "Asia/Seoul") // 1시간마다 실행
+    @org.springframework.cache.annotation.CacheEvict(value = "productList", allEntries = true, condition = "!'local'.equals(environment.getActiveProfiles()[0])")
     public void clearProductListCache() {
         // log.info("상품 목록 캐시 초기화");
     }
