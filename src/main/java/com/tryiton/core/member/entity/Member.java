@@ -116,4 +116,9 @@ public class Member {
         avatar.setMember(this);
     }
 
+    // 비밀번호 변경 메서드
+    public void changePassword(String newEncodedPassword) {
+        this.password = newEncodedPassword;
+    }
+
 }
