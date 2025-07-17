@@ -176,7 +176,7 @@ public class AvatarServiceImpl implements AvatarService {
 
         // 3. 받은 결과로 후속 처리
         try {
-            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), InitialAvatarResponse.class);
+            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult().get("result"), InitialAvatarResponse.class);
 
             if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null) {
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 유효한 응답을 받지 못했습니다.");
@@ -276,7 +276,7 @@ public class AvatarServiceImpl implements AvatarService {
 
             // 3. 받은 결과에서 최종 이미지 URL 추출
             try {
-                FastApiTryOnResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), FastApiTryOnResponse.class);
+                FastApiTryOnResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult().get("result"), FastApiTryOnResponse.class);
                 finalImageUrl = fastApiResponse.getTryOnImgUrl() + "?t=" + System.currentTimeMillis();
                 log.info("폴링 성공. 최종 이미지 URL: {}", finalImageUrl);
             } catch (Exception e) {
