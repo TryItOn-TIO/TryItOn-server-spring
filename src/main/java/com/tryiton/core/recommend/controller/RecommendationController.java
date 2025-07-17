@@ -39,8 +39,11 @@ public class RecommendationController {
     }
 
     @GetMapping("/trending")
-    public ResponseEntity<List<ProductResponseDto>> getTrending() {
-        List<ProductResponseDto> products = recommendationService.getTrendingProducts();
+    public ResponseEntity<List<ProductResponseDto>> getTrending(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        // 비로그인 사용자인 경우 userId를 null로 처리
+        Long userId = (customUserDetails != null) ? customUserDetails.getUser().getId() : null;
+        List<ProductResponseDto> products = recommendationService.getTrendingProducts(userId);
         return ResponseEntity.ok(products);
     }
 
@@ -48,33 +51,44 @@ public class RecommendationController {
     public ResponseEntity<List<ProductResponseDto>> getAgeGroupRecommendations(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestParam(required = false) String gender) {
-        LocalDate birthDate = customUserDetails.getUser().getBirthDate();
-        String ageRange = "20s";
+        String ageRange = "";
+        Long userId;
 
-        LocalDate currentDate = LocalDate.now();
-        int age = Period.between(birthDate, currentDate).getYears();
-
-        if (age >= 20 && age <= 29) {
+        if (customUserDetails == null) {
             ageRange = "20s";
-        } else if (age >= 30 && age <= 39) {
-            ageRange = "30s";
-        } else if (age >= 40 && age <= 49) {
-            ageRange = "40s";
-        } else if (age >= 50 && age <= 59) {
-            ageRange = "50s";
-        } else if (age >= 60) {
-            ageRange = "60s";
+            userId = null;
+        } else {
+            userId = customUserDetails.getUser().getId();
+
+            LocalDate birthDate = customUserDetails.getUser().getBirthDate();
+            LocalDate currentDate = LocalDate.now();
+            int age = Period.between(birthDate, currentDate).getYears();
+
+            if (age >= 20 && age <= 29) {
+                ageRange = "20s";
+            } else if (age >= 30 && age <= 39) {
+                ageRange = "30s";
+            } else if (age >= 40 && age <= 49) {
+                ageRange = "40s";
+            } else if (age >= 50 && age <= 59) {
+                ageRange = "50s";
+            } else if (age >= 60) {
+                ageRange = "60s";
+            }
         }
 
         List<ProductResponseDto> products = recommendationService
-            .getAgeGroupRecommendations(ageRange, gender);
+            .getAgeGroupRecommendations(userId, ageRange, gender);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/similar-to/{productId}")
     public ResponseEntity<List<ProductResponseDto>> getSimilarProducts(
+        @AuthenticationPrincipal CustomUserDetails customUserDetails,
         @PathVariable Long productId) {
-        List<ProductResponseDto> products = recommendationService.getSimilarProducts(productId);
+        // 비로그인 사용자인 경우 userId를 null로 처리
+        Long userId = (customUserDetails != null) ? customUserDetails.getUser().getId() : null;
+        List<ProductResponseDto> products = recommendationService.getSimilarProducts(userId, productId);
         return ResponseEntity.ok(products);
     }
 
