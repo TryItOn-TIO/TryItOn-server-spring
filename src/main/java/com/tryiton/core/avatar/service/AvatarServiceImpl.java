@@ -83,7 +83,10 @@ public class AvatarServiceImpl implements AvatarService {
      */
     private String generateSingleItemCacheKey(Long userId, Product product) {
         String garmentType = determineGarmentType(product);
-        return String.format("cache/tryon/%d/%s-%d.jpg", userId, garmentType, product.getId());
+        String cacheKey = String.format("cache/tryon/%d/%s-%d.png", userId, garmentType, product.getId());
+        log.info("캐시 키 생성 - userId: {}, productId: {}, garmentType: {}, 키: {}", 
+                userId, product.getId(), garmentType, cacheKey);
+        return cacheKey;
     }
 
     /**
@@ -112,17 +115,21 @@ public class AvatarServiceImpl implements AvatarService {
      */
     private boolean existsInS3(String key) {
         try {
+            log.info("S3 캐시 확인 시작 - 키: {}", key);
+            
             HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
             
             s3Client.headObject(headObjectRequest);
+            log.info("S3 캐시 확인 성공 - 키: {}", key);
             return true;
         } catch (NoSuchKeyException e) {
+            log.info("S3 캐시 미스 - 키: {}", key);
             return false;
         } catch (Exception e) {
-            log.warn("S3 객체 존재 확인 중 오류 발생: key={}, error={}", key, e.getMessage());
+            log.warn("S3 객체 존재 확인 중 오류 발생: key={}, error={}", key, e.getMessage(), e);
             return false;
         }
     }
@@ -131,7 +138,9 @@ public class AvatarServiceImpl implements AvatarService {
      * S3 Public URL 생성
      */
     private String buildS3PublicUrl(String key) {
-        return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+        String url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+        log.info("S3 Public URL 생성 - 키: {}, URL: {}", key, url);
+        return url;
     }
 
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
@@ -227,11 +236,19 @@ public class AvatarServiceImpl implements AvatarService {
         String finalImageUrl = null;
 
         // 2. 캐시 확인
-        if (existsInS3(cacheKey)) {
+        boolean cacheExists = existsInS3(cacheKey);
+        log.info("캐시 확인 결과 - userId: {}, productId: {}, 존재여부: {}", 
+                userId, productId, cacheExists);
+                
+        if (cacheExists) {
             // 캐시 HIT: S3에서 바로 URL 반환
             finalImageUrl = buildS3PublicUrl(cacheKey);
             log.info("캐시 히트 - 기존 이미지 사용: userId={}, productId={}, url={}", 
                     userId, productId, finalImageUrl);
+                    
+            // 타임스탬프 추가하여 브라우저 캐시 방지
+            finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
+            log.info("타임스탬프 추가된 최종 URL: {}", finalImageUrl);
         } else {
             // 캐시 MISS: 비동기 처리로 FastAPI 호출
             log.info("캐시 미스 - FastAPI 호출: userId={}, productId={}", userId, productId);
@@ -441,7 +458,7 @@ public class AvatarServiceImpl implements AvatarService {
      */
     /*
     private String generateCombinationCacheKey(Long userId, Long topId, Long bottomId) {
-        return String.format("combination/%d/%d-%d.jpg", userId, topId, bottomId);
+        return String.format("combination/%d/%d-%d.png", userId, topId, bottomId);
     }
     */
 
