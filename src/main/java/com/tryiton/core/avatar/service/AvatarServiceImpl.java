@@ -19,6 +19,7 @@ import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
+import com.tryiton.core.avatar.entity.AvatarItem;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
@@ -106,8 +107,12 @@ public class AvatarServiceImpl implements AvatarService {
             keyBuilder.append("base");
         }
         
-        keyBuilder.append(".jpg");
-        return keyBuilder.toString();
+        keyBuilder.append(".png");
+        
+        String cacheKey = keyBuilder.toString();
+        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}", 
+                userId, topId, bottomId, cacheKey);
+        return cacheKey;
     }
 
     /**
@@ -231,47 +236,84 @@ public class AvatarServiceImpl implements AvatarService {
         Product newGarment = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
-        // 1. 캐시 키 생성
-        String cacheKey = generateSingleItemCacheKey(userId, newGarment);
+        // 현재 착용 중인 상의와 하의 확인
+        Long currentTopId = null;
+        Long currentBottomId = null;
+        
+        for (AvatarItem item : avatar.getItems()) {
+            Product product = item.getProduct();
+            if (product.isUpperGarment()) {
+                currentTopId = product.getId();
+            } else if (product.isLowerGarment()) {
+                currentBottomId = product.getId();
+            }
+        }
+        
+        // 새 상품이 상의인지 하의인지 확인
+        boolean isNewGarmentTop = newGarment.isUpperGarment();
+        
+        // 캐시 키 생성 (상의+하의 조합 고려)
+        String cacheKey;
+        if (isNewGarmentTop) {
+            // 새 상품이 상의인 경우
+            cacheKey = generateCombinationCacheKey(userId, productId, currentBottomId);
+        } else {
+            // 새 상품이 하의인 경우
+            cacheKey = generateCombinationCacheKey(userId, currentTopId, productId);
+        }
+        
         String finalImageUrl = null;
 
-        // 2. 캐시 확인
+        // 캐시 확인
         boolean cacheExists = existsInS3(cacheKey);
-        log.info("캐시 확인 결과 - userId: {}, productId: {}, 존재여부: {}", 
-                userId, productId, cacheExists);
+        log.info("캐시 확인 결과 - userId: {}, 상의ID: {}, 하의ID: {}, 존재여부: {}", 
+                userId, isNewGarmentTop ? productId : currentTopId, 
+                isNewGarmentTop ? currentBottomId : productId, cacheExists);
                 
         if (cacheExists) {
             // 캐시 HIT: S3에서 바로 URL 반환
             finalImageUrl = buildS3PublicUrl(cacheKey);
-            log.info("캐시 히트 - 기존 이미지 사용: userId={}, productId={}, url={}", 
-                    userId, productId, finalImageUrl);
-                    
+            log.info("캐시 히트 - 기존 이미지 사용: {}", finalImageUrl);
+            
             // 타임스탬프 추가하여 브라우저 캐시 방지
             finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
             log.info("타임스탬프 추가된 최종 URL: {}", finalImageUrl);
         } else {
             // 캐시 MISS: 비동기 처리로 FastAPI 호출
-            log.info("캐시 미스 - FastAPI 호출: userId={}, productId={}", userId, productId);
+            log.info("캐시 미스 - FastAPI 호출");
             
             String taskId = asyncTaskService.registerTask();
             log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
             String callbackUrl = springServerUrl + "/api/callbacks/vton";
 
-            String garmentType = determineGarmentType(newGarment);
-
-            // FastAPI 요청 객체 생성
-            // 항상 원본 베이스 이미지 사용 (퀄리티 저하 방지)
-            String baseImageUrl = member.getProfile().getUserBaseImageUrl();
-            log.info("가상 피팅에 사용할 원본 베이스 이미지 URL: {}", baseImageUrl);
+            // 베이스 이미지 선택 (중요!)
+            String baseImageUrl;
             
+            if (isNewGarmentTop && currentBottomId != null) {
+                // 상의를 입히는데 이미 하의를 입고 있는 경우
+                // 하의가 입혀진 이미지를 베이스로 사용
+                baseImageUrl = avatar.getAvatarImg();
+                log.info("하의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
+            } else if (!isNewGarmentTop && currentTopId != null) {
+                // 하의를 입히는데 이미 상의를 입고 있는 경우
+                // 상의가 입혀진 이미지를 베이스로 사용
+                baseImageUrl = avatar.getAvatarImg();
+                log.info("상의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
+            } else {
+                // 그 외의 경우 원본 베이스 이미지 사용
+                baseImageUrl = member.getProfile().getUserBaseImageUrl();
+                log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
+            }
+            
+            // FastAPI 요청 객체 생성
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                baseImageUrl, // 항상 원본 베이스 이미지 사용
+                baseImageUrl,
                 newGarment.getImg1(),
                 buildS3Url(avatar.getMaskUrl(newGarment)),
                 buildS3Url(avatar.getPoseUrl()),
                 member.getId(),
                 newGarment.getId(),
-                garmentType,
+                determineGarmentType(newGarment),
                 taskId,
                 callbackUrl
             );
