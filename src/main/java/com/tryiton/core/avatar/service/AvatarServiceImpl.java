@@ -315,8 +315,7 @@ public class AvatarServiceImpl implements AvatarService {
                 newGarment.getId(),
                 determineGarmentType(newGarment),
                 taskId,
-                callbackUrl,
-                cacheKey  // 캐시 키 추가
+                callbackUrl
             );
 
             // 디버깅
