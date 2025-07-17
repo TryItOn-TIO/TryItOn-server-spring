@@ -243,8 +243,12 @@ public class AvatarServiceImpl implements AvatarService {
             String garmentType = determineGarmentType(newGarment);
 
             // FastAPI 요청 객체 생성
+            // 항상 원본 베이스 이미지 사용 (퀄리티 저하 방지)
+            String baseImageUrl = member.getProfile().getUserBaseImageUrl();
+            log.info("가상 피팅에 사용할 원본 베이스 이미지 URL: {}", baseImageUrl);
+            
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                member.getProfile().getUserBaseImageUrl(), // 원본 베이스 이미지 사용
+                baseImageUrl, // 항상 원본 베이스 이미지 사용
                 newGarment.getImg1(),
                 buildS3Url(avatar.getMaskUrl(newGarment)),
                 buildS3Url(avatar.getPoseUrl()),
@@ -280,8 +284,12 @@ public class AvatarServiceImpl implements AvatarService {
                 JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
                 finalImageUrl = resultNode.get("tryOnImgUrl").asText();
                 
+                // 이미지 URL에 타임스탬프 추가하여 캐시 문제 해결
+                finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
+                
                 // 캐시 저장은 FastAPI에서 자동으로 수행됨
-                log.info("FastAPI 응답 수신 완료 - 이미지 URL: {}", finalImageUrl);
+                log.info("FastAPI 응답 수신 완료 - 원본 이미지 URL: {}", resultNode.get("tryOnImgUrl").asText());
+                log.info("타임스탬프 추가된 최종 이미지 URL: {}", finalImageUrl);
             } catch (Exception e) {
                 log.error("가상 피팅 작업 대기 중 오류 발생", e);
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
@@ -289,8 +297,10 @@ public class AvatarServiceImpl implements AvatarService {
         }
 
         // 아바타 업데이트
+        log.info("아바타 업데이트 시작 - 아바타 ID: {}, 상품 ID: {}", avatar.getId(), newGarment.getId());
         avatar.wearGarment(newGarment);
         avatar.update(finalImageUrl);
+        log.info("아바타 업데이트 완료 - 새 이미지 URL: {}", finalImageUrl);
 
         // 추천 로그 기록 (비동기)
         recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
@@ -304,11 +314,16 @@ public class AvatarServiceImpl implements AvatarService {
             ))
             .collect(Collectors.toList());
 
-        return AvatarTryOnResponse.builder()
+        AvatarTryOnResponse response = AvatarTryOnResponse.builder()
             .avatarId(avatar.getId())
             .avatarImgUrl(finalImageUrl)
             .products(productInfos)
             .build();
+            
+        log.info("아바타 응답 생성 완료 - 아바타 ID: {}, 이미지 URL: {}, 착용 상품 수: {}", 
+            response.getAvatarId(), response.getAvatarImgUrl(), response.getProducts().size());
+            
+        return response;
     }
 
     @Transactional
