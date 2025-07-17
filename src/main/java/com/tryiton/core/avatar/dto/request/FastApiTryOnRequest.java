@@ -16,5 +16,4 @@ public class FastApiTryOnRequest {
     private String garmentType;
     private String taskId;
     private String callbackUrl;
-    private String cacheKey;
 }
