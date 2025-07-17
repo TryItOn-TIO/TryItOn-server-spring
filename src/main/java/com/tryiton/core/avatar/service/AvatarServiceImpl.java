@@ -318,7 +318,7 @@ public class AvatarServiceImpl implements AvatarService {
                 callbackUrl
             );
 
-            // 디버깅 로그
+            // 디버깅
             try {
                 String requestBody = objectMapper.writeValueAsString(fastApiRequest);
                 log.info(">>> FastAPI(/tryon)로 요청 전송 시작");

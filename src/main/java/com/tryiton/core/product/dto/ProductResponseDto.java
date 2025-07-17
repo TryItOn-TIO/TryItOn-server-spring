@@ -3,22 +3,24 @@ package com.tryiton.core.product.dto;
 import com.tryiton.core.product.entity.Product;
 import java.time.LocalDateTime;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Getter
+@NoArgsConstructor
 public class ProductResponseDto {
 
-    private final Long id;
-    private final String productName;
-    private final String img1;
-    private final int price; // 정가
-    private final int sale; // 할인율 (%)
-    private final int salePrice; // 할인된 가격
-    private final boolean liked; // 유저가 찜한 상품인지 여부
-    private final String brand;
-    private final int wishlistCount;
-    private final LocalDateTime createdAt;
-    private final Long categoryId;
-    private final String categoryName;
+    private Long id;
+    private String productName;
+    private String img1;
+    private int price; // 정가
+    private int sale; // 할인율 (%)
+    private int salePrice; // 할인된 가격
+    private boolean liked; // 유저가 찜한 상품인지 여부
+    private String brand;
+    private int wishlistCount;
+    private LocalDateTime createdAt;
+    private Long categoryId;
+    private String categoryName;
 
     public ProductResponseDto(Product product, boolean liked) {
         this.id = product.getId();
