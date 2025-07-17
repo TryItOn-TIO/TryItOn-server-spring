@@ -98,9 +98,8 @@ public class ProductService {
 
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
         int size) {
-        // 기존 생성일 기준 정렬
-        /*
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        // wishlistCount 기준으로 내림차순 정렬
+        Pageable pageable = PageRequest.of(page, size, Sort.by("wishlistCount").descending().and(Sort.by("createAt").descending()));
 
         Set<Long> likedProductIds = new HashSet<>();
 
@@ -114,17 +113,12 @@ public class ProductService {
                 likedProductIds.contains(product.getId())));
         }
 
-        private void collectAllSubCategories(Category category, List<Category> categoryList) {
-            categoryList.add(category);
-            for (Category child : category.getChildren()) {
-                collectAllSubCategories(child, categoryList);
-        }
-         */
+        /*
 
         // 페이지네이션을 유지하면서 매번 다른 순서로 보여주기 위한 시드 생성
         // 사용자별 + 시간 기반으로 시드 생성하여 일정 시간 동안은 같은 순서 유지
         int seed = generateRandomSeed(userId);
-        
+
         Pageable pageable = PageRequest.of(page, size);
         Set<Long> likedProductIds = new HashSet<>();
 
@@ -134,26 +128,8 @@ public class ProductService {
 
         return productRepository.findRandomByCategoryWithSeed(category.getId(), seed, pageable)
             .map(product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())));
-    }
+         */
 
-    // 사용자별 + 시간 기반 시드 생성 (10분마다 변경)
-    private int generateRandomSeed(Long userId) {
-        long currentTime = System.currentTimeMillis();
-        long timeWindow = currentTime / (10 * 60 * 1000); // 10분 단위
-        
-        if (userId != null) {
-            return (int) ((userId + timeWindow) % Integer.MAX_VALUE);
-        } else {
-            return (int) (timeWindow % Integer.MAX_VALUE);
-        }
-    }
-
-    private void collectAllSubCategories(Category category, List<Category> categoryList) {
-        categoryList.add(category);
-        for (Category child : category.getChildren()) {
-            collectAllSubCategories(child, categoryList);
-        }
-    }
 
     // 상품 상세 조회 (로그인/비로그인 모두 지원)
     @Transactional(readOnly = true)
@@ -165,8 +141,9 @@ public class ProductService {
 
         // 비로그인 사용자인 경우 찜 상태는 false로 처리
         boolean liked = false;
+
         if (userId != null) {
-            liked = wishlistRepository.findProductIdsByUserId(userId).contains(productId);
+            liked = wishlistRepository.existsByUserIdAndProductId(userId, productId);
         }
 
         // 이미 fetch join으로 variants가 로딩되어 추가 쿼리 없음
