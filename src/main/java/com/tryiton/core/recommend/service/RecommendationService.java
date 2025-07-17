@@ -37,15 +37,15 @@ public class RecommendationService {
         this.wishlistRepository = wishlistRepository;
     }
 
-    // 트렌딩 상품 조회 - ProductResponseDto 반환 (비로그인 사용자용)
+    // 트렌딩 상품 조회 - ProductResponseDto 반환
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getTrendingProducts() {
+    public List<ProductResponseDto> getTrendingProducts(Long userId) {
         try {
             String data = (String) redisTemplate.opsForValue().get("recommend:trending");
             log.info("트렌딩 상품 조회 데이터: {}", data);
             if (data != null && !data.isEmpty()) {
                 log.info("트렌딩 상품 조회 데이터 존재");
-                return parseRedisDataToProductResponseDto(data, null);
+                return parseRedisDataToProductResponseDto(data, userId);
             }
         } catch (Exception e) {
             log.error("트렌딩 상품 조회 실패", e);
@@ -66,16 +66,16 @@ public class RecommendationService {
         return Collections.emptyList();
     }
 
-    // 연령대별 추천 - ProductResponseDto 반환 (비로그인 사용자용)
+    // 연령대별 추천 - ProductResponseDto 반환
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getAgeGroupRecommendations(String ageRange, String gender) {
+    public List<ProductResponseDto> getAgeGroupRecommendations(Long userId, String ageRange, String gender) {
         String genderKey = gender != null ? gender : "all";
         String key = String.format("recommend:age_group:%s:%s", ageRange, genderKey);
         String data = (String) redisTemplate.opsForValue().get(key);
 
         if (data != null) {
             try {
-                return parseRedisDataToProductResponseDto(data, null);
+                return parseRedisDataToProductResponseDto(data, userId);
             } catch (Exception e) {
                 log.error("연령대별 추천 파싱 오류", e);
             }
@@ -83,15 +83,15 @@ public class RecommendationService {
         return Collections.emptyList();
     }
 
-    // 유사 상품 추천 - ProductResponseDto 반환 (비로그인 사용자용)
+    // 유사 상품 추천 - ProductResponseDto 반환
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getSimilarProducts(Long productId) {
+    public List<ProductResponseDto> getSimilarProducts(Long userId, Long productId) {
         String key = "recommend:similar_to:" + productId;
         String data = (String) redisTemplate.opsForValue().get(key);
 
         if (data != null) {
             try {
-                return parseRedisDataToProductResponseDto(data, null);
+                return parseRedisDataToProductResponseDto(data, userId);
             } catch (Exception e) {
                 log.error("유사 상품 추천 파싱 오류", e);
             }
