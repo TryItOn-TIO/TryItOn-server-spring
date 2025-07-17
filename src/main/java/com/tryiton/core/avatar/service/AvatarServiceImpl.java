@@ -1,41 +1,33 @@
 package com.tryiton.core.avatar.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
-import com.tryiton.core.avatar.dto.request.FastApiGenerateRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
-import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
-import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarBaseImageUpdateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarImageUploadCompleteResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
+import com.tryiton.core.avatar.dto.response.CeleryTaskResultDto;
 import com.tryiton.core.avatar.dto.response.FastApiTryOnResponse;
 import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
-import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
+import com.tryiton.core.avatar.dto.response.TaskResponse;
 import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.entity.AvatarItem;
-import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
-import com.tryiton.core.common.service.AsyncTaskService;
 import com.tryiton.core.common.service.S3Service;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
-import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,13 +47,10 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 public class AvatarServiceImpl implements AvatarService {
 
     private final AvatarRepository avatarRepository;
-    private final AvatarItemRepository avatarItemRepository;
-    private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
     private final S3Client s3Client;
     private final S3Service s3Service;
-    private final AsyncTaskService asyncTaskService;
     private final ObjectMapper objectMapper;
 
     private final RecommendBehaviorLogService recommendBehaviorLogService;
@@ -174,46 +163,43 @@ public class AvatarServiceImpl implements AvatarService {
             .build();
     }
 
-    /**
-     * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다. (비동기 콜백 방식)
-     */
     @Override
     @Transactional
     public AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest) {
-        String taskId = asyncTaskService.registerTask();
-        String callbackUrl = springServerUrl + "/api/callbacks/vton";
+        log.info("아바타 생성 요청 시작 - userId: {}", member.getId());
 
-        String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
-        FastApiGenerateRequest fastApiRequest = new FastApiGenerateRequest(originalImgUrl, member.getId(), taskId, callbackUrl);
+        // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
+        String celeryTaskId = requestTaskToFastApi("/generate", avatarCreateRequest);
 
-        fastApiWebClient.post()
-            .uri("/generate")
-            .bodyValue(fastApiRequest)
-            .retrieve()
-            .bodyToMono(Void.class)
-            .doOnError(e -> log.error("FastAPI /generate 호출 실패", e))
-            .subscribe();
+        // 2. 작업 완료될 때까지 폴링하며 대기
+        CeleryTaskResultDto taskResult = pollForResult(celeryTaskId);
 
+        // 3. 받은 결과로 후속 처리
         try {
-            CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS); // 60초 타임아웃
-            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(resultNode, InitialAvatarResponse.class);
+            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), InitialAvatarResponse.class);
 
             if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null) {
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 유효한 응답을 받지 못했습니다.");
             }
 
+            // 아바타 DB 저장
             Avatar newAvatar = Avatar.builder()
                 .member(member)
-                .avatarImg(originalImgUrl)
+                .avatarImg(avatarCreateRequest.getTryOnImgUrl())
                 .build();
-
             Avatar savedAvatar = avatarRepository.save(newAvatar);
 
+            // 프로필에 베이스 이미지 URL 업데이트
+            Profile profile = member.getProfile();
+            if (profile != null) {
+                profile.setUserBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+            }
+
+            log.info("아바타 생성 및 DB 저장 완료 - userId: {}", member.getId());
             return AvatarCreateResponse.fromEntity(savedAvatar);
 
         } catch (Exception e) {
-            log.error("아바타 생성 작업 대기 중 오류 발생", e);
+            log.error("아바타 생성 결과 처리 중 오류 발생", e);
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "아바타 생성에 실패했습니다: " + e.getMessage());
         }
     }
@@ -239,7 +225,6 @@ public class AvatarServiceImpl implements AvatarService {
         // 현재 착용 중인 상의와 하의 확인
         Long currentTopId = null;
         Long currentBottomId = null;
-        
         for (AvatarItem item : avatar.getItems()) {
             Product product = item.getProduct();
             if (product.isUpperGarment()) {
@@ -248,124 +233,64 @@ public class AvatarServiceImpl implements AvatarService {
                 currentBottomId = product.getId();
             }
         }
-        
-        // 새 상품이 상의인지 하의인지 확인
+
         boolean isNewGarmentTop = newGarment.isUpperGarment();
-        
-        // 캐시 키 생성 (상의+하의 조합 고려)
         String cacheKey;
         if (isNewGarmentTop) {
-            // 새 상품이 상의인 경우
             cacheKey = generateCombinationCacheKey(userId, productId, currentBottomId);
         } else {
-            // 새 상품이 하의인 경우
             cacheKey = generateCombinationCacheKey(userId, currentTopId, productId);
         }
-        
-        String finalImageUrl = null;
 
-        // 캐시 확인
-        boolean cacheExists = existsInS3(cacheKey);
-        log.info("캐시 확인 결과 - userId: {}, 상의ID: {}, 하의ID: {}, 존재여부: {}", 
-                userId, isNewGarmentTop ? productId : currentTopId, 
-                isNewGarmentTop ? currentBottomId : productId, cacheExists);
-                
-        if (cacheExists) {
-            // 캐시 HIT: S3에서 바로 URL 반환
-            finalImageUrl = buildS3PublicUrl(cacheKey);
+        String finalImageUrl;
+
+        if (existsInS3(cacheKey)) {
+            // 캐시 HIT
+            finalImageUrl = buildS3PublicUrl(cacheKey) + "?t=" + System.currentTimeMillis();
             log.info("캐시 히트 - 기존 이미지 사용: {}", finalImageUrl);
-            
-            // 타임스탬프 추가하여 브라우저 캐시 방지
-            finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
-            log.info("타임스탬프 추가된 최종 URL: {}", finalImageUrl);
         } else {
-            // 캐시 MISS: 비동기 처리로 FastAPI 호출
+            // 캐시 MISS: FastAPI에 비동기 작업 요청 및 폴링
             log.info("캐시 미스 - FastAPI 호출");
-            
-            String taskId = asyncTaskService.registerTask();
-            log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
-            String callbackUrl = springServerUrl + "/api/callbacks/vton";
 
-            // 베이스 이미지 선택 (중요!)
+            // 베이스 이미지 선택 로직
             String baseImageUrl;
-            
             if (isNewGarmentTop && currentBottomId != null) {
-                // 상의를 입히는데 이미 하의를 입고 있는 경우
-                // 하의가 입혀진 이미지를 베이스로 사용
                 baseImageUrl = avatar.getAvatarImg();
-                log.info("하의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
             } else if (!isNewGarmentTop && currentTopId != null) {
-                // 하의를 입히는데 이미 상의를 입고 있는 경우
-                // 상의가 입혀진 이미지를 베이스로 사용
                 baseImageUrl = avatar.getAvatarImg();
-                log.info("상의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
             } else {
-                // 그 외의 경우 원본 베이스 이미지 사용
                 baseImageUrl = member.getProfile().getUserBaseImageUrl();
-                log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
             }
-            
-            // FastAPI 요청 객체 생성
+
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                baseImageUrl,
-                newGarment.getImg1(),
-                buildS3Url(avatar.getMaskUrl(newGarment)),
-                buildS3Url(avatar.getPoseUrl()),
-                member.getId(),
-                newGarment.getId(),
-                determineGarmentType(newGarment),
-                taskId,
-                callbackUrl
+                baseImageUrl, newGarment.getImg1(), buildS3Url(avatar.getMaskUrl(newGarment)),
+                buildS3Url(avatar.getPoseUrl()), member.getId(), newGarment.getId(),
+                determineGarmentType(newGarment), null, null // taskId, callbackUrl은 이제 사용 안함
             );
 
-            // 디버깅
-            try {
-                String requestBody = objectMapper.writeValueAsString(fastApiRequest);
-                log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
-                log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
-                log.info(">>> 요청 Body: {}", requestBody);
-            } catch (Exception e) {
-                log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
-            }
+            // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
+            String celeryTaskId = requestTaskToFastApi("/tryon", fastApiRequest);
 
-            // FastAPI 비동기 호출
-            fastApiWebClient.post()
-                .uri("/tryon")
-                .bodyValue(fastApiRequest)
-                .retrieve()
-                .bodyToMono(Void.class)
-                .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e))
-                .subscribe();
+            // 2. 작업 완료될 때까지 폴링하며 대기
+            CeleryTaskResultDto taskResult = pollForResult(celeryTaskId);
 
+            // 3. 받은 결과에서 최종 이미지 URL 추출
             try {
-                // 비동기 결과 대기
-                CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-                JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
-                finalImageUrl = resultNode.get("tryOnImgUrl").asText();
-                
-                // 이미지 URL에 타임스탬프 추가하여 캐시 문제 해결
-                finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
-                
-                // 캐시 저장은 FastAPI에서 자동으로 수행됨
-                log.info("FastAPI 응답 수신 완료 - 원본 이미지 URL: {}", resultNode.get("tryOnImgUrl").asText());
-                log.info("타임스탬프 추가된 최종 이미지 URL: {}", finalImageUrl);
+                FastApiTryOnResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), FastApiTryOnResponse.class);
+                finalImageUrl = fastApiResponse.getTryOnImgUrl() + "?t=" + System.currentTimeMillis();
+                log.info("폴링 성공. 최종 이미지 URL: {}", finalImageUrl);
             } catch (Exception e) {
-                log.error("가상 피팅 작업 대기 중 오류 발생", e);
-                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
+                log.error("Try-on 결과 처리 중 오류 발생", e);
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅 결과 처리 중 오류가 발생했습니다.");
             }
         }
 
-        // 아바타 업데이트
-        log.info("아바타 업데이트 시작 - 아바타 ID: {}, 상품 ID: {}", avatar.getId(), newGarment.getId());
+        // 공통 로직: 아바타 상태 업데이트 및 응답 생성
         avatar.wearGarment(newGarment);
         avatar.update(finalImageUrl);
-        log.info("아바타 업데이트 완료 - 새 이미지 URL: {}", finalImageUrl);
-
-        // 추천 로그 기록 (비동기)
         recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
 
-        // 응답 생성
-        java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+        List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
             .map(item -> new AvatarTryOnResponse.ProductInfo(
                 item.getProduct().getId(),
                 item.getProduct().getProductName(),
@@ -373,16 +298,71 @@ public class AvatarServiceImpl implements AvatarService {
             ))
             .collect(Collectors.toList());
 
-        AvatarTryOnResponse response = AvatarTryOnResponse.builder()
-            .avatarId(avatar.getId())
-            .avatarImgUrl(finalImageUrl)
-            .products(productInfos)
-            .build();
-            
-        log.info("아바타 응답 생성 완료 - 아바타 ID: {}, 이미지 URL: {}, 착용 상품 수: {}", 
-            response.getAvatarId(), response.getAvatarImgUrl(), response.getProducts().size());
-            
-        return response;
+        log.info("아바타 응답 생성 완료 - 최종 이미지 URL: {}", finalImageUrl);
+        return new AvatarTryOnResponse(avatar.getId(), finalImageUrl, productInfos);
+    }
+
+    /**
+     * Python FastAPI 서버에 작업을 요청하고 Celery Task ID를 받아옵니다.
+     */
+    private String requestTaskToFastApi(String uri, Object requestBody) {
+        try {
+            TaskResponse response = fastApiWebClient.post()
+                .uri(uri)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(TaskResponse.class)
+                .block(Duration.ofSeconds(10)); // API 서버의 응답은 즉시 오므로 짧은 타임아웃
+
+            if (response == null || response.getTask_id() == null) {
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 작업 ID를 받지 못했습니다.");
+            }
+            log.info("FastAPI 작업 요청 성공. Celery Task ID: {}", response.getTask_id());
+            return response.getTask_id();
+        } catch (Exception e) {
+            log.error("FastAPI {} 요청 실패", uri, e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "작업 요청에 실패했습니다.");
+        }
+    }
+
+    /**
+     * 작업이 완료될 때까지 Python FastAPI 서버의 결과 확인 API를 폴링합니다.
+     */
+    private CeleryTaskResultDto pollForResult(String celeryTaskId) {
+        long startTime = System.currentTimeMillis();
+        long timeout = 60 * 1000; // 최대 60초 대기
+
+        while (System.currentTimeMillis() - startTime < timeout) {
+            try {
+                CeleryTaskResultDto result = fastApiWebClient.get()
+                    .uri("/result/{celery_task_id}", celeryTaskId)
+                    .retrieve()
+                    .bodyToMono(CeleryTaskResultDto.class)
+                    .block(Duration.ofSeconds(5));
+
+                if (result != null) {
+                    if ("SUCCESS".equals(result.getStatus())) {
+                        log.info("작업 성공 확인. Celery Task ID: {}", celeryTaskId);
+                        return result;
+                    } else if ("FAILURE".equals(result.getStatus())) {
+                        log.error("작업 실패 확인. Celery Task ID: {}, 결과: {}", celeryTaskId, result.getResult());
+                        throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "작업 처리 중 오류가 발생했습니다.");
+                    }
+                    // "PENDING" 상태이면 계속 폴링
+                }
+
+                // 2초 대기 후 다시 시도
+                Thread.sleep(2000);
+
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "작업 대기 중 인터럽트 발생");
+            } catch (Exception e) {
+                log.error("결과 폴링 중 오류 발생. Celery Task ID: {}", celeryTaskId, e);
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "결과 확인 중 오류가 발생했습니다.");
+            }
+        }
+        throw new BusinessException(HttpStatus.REQUEST_TIMEOUT, "작업 처리 시간을 초과했습니다.");
     }
 
     @Transactional
