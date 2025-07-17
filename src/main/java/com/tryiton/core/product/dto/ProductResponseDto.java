@@ -3,10 +3,8 @@ package com.tryiton.core.product.dto;
 import com.tryiton.core.product.entity.Product;
 import java.time.LocalDateTime;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
-@NoArgsConstructor
 public class ProductResponseDto {
 
     private final Long id;
