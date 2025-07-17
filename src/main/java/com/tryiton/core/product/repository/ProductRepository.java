@@ -19,6 +19,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     //  성능 최적화: 상위 100개만 조회
     List<Product> findTop100ByDeletedFalseOrderByWishlistCountDesc();
 
+    // Fetch Join을 사용하여 Product와 Category를 한번에 조회한다.
+    @Query(value = "SELECT p FROM Product p JOIN FETCH p.category c WHERE p.deleted = false " +
+            "ORDER BY p.wishlistCount DESC",
+            countQuery = "SELECT count(p) FROM Product p WHERE p.deleted = false") // 페이징을 위한 count 쿼리
+    List<Product> findTop100WithCategory(Pageable pageable);
+
     // 특정 카테고리의 상품 중 페이징 조회
     Page<Product> findByCategoryAndDeletedFalse(Category category, Pageable pageable);
 

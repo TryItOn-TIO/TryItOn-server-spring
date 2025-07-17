@@ -19,6 +19,7 @@ import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
 import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
 import com.tryiton.core.avatar.entity.Avatar;
+import com.tryiton.core.avatar.entity.AvatarItem;
 import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
@@ -83,7 +84,10 @@ public class AvatarServiceImpl implements AvatarService {
      */
     private String generateSingleItemCacheKey(Long userId, Product product) {
         String garmentType = determineGarmentType(product);
-        return String.format("cache/tryon/%d/%s-%d.jpg", userId, garmentType, product.getId());
+        String cacheKey = String.format("cache/tryon/%d/%s-%d.png", userId, garmentType, product.getId());
+        log.info("캐시 키 생성 - userId: {}, productId: {}, garmentType: {}, 키: {}", 
+                userId, product.getId(), garmentType, cacheKey);
+        return cacheKey;
     }
 
     /**
@@ -103,8 +107,12 @@ public class AvatarServiceImpl implements AvatarService {
             keyBuilder.append("base");
         }
         
-        keyBuilder.append(".jpg");
-        return keyBuilder.toString();
+        keyBuilder.append(".png");
+        
+        String cacheKey = keyBuilder.toString();
+        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}", 
+                userId, topId, bottomId, cacheKey);
+        return cacheKey;
     }
 
     /**
@@ -112,17 +120,21 @@ public class AvatarServiceImpl implements AvatarService {
      */
     private boolean existsInS3(String key) {
         try {
+            log.info("S3 캐시 확인 시작 - 키: {}", key);
+            
             HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
             
             s3Client.headObject(headObjectRequest);
+            log.info("S3 캐시 확인 성공 - 키: {}", key);
             return true;
         } catch (NoSuchKeyException e) {
+            log.info("S3 캐시 미스 - 키: {}", key);
             return false;
         } catch (Exception e) {
-            log.warn("S3 객체 존재 확인 중 오류 발생: key={}, error={}", key, e.getMessage());
+            log.warn("S3 객체 존재 확인 중 오류 발생: key={}, error={}", key, e.getMessage(), e);
             return false;
         }
     }
@@ -131,7 +143,9 @@ public class AvatarServiceImpl implements AvatarService {
      * S3 Public URL 생성
      */
     private String buildS3PublicUrl(String key) {
-        return "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+        String url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + key;
+        log.info("S3 Public URL 생성 - 키: {}, URL: {}", key, url);
+        return url;
     }
 
     // 가장 최근 착장한 아바타 이미지 + 착용 상품명 리스트
@@ -222,71 +236,153 @@ public class AvatarServiceImpl implements AvatarService {
         Product newGarment = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
-        String taskId = asyncTaskService.registerTask();
-        log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
-        String callbackUrl = springServerUrl + "/api/callbacks/vton";
-
-        String garmentType = determineGarmentType(newGarment);
-
-        // 2. FastAPI 요청 객체를 생성합니다.
-        FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-            avatar.getAvatarImg(),
-            newGarment.getImg1(),
-            buildS3Url(avatar.getMaskUrl(newGarment)),
-            buildS3Url(avatar.getPoseUrl()),
-            member.getId(),
-            newGarment.getId(),
-            garmentType,
-            taskId,
-            callbackUrl
-        );
-
-        // ======================= 🔥 중요: 디버깅 로그 추가 🔥 =======================
-        try {
-            String requestBody = objectMapper.writeValueAsString(fastApiRequest);
-            log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
-            log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
-            log.info(">>> 요청 Body: {}", requestBody);
-        } catch (Exception e) {
-            log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
+        // 현재 착용 중인 상의와 하의 확인
+        Long currentTopId = null;
+        Long currentBottomId = null;
+        
+        for (AvatarItem item : avatar.getItems()) {
+            Product product = item.getProduct();
+            if (product.isUpperGarment()) {
+                currentTopId = product.getId();
+            } else if (product.isLowerGarment()) {
+                currentBottomId = product.getId();
+            }
         }
-        // ========================================================================
-
-
-        fastApiWebClient.post()
-            .uri("/tryon")
-            .bodyValue(fastApiRequest)
-            .retrieve()
-            .bodyToMono(Void.class)
-            .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e)) // 네트워크 레벨 에러 로그
-            .subscribe();
-
-        try {
-            CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
-            String finalImageUrl = resultNode.get("tryOnImgUrl").asText();
-
-            avatar.wearGarment(newGarment);
-            avatar.update(finalImageUrl);
-
-            java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
-                .map(item -> new AvatarTryOnResponse.ProductInfo(
-                    item.getProduct().getId(),
-                    item.getProduct().getProductName(),
-                    item.getProduct().getCategory().getCategoryName()
-                ))
-                .collect(Collectors.toList());
-
-            return AvatarTryOnResponse.builder()
-                .avatarId(avatar.getId())
-                .avatarImgUrl(finalImageUrl)
-                .products(productInfos)
-                .build();
-
-        } catch (Exception e) {
-            log.error("가상 피팅 작업 대기 중 오류 발생", e);
-            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
+        
+        // 새 상품이 상의인지 하의인지 확인
+        boolean isNewGarmentTop = newGarment.isUpperGarment();
+        
+        // 캐시 키 생성 (상의+하의 조합 고려)
+        String cacheKey;
+        if (isNewGarmentTop) {
+            // 새 상품이 상의인 경우
+            cacheKey = generateCombinationCacheKey(userId, productId, currentBottomId);
+        } else {
+            // 새 상품이 하의인 경우
+            cacheKey = generateCombinationCacheKey(userId, currentTopId, productId);
         }
+        
+        String finalImageUrl = null;
+
+        // 캐시 확인
+        boolean cacheExists = existsInS3(cacheKey);
+        log.info("캐시 확인 결과 - userId: {}, 상의ID: {}, 하의ID: {}, 존재여부: {}", 
+                userId, isNewGarmentTop ? productId : currentTopId, 
+                isNewGarmentTop ? currentBottomId : productId, cacheExists);
+                
+        if (cacheExists) {
+            // 캐시 HIT: S3에서 바로 URL 반환
+            finalImageUrl = buildS3PublicUrl(cacheKey);
+            log.info("캐시 히트 - 기존 이미지 사용: {}", finalImageUrl);
+            
+            // 타임스탬프 추가하여 브라우저 캐시 방지
+            finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
+            log.info("타임스탬프 추가된 최종 URL: {}", finalImageUrl);
+        } else {
+            // 캐시 MISS: 비동기 처리로 FastAPI 호출
+            log.info("캐시 미스 - FastAPI 호출");
+            
+            String taskId = asyncTaskService.registerTask();
+            log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
+            String callbackUrl = springServerUrl + "/api/callbacks/vton";
+
+            // 베이스 이미지 선택 (중요!)
+            String baseImageUrl;
+            
+            if (isNewGarmentTop && currentBottomId != null) {
+                // 상의를 입히는데 이미 하의를 입고 있는 경우
+                // 하의가 입혀진 이미지를 베이스로 사용
+                baseImageUrl = avatar.getAvatarImg();
+                log.info("하의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
+            } else if (!isNewGarmentTop && currentTopId != null) {
+                // 하의를 입히는데 이미 상의를 입고 있는 경우
+                // 상의가 입혀진 이미지를 베이스로 사용
+                baseImageUrl = avatar.getAvatarImg();
+                log.info("상의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
+            } else {
+                // 그 외의 경우 원본 베이스 이미지 사용
+                baseImageUrl = member.getProfile().getUserBaseImageUrl();
+                log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
+            }
+            
+            // FastAPI 요청 객체 생성
+            FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
+                baseImageUrl,
+                newGarment.getImg1(),
+                buildS3Url(avatar.getMaskUrl(newGarment)),
+                buildS3Url(avatar.getPoseUrl()),
+                member.getId(),
+                newGarment.getId(),
+                determineGarmentType(newGarment),
+                taskId,
+                callbackUrl
+            );
+
+            // 디버깅
+            try {
+                String requestBody = objectMapper.writeValueAsString(fastApiRequest);
+                log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
+                log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
+                log.info(">>> 요청 Body: {}", requestBody);
+            } catch (Exception e) {
+                log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
+            }
+
+            // FastAPI 비동기 호출
+            fastApiWebClient.post()
+                .uri("/tryon")
+                .bodyValue(fastApiRequest)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e))
+                .subscribe();
+
+            try {
+                // 비동기 결과 대기
+                CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
+                JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
+                finalImageUrl = resultNode.get("tryOnImgUrl").asText();
+                
+                // 이미지 URL에 타임스탬프 추가하여 캐시 문제 해결
+                finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
+                
+                // 캐시 저장은 FastAPI에서 자동으로 수행됨
+                log.info("FastAPI 응답 수신 완료 - 원본 이미지 URL: {}", resultNode.get("tryOnImgUrl").asText());
+                log.info("타임스탬프 추가된 최종 이미지 URL: {}", finalImageUrl);
+            } catch (Exception e) {
+                log.error("가상 피팅 작업 대기 중 오류 발생", e);
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
+            }
+        }
+
+        // 아바타 업데이트
+        log.info("아바타 업데이트 시작 - 아바타 ID: {}, 상품 ID: {}", avatar.getId(), newGarment.getId());
+        avatar.wearGarment(newGarment);
+        avatar.update(finalImageUrl);
+        log.info("아바타 업데이트 완료 - 새 이미지 URL: {}", finalImageUrl);
+
+        // 추천 로그 기록 (비동기)
+        recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
+
+        // 응답 생성
+        java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+            .map(item -> new AvatarTryOnResponse.ProductInfo(
+                item.getProduct().getId(),
+                item.getProduct().getProductName(),
+                item.getProduct().getCategory().getCategoryName()
+            ))
+            .collect(Collectors.toList());
+
+        AvatarTryOnResponse response = AvatarTryOnResponse.builder()
+            .avatarId(avatar.getId())
+            .avatarImgUrl(finalImageUrl)
+            .products(productInfos)
+            .build();
+            
+        log.info("아바타 응답 생성 완료 - 아바타 ID: {}, 이미지 URL: {}, 착용 상품 수: {}", 
+            response.getAvatarId(), response.getAvatarImgUrl(), response.getProducts().size());
+            
+        return response;
     }
 
     @Transactional
@@ -404,7 +500,7 @@ public class AvatarServiceImpl implements AvatarService {
      */
     /*
     private String generateCombinationCacheKey(Long userId, Long topId, Long bottomId) {
-        return String.format("combination/%d/%d-%d.jpg", userId, topId, bottomId);
+        return String.format("combination/%d/%d-%d.png", userId, topId, bottomId);
     }
     */
 

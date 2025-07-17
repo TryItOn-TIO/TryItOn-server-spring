@@ -5,21 +5,23 @@ import com.tryiton.core.product.entity.Product;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Getter
+@NoArgsConstructor
 public class ProductDetailResponseDto {
 
-    private final Long id;
-    private final String productName;
-    private final String brand;
-    private final int price; // 정가
-    private final int sale; // 할인율 (%)
-    private final int salePrice; // 할인된 가격
-    private final String content;
-    private final List<String> images;
-    private final int wishlistCount;
-    private final List<ProductVariantDto> variant;
-    private final boolean liked; // 찜 여부 추가
+    private Long id;
+    private String productName;
+    private String brand;
+    private int price; // 정가
+    private int sale; // 할인율 (%)
+    private int salePrice; // 할인된 가격
+    private String content;
+    private List<String> images;
+    private int wishlistCount;
+    private List<ProductVariantDto> variant;
+    private boolean liked; // 찜 여부 추가
 
     public ProductDetailResponseDto(Product product, List<ProductVariantDto> variant, boolean liked) {
         this.id = product.getId();
