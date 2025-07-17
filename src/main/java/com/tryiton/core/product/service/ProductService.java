@@ -112,6 +112,7 @@ public class ProductService {
                 .toList();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "categoryProducts", key = "#category.id + '_' + #page + '_' + #size + '_' + (#userId != null ? #userId : 'guest')")
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page, int size) {
         // wishlistCount 기준으로 내림차순 정렬
         Pageable pageable = PageRequest.of(page, size, Sort.by("wishlistCount").descending().and(Sort.by("createAt").descending()));
