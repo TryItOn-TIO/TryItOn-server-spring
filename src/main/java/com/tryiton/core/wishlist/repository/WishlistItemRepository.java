@@ -9,8 +9,23 @@ import org.springframework.data.repository.query.Param;
 public interface WishlistItemRepository extends JpaRepository<WishlistItem, Long> {
 
     List<WishlistItem> findAllByWishlist_WishlistIdOrderByCreatedAtDesc(Long wishlistId);
-    
+
     // N+1 쿼리 해결: WishlistItem과 Product를 함께 조회
     @Query("SELECT wi FROM WishlistItem wi JOIN FETCH wi.product WHERE wi.wishlist.wishlistId = :wishlistId ORDER BY wi.createdAt DESC")
-    List<WishlistItem> findAllByWishlistIdWithProductOrderByCreatedAtDesc(@Param("wishlistId") Long wishlistId);
+    List<WishlistItem> findAllByWishlistIdWithProductOrderByCreatedAtDesc(
+        @Param("wishlistId") Long wishlistId);
+
+    // Product -> Category -> parentCategory.id로 타고 올라가서 필터링
+    @Query("""
+            SELECT wi FROM WishlistItem wi
+            JOIN FETCH wi.product p
+            JOIN p.category c
+            WHERE wi.wishlist.wishlistId = :wishlistId
+            AND c.parentCategory.id = :parentCategoryId
+            ORDER BY wi.createdAt DESC
+        """)
+    List<WishlistItem> findByWishlistIdAndProductParentCategoryId(
+        @Param("wishlistId") Long wishlistId,
+        @Param("parentCategoryId") Long parentCategoryId
+    );
 }

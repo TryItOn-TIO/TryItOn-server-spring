@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,7 +41,18 @@ public class WishlistController {
 
     // 찜한 상품 목록 조회
     @GetMapping
-    public List<ProductResponseDto> getWishlist(@AuthenticationPrincipal() CustomUserDetails userDetails) {
+    public List<ProductResponseDto> getWishlist(
+        @AuthenticationPrincipal() CustomUserDetails userDetails) {
         return wishlistService.getWishlistProducts(userDetails.getUser());
+    }
+
+    @GetMapping("/category/{parentCategoryId}")
+    public List<ProductResponseDto> getWishlistByParentCategory(
+        @AuthenticationPrincipal CustomUserDetails userDetails,
+        @PathVariable Long parentCategoryId
+    ) {
+        return wishlistService.getWishlistProductsByParentCategory(
+            userDetails.getUser(), parentCategoryId
+        );
     }
 }
