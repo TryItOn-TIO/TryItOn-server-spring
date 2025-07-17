@@ -88,12 +88,12 @@ public class ProductService {
             likedProductIds.addAll(wishlistRepository.findProductIdsByUserId(userId));
         }
 
-        // 성능 최적화: 상위 100개만 조회하도록 제한
-        return productRepository.findTop100ByDeletedFalseOrderByWishlistCountDesc()
-            .stream()
-            .map(product -> new ProductResponseDto(product,
-                likedProductIds.contains(product.getId())))
-            .toList();
+        // PageRequest.of(0, 100)을 통해 상위 100개만 조회하도록 지정
+        return productRepository.findTop100WithCategory(PageRequest.of(0, 100))
+                .stream()
+                .map(product -> new ProductResponseDto(product,
+                        likedProductIds.contains(product.getId())))
+                .toList();
     }
 
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page,
