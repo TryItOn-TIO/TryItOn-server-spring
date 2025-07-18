@@ -14,6 +14,7 @@ public class FastApiTryOnRequest {
     private Long userId;
     private Long productId;
     private String garmentType;
+    private String cacheKey;  // 추가: S3에 저장할 캐시 키
     private String taskId;
     private String callbackUrl;
 }
