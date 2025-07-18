@@ -103,9 +103,6 @@ public class RecommendationService {
             }
             
             if (products != null && !products.isEmpty()) {
-                // 공유 데이터로 저장
-                sharedDataAccessor.saveSharedData("trending", products);
-                
                 return products;
             }
         } catch (Exception e) {
