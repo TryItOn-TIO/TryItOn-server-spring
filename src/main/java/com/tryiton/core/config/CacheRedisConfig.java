@@ -1,15 +1,25 @@
 package com.tryiton.core.config;
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import io.lettuce.core.SslOptions;
+import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -58,10 +68,31 @@ public class CacheRedisConfig {
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(connectionFactory);
         
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new SimpleModule().addDeserializer(
+            PageImpl.class,
+            new JsonDeserializer<PageImpl>() {
+                @Override
+                public PageImpl deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                    JsonNode node = p.getCodec().readTree(p);
+                    
+                    List content = ctxt.readValue(node.get("content").traverse(), List.class);
+                    JsonNode pageableNode = node.get("pageable");
+                    int number = pageableNode.get("pageNumber").asInt();
+                    int size = pageableNode.get("pageSize").asInt();
+                    long total = node.get("totalElements").asLong();
+                    
+                    return new PageImpl(content, PageRequest.of(number, size), total);
+                }
+            }
+        ));
+        
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+        
         redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        redisTemplate.setValueSerializer(serializer);
         redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+        redisTemplate.setHashValueSerializer(serializer);
         
         return redisTemplate;
     }
