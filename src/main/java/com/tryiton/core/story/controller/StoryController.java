@@ -11,6 +11,7 @@ import com.tryiton.core.story.dto.StoryResponseDto;
 import com.tryiton.core.story.service.StoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -65,6 +66,14 @@ public class StoryController {
         // 비로그인 사용자도 접근 가능하도록 수정
         Member user = (customUserDetails != null) ? customUserDetails.getUser() : null;
         StoriesResponseDto storiesResponseDto = storyService.getNextStories(user, currentStoryId, sort, limit);
+        return ResponseEntity.ok(storiesResponseDto);
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<StoryResponseDto>> getMyStories(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails
+    ){
+        List<StoryResponseDto> storiesResponseDto = storyService.getMyStories(customUserDetails.getUser());
         return ResponseEntity.ok(storiesResponseDto);
     }
 
