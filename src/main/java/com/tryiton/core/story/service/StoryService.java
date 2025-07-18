@@ -202,6 +202,15 @@ public class StoryService {
         }
     }
 
+    public List<StoryResponseDto> getMyStories(Member user) {
+        // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+        List<Story> stories = storyRepository.findByAuthorIdWithAllAssociations(user.getId());
+        
+        return stories.stream()
+            .map(story -> mapToStoryResponseDto(story, user.getId()))
+            .collect(Collectors.toList());
+    }
+
     /**
      * PageRequest 객체를 생성하여 정렬 기준을 적용합니다.
      *
