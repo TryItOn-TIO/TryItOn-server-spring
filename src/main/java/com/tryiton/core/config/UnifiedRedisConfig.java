@@ -75,10 +75,11 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     }
 
     @Bean
-    public DefaultClientResources clientResources() {
+    public io.lettuce.core.resource.ClientResources clientResources() {
         return DefaultClientResources.builder()
             .ioThreadPoolSize(4)
             .computationThreadPoolSize(4)
+            .commandLatencyCollector(io.lettuce.core.metrics.DefaultCommandLatencyCollector.disabled())
             .build();
     }
 
@@ -120,7 +121,7 @@ public class UnifiedRedisConfig implements CachingConfigurer {
                 @Override
                 public PageImpl deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
                     JsonNode node = p.getCodec().readTree(p);
-                    List content = new ObjectMapper().readValue(node.get("content").traverse(), List.class);
+                    List content = new ObjectMapper().readValue(node.get("content").traverse(), new com.fasterxml.jackson.core.type.TypeReference<List<Object>>() {});
                     JsonNode pageableNode = node.get("pageable");
                     int number = pageableNode.get("pageNumber").asInt();
                     int size = pageableNode.get("pageSize").asInt();

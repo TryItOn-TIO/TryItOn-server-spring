@@ -1,5 +1,6 @@
 package com.tryiton.core.common.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -81,6 +82,28 @@ public class SharedDataAccessor {
                 log.debug("타입 변환 시도: {} -> {}", value.getClass().getName(), type.getName());
                 return objectMapper.convertValue(value, type);
             }
+        } catch (Exception e) {
+            log.error("공유 데이터 조회 실패: {}, 오류: {}", prefixedKey, e.getMessage(), e);
+            throw new RuntimeException("공유 데이터 조회 실패", e);
+        }
+    }
+
+    /**
+     * 제네릭 타입을 포함한 공유 데이터 조회
+     * @param key 데이터 키
+     * @param typeReference 반환 타입 참조
+     * @return 저장된 값 또는 null
+     */
+    public <T> T getSharedData(String key, TypeReference<T> typeReference) {
+        String prefixedKey = "shared:" + key;
+        try {
+            Object value = cacheRedisTemplate.opsForValue().get(prefixedKey);
+            if (value == null) {
+                log.debug("공유 데이터 없음: {}", prefixedKey);
+                return null;
+            }
+            log.debug("타입 변환 시도: {} -> {}", value.getClass().getName(), typeReference.getType());
+            return objectMapper.convertValue(value, typeReference);
         } catch (Exception e) {
             log.error("공유 데이터 조회 실패: {}, 오류: {}", prefixedKey, e.getMessage(), e);
             throw new RuntimeException("공유 데이터 조회 실패", e);

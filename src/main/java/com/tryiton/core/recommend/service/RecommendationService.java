@@ -50,7 +50,7 @@ public class RecommendationService {
             // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData("trending")) {
                 log.info("공유 데이터 접근자를 통해 트렌딩 상품 조회");
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData("trending", List.class);
+                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData("trending", new TypeReference<List<LambdaBatchDto>>() {});
                 if (lambdaProducts != null && !lambdaProducts.isEmpty()) {
                     return convertLambdaProductsToResponseDto(lambdaProducts, userId);
                 }
@@ -124,7 +124,7 @@ public class RecommendationService {
         try {
             // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, List.class);
+                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<List<LambdaBatchDto>>() {});
                 if (lambdaProducts != null) {
                     return convertLambdaProductsToResponseDto(lambdaProducts, userId);
                 }
@@ -161,7 +161,7 @@ public class RecommendationService {
         try {
             // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, List.class);
+                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<List<LambdaBatchDto>>() {});
                 if (lambdaProducts != null) {
                     return convertLambdaProductsToResponseDto(lambdaProducts, userId);
                 }
@@ -198,7 +198,7 @@ public class RecommendationService {
         try {
             // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, List.class);
+                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<List<LambdaBatchDto>>() {});
                 if (lambdaProducts != null) {
                     return convertLambdaProductsToResponseDto(lambdaProducts, userId);
                 }
