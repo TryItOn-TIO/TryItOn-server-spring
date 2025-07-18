@@ -233,35 +233,55 @@ public class AvatarServiceImpl implements AvatarService {
         Product newGarment = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
-        // 현재 착용 중인 상의와 하의 확인
+        // 현재 착용 중인 상의와 하의 확인 (더 명확하게 로깅)
         Long currentTopId = null;
         Long currentBottomId = null;
+        Product currentTop = null;
+        Product currentBottom = null;
+        
         for (AvatarItem item : avatar.getItems()) {
             Product product = item.getProduct();
             if (product.isUpperGarment()) {
                 currentTopId = product.getId();
+                currentTop = product;
+                log.info("현재 착용 중인 상의: ID={}, 이름={}", currentTopId, product.getProductName());
             } else if (product.isLowerGarment()) {
                 currentBottomId = product.getId();
+                currentBottom = product;
+                log.info("현재 착용 중인 하의: ID={}, 이름={}", currentBottomId, product.getProductName());
             }
         }
 
         boolean isNewGarmentTop = newGarment.isUpperGarment();
+        log.info("새로 입히는 의류: ID={}, 이름={}, 타입={}", 
+             newGarment.getId(), newGarment.getProductName(), 
+             isNewGarmentTop ? "상의" : "하의");
+        
+        // 캐시 키 생성
         String cacheKey;
         if (isNewGarmentTop) {
+            // 상의인 경우: 현재 하의 ID 유지
             cacheKey = generateCombinationCacheKey(userId, productId, currentBottomId);
         } else {
+            // 하의인 경우: 현재 상의 ID 유지
             cacheKey = generateCombinationCacheKey(userId, currentTopId, productId);
         }
+        
+        // 캐시 확인 - S3에 해당 키로 파일이 존재하는지 확인
+        boolean cacheExists = existsInS3(cacheKey);
+        
+        // 캐시 로깅 추가
+        log.info("캐시 확인 - 키: {}, 존재여부: {}", cacheKey, cacheExists);
 
         String finalImageUrl;
 
-        if (existsInS3(cacheKey)) {
+        if (cacheExists) {
             // 캐시 HIT
             finalImageUrl = buildS3PublicUrl(cacheKey) + "?t=" + System.currentTimeMillis();
-            log.info("캐시 히트 - 기존 이미지 사용: {}", finalImageUrl);
+            log.info("캐시 히트! 기존 이미지 사용: {}", finalImageUrl);
         } else {
             // 캐시 MISS: FastAPI에 비동기 작업 요청 및 폴링
-            log.info("캐시 미스 - FastAPI 호출");
+            log.info("캐시 미스! FastAPI 호출 시작");
 
             // 베이스 이미지 선택 로직
             String baseImageUrl;
@@ -275,34 +295,47 @@ public class AvatarServiceImpl implements AvatarService {
             String latestBaseImageUrl = freshProfile.getUserBaseImageUrl();
             log.info("최신 베이스 이미지 URL 조회: {}", latestBaseImageUrl);
             
-            if (isNewGarmentTop && currentBottomId != null) {
-                // 상의를 입히는데 이미 하의를 입고 있는 경우
-                baseImageUrl = avatar.getAvatarImg();
-                log.info("하의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
-            } else if (!isNewGarmentTop && currentTopId != null) {
-                // 하의를 입히는데 이미 상의를 입고 있는 경우
-                baseImageUrl = avatar.getAvatarImg();
-                log.info("상의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
+            // 중요: 상의/하의 교체 시 이미지 선택 로직 수정
+            if (isNewGarmentTop) {
+                // 상의를 입히는 경우
+                if (currentBottomId != null) {
+                    // 이미 하의를 입고 있는 경우, 현재 아바타 이미지 사용
+                    baseImageUrl = avatar.getAvatarImg();
+                    log.info("하의가 입혀진 현재 아바타 이미지를 베이스로 사용: {}", baseImageUrl);
+                } else {
+                    // 하의를 입고 있지 않은 경우, 원본 이미지 사용
+                    baseImageUrl = latestBaseImageUrl;
+                    log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
+                }
             } else {
-                // 그 외의 경우 최신 베이스 이미지 사용
-                baseImageUrl = latestBaseImageUrl;
-                log.info("최신 원본 베이스 이미지 사용: {}", baseImageUrl);
+                // 하의를 입히는 경우
+                if (currentTopId != null) {
+                    // 이미 상의를 입고 있는 경우, 현재 아바타 이미지 사용
+                    baseImageUrl = avatar.getAvatarImg();
+                    log.info("상의가 입혀진 현재 아바타 이미지를 베이스로 사용: {}", baseImageUrl);
+                } else {
+                    // 상의를 입고 있지 않은 경우, 원본 이미지 사용
+                    baseImageUrl = latestBaseImageUrl;
+                    log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
+                }
             }
 
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                baseImageUrl, // 최신 베이스 이미지 URL
+                baseImageUrl, // 베이스 이미지 URL
                 newGarment.getImg1(), 
                 buildS3Url(avatar.getMaskUrl(newGarment)),
                 buildS3Url(avatar.getPoseUrl()), 
                 member.getId(), 
                 newGarment.getId(),
-                determineGarmentType(newGarment), 
+                determineGarmentType(newGarment),
+                cacheKey,  // 캐시 키 추가
                 null, 
                 null // taskId, callbackUrl은 이제 사용 안함
             );
             
-            log.info("FastAPI 요청 생성 - baseImageUrl: {}, garmentImgUrl: {}", 
-                    baseImageUrl, newGarment.getImg1());
+            // 캐시 키 정보도 함께 로깅
+            log.info("FastAPI 요청 생성 - baseImageUrl: {}, garmentImgUrl: {}, cacheKey: {}", 
+                    baseImageUrl, newGarment.getImg1(), cacheKey);
 
             // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
             String celeryTaskId = requestTaskToFastApi("/tryon", fastApiRequest);
@@ -326,8 +359,28 @@ public class AvatarServiceImpl implements AvatarService {
         }
 
         // 공통 로직: 아바타 상태 업데이트 및 응답 생성
-        avatar.wearGarment(newGarment);
+        // 중요: 기존 아이템 유지 로직 수정
+        if (isNewGarmentTop) {
+            // 상의를 교체하는 경우: 기존 상의만 제거하고 하의는 유지
+            avatar.getItems().removeIf(item -> item.getProduct().isUpperGarment());
+        } else {
+            // 하의를 교체하는 경우: 기존 하의만 제거하고 상의는 유지
+            avatar.getItems().removeIf(item -> !item.getProduct().isUpperGarment());
+        }
+        
+        // 새 의류 추가
+        avatar.getItems().add(new AvatarItem(avatar, newGarment));
         avatar.update(finalImageUrl);
+        
+        // 현재 착용 중인 아이템 로깅 (디버깅용)
+        log.info("아바타 업데이트 후 착용 아이템 수: {}", avatar.getItems().size());
+        for (AvatarItem item : avatar.getItems()) {
+            log.info("착용 아이템: ID={}, 이름={}, 타입={}", 
+                    item.getProduct().getId(), 
+                    item.getProduct().getProductName(),
+                    item.getProduct().isUpperGarment() ? "상의" : "하의");
+        }
+        
         recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
 
         List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
@@ -338,7 +391,7 @@ public class AvatarServiceImpl implements AvatarService {
             ))
             .collect(Collectors.toList());
 
-        log.info("아바타 응답 생성 완료 - 최종 이미지 URL: {}", finalImageUrl);
+        log.info("아바타 응답 생성 완료 - 최종 이미지 URL: {}, 착용 아이템 수: {}", finalImageUrl, productInfos.size());
         return new AvatarTryOnResponse(avatar.getId(), finalImageUrl, productInfos);
     }
 
