@@ -127,6 +127,22 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return template;
     }
 
+    // 추천 기능용 Redis 템플릿 (JSON 직렬화)
+    @Bean(name = "recommendRedisTemplate")
+    public RedisTemplate<String, Object> recommendRedisTemplate(
+            @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(objectMapper(), Object.class);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(serializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(serializer);
+        return template;
+    }
+
     // 캐시 및 JSON 데이터용 Redis 템플릿
     @Bean(name = "cacheRedisTemplate")
     public RedisTemplate<String, Object> cacheRedisTemplate(
