@@ -31,7 +31,7 @@ public class RecommendationService {
     private final SharedDataAccessor sharedDataAccessor;
 
     public RecommendationService(
-            @Qualifier("redisTemplate") RedisTemplate<String, Object> redisTemplate,
+            @Qualifier("cacheRedisTemplate") RedisTemplate<String, Object> redisTemplate,
             ObjectMapper objectMapper,
             ProductRepository productRepository,
             WishlistRepository wishlistRepository,
