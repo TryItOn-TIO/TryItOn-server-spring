@@ -57,8 +57,16 @@ public class RecommendationService {
             }
             
             // 기존 방식으로 조회
-            List<LambdaBatchDto> lambdaProducts = (List<LambdaBatchDto>) redisTemplate.opsForValue().get("recommend:trending");
-            log.info("트렌딩 상품 조회 데이터: {}", lambdaProducts);
+            Object rawData = redisTemplate.opsForValue().get("recommend:trending");
+            log.info("트렌딩 상품 조회 데이터 타입: {}", rawData != null ? rawData.getClass().getName() : "null");
+            
+            List<LambdaBatchDto> lambdaProducts = null;
+            if (rawData instanceof List) {
+                lambdaProducts = (List<LambdaBatchDto>) rawData;
+            } else if (rawData instanceof String) {
+                lambdaProducts = objectMapper.readValue((String) rawData, new TypeReference<List<LambdaBatchDto>>() {});
+            }
+            
             if (lambdaProducts != null && !lambdaProducts.isEmpty()) {
                 log.info("트렌딩 상품 조회 데이터 존재");
                 
@@ -69,7 +77,7 @@ public class RecommendationService {
                 return convertLambdaProductsToResponseDto(lambdaProducts, userId);
             }
         } catch (Exception e) {
-            log.error("트렌딩 상품 조회 실패", e);
+            log.error("트렌딩 상품 조회 실패: {}", e.getMessage(), e);
         }
         return Collections.emptyList();
     }
@@ -86,7 +94,15 @@ public class RecommendationService {
             }
             
             // 기존 방식으로 조회
-            List<Product> products = (List<Product>) redisTemplate.opsForValue().get("recommend:trending");
+            Object rawData = redisTemplate.opsForValue().get("recommend:trending");
+            
+            List<Product> products = null;
+            if (rawData instanceof List) {
+                products = (List<Product>) rawData;
+            } else if (rawData instanceof String) {
+                products = objectMapper.readValue((String) rawData, new TypeReference<List<Product>>() {});
+            }
+            
             if (products != null && !products.isEmpty()) {
                 // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
                 String dataToSave = objectMapper.writeValueAsString(products);
@@ -117,12 +133,21 @@ public class RecommendationService {
             }
             
             // 기존 방식으로 조회
-            String data = (String) redisTemplate.opsForValue().get(key);
-            if (data != null) {
-                // 공유 데이터로 저장
-                sharedDataAccessor.saveSharedData(sharedKey, data);
+            Object rawData = redisTemplate.opsForValue().get(key);
+            
+            List<LambdaBatchDto> lambdaProducts = null;
+            if (rawData instanceof List) {
+                lambdaProducts = (List<LambdaBatchDto>) rawData;
+            } else if (rawData instanceof String) {
+                lambdaProducts = objectMapper.readValue((String) rawData, new TypeReference<List<LambdaBatchDto>>() {});
+            }
+            
+            if (lambdaProducts != null) {
+                // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
+                String dataToSave = objectMapper.writeValueAsString(lambdaProducts);
+                sharedDataAccessor.saveSharedData(sharedKey, dataToSave);
                 
-                return parseRedisDataToProductResponseDto(data, userId);
+                return convertLambdaProductsToResponseDto(lambdaProducts, userId);
             }
         } catch (Exception e) {
             log.error("연령대별 추천 파싱 오류", e);
