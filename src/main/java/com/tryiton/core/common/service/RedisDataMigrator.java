@@ -24,7 +24,7 @@ public class RedisDataMigrator {
     private final SharedDataAccessor sharedDataAccessor;
 
     public RedisDataMigrator(
-            @Qualifier("redisTemplate") RedisTemplate<String, Object> redisTemplate,
+            @Qualifier("cacheRedisTemplate") RedisTemplate<String, Object> redisTemplate,
             SharedDataAccessor sharedDataAccessor) {
         this.redisTemplate = redisTemplate;
         this.sharedDataAccessor = sharedDataAccessor;
