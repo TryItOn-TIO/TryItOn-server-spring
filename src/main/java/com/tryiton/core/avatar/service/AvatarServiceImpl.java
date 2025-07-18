@@ -52,8 +52,8 @@ public class AvatarServiceImpl implements AvatarService {
     private final S3Client s3Client;
     private final S3Service s3Service;
     private final ObjectMapper objectMapper;
-
     private final RecommendBehaviorLogService recommendBehaviorLogService;
+    private final com.tryiton.core.member.repository.ProfileRepository profileRepository;
 
     @Value("${server.url}")
     private String springServerUrl;
@@ -262,19 +262,44 @@ public class AvatarServiceImpl implements AvatarService {
 
             // 베이스 이미지 선택 로직
             String baseImageUrl;
+            
+            // 항상 프로필에서 최신 베이스 이미지 URL을 가져옴 (DB에서 최신 상태 조회)
+            Profile freshProfile = profileRepository.findById(member.getId()).orElseThrow(
+                () -> new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.")
+            );
+            
+            // 최신 userBaseImageUrl 사용
+            String latestBaseImageUrl = freshProfile.getUserBaseImageUrl();
+            log.info("최신 베이스 이미지 URL 조회: {}", latestBaseImageUrl);
+            
             if (isNewGarmentTop && currentBottomId != null) {
+                // 상의를 입히는데 이미 하의를 입고 있는 경우
                 baseImageUrl = avatar.getAvatarImg();
+                log.info("하의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
             } else if (!isNewGarmentTop && currentTopId != null) {
+                // 하의를 입히는데 이미 상의를 입고 있는 경우
                 baseImageUrl = avatar.getAvatarImg();
+                log.info("상의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
             } else {
-                baseImageUrl = member.getProfile().getUserBaseImageUrl();
+                // 그 외의 경우 최신 베이스 이미지 사용
+                baseImageUrl = latestBaseImageUrl;
+                log.info("최신 원본 베이스 이미지 사용: {}", baseImageUrl);
             }
 
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                baseImageUrl, newGarment.getImg1(), buildS3Url(avatar.getMaskUrl(newGarment)),
-                buildS3Url(avatar.getPoseUrl()), member.getId(), newGarment.getId(),
-                determineGarmentType(newGarment), null, null // taskId, callbackUrl은 이제 사용 안함
+                baseImageUrl, // 최신 베이스 이미지 URL
+                newGarment.getImg1(), 
+                buildS3Url(avatar.getMaskUrl(newGarment)),
+                buildS3Url(avatar.getPoseUrl()), 
+                member.getId(), 
+                newGarment.getId(),
+                determineGarmentType(newGarment), 
+                null, 
+                null // taskId, callbackUrl은 이제 사용 안함
             );
+            
+            log.info("FastAPI 요청 생성 - baseImageUrl: {}, garmentImgUrl: {}", 
+                    baseImageUrl, newGarment.getImg1());
 
             // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
             String celeryTaskId = requestTaskToFastApi("/tryon", fastApiRequest);
@@ -617,6 +642,14 @@ public class AvatarServiceImpl implements AvatarService {
 
             // 3. 기존 캐시 무효화
             invalidateUserCache(member.getId());
+            
+            // 4. 상태 확인 - 최종 확인을 위해 DB에서 다시 조회
+            Profile updatedProfile = profileRepository.findById(member.getId()).orElseThrow(
+                () -> new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.")
+            );
+            
+            log.info("아바타 업로드 완료 후 최종 상태 확인 - userBaseImageUrl: {}, avatarBaseImageUrl: {}", 
+                    updatedProfile.getUserBaseImageUrl(), updatedProfile.getAvatarBaseImageUrl());
 
             log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
 
