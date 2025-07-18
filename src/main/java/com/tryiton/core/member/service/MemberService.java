@@ -1,7 +1,9 @@
 package com.tryiton.core.member.service;
 
 import com.tryiton.core.member.dto.request.PasswordChangeRequest;
+import com.tryiton.core.member.dto.request.WithdrawRequest;
 import com.tryiton.core.member.dto.response.PasswordChangeResponse;
+import com.tryiton.core.member.dto.response.WithdrawResponse;
 import com.tryiton.core.common.enums.AuthProvider;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.repository.MemberRepository;
@@ -75,5 +77,61 @@ public class MemberService {
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
         
         return member.getProvider() == AuthProvider.EMAIL && member.getPassword() != null;
+    }
+    
+    /**
+     * 회원 탈퇴 처리
+     * @param memberId 회원 ID
+     * @param request 탈퇴 요청 정보 (비밀번호 확인 등)
+     * @return 탈퇴 처리 결과
+     */
+    @Transactional
+    public WithdrawResponse withdrawMember(Long memberId, WithdrawRequest request) {
+        // 1. 회원 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        
+        // 2. 이미 탈퇴한 회원인지 확인
+        if (member.isWithdraw()) {
+            return WithdrawResponse.failure("이미 탈퇴한 회원입니다.");
+        }
+        
+        // 3. 비밀번호 확인 (이메일 로그인 사용자인 경우)
+        if (member.getProvider() == AuthProvider.EMAIL) {
+            if (request.getPassword() == null || !passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+                return WithdrawResponse.failure("비밀번호가 일치하지 않습니다.");
+            }
+        }
+        
+        // 4. 회원 탈퇴 처리 (withdraw 필드를 true로 설정)
+        member.setWithdraw(true);
+        
+        // 5. 개인정보 마스킹 처리 (GDPR, 개인정보보호법 등 규정 준수)
+        anonymizeMemberData(member);
+        
+        return WithdrawResponse.success();
+    }
+    
+    /**
+     * 탈퇴 회원의 개인정보 익명화 처리
+     * @param member 탈퇴할 회원
+     */
+    private void anonymizeMemberData(Member member) {
+        // 이메일 익명화 (원본 이메일 형식 유지하면서 마스킹)
+        String emailParts[] = member.getEmail().split("@");
+        String maskedEmail = "withdrawn_" + member.getId() + "@" + 
+                (emailParts.length > 1 ? emailParts[1] : "anonymous.com");
+        member.setEmail(maskedEmail);
+        
+        // 사용자명 익명화
+        member.setUsername("탈퇴회원");
+        
+        // 전화번호 익명화
+        member.setPhoneNum("000-0000-0000");
+        
+        // 비밀번호 무효화 (로그인 불가능하게)
+        if (member.getPassword() != null) {
+            member.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        }
     }
 }

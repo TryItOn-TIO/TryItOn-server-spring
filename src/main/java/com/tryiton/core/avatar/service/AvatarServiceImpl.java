@@ -409,8 +409,11 @@ public class AvatarServiceImpl implements AvatarService {
     @Override
     public ResetAvatarResponse resetAvatar(Member member) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId());
-        avatar.resetAvatar(member.getProfile().getUserBaseImageUrl());
-        return new ResetAvatarResponse();
+        String baseImageUrl = member.getProfile().getUserBaseImageUrl();
+        avatar.resetAvatar(baseImageUrl);
+        
+        // 아바타 이미지 URL을 포함한 응답 반환
+        return ResetAvatarResponse.of(baseImageUrl);
     }
 
     @Transactional
