@@ -61,10 +61,8 @@ public class RecommendationService {
             log.info("트렌딩 상품 조회 데이터 타입: {}", rawData != null ? rawData.getClass().getName() : "null");
             
             List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData instanceof List) {
-                lambdaProducts = (List<LambdaBatchDto>) rawData;
-            } else if (rawData instanceof String) {
-                lambdaProducts = objectMapper.readValue((String) rawData, new TypeReference<List<LambdaBatchDto>>() {});
+            if (rawData != null) {
+                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
             }
             
             if (lambdaProducts != null && !lambdaProducts.isEmpty()) {
@@ -96,10 +94,8 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get("recommend:trending");
             
             List<Product> products = null;
-            if (rawData instanceof List) {
-                products = (List<Product>) rawData;
-            } else if (rawData instanceof String) {
-                products = objectMapper.readValue((String) rawData, new TypeReference<List<Product>>() {});
+            if (rawData != null) {
+                products = objectMapper.convertValue(rawData, new TypeReference<List<Product>>() {});
             }
             
             if (products != null && !products.isEmpty()) {
@@ -131,10 +127,8 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get(key);
             
             List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData instanceof List) {
-                lambdaProducts = (List<LambdaBatchDto>) rawData;
-            } else if (rawData instanceof String) {
-                lambdaProducts = objectMapper.readValue((String) rawData, new TypeReference<List<LambdaBatchDto>>() {});
+            if (rawData != null) {
+                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
             }
             
             if (lambdaProducts != null) {
@@ -168,10 +162,8 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get(key);
             
             List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData instanceof List) {
-                lambdaProducts = (List<LambdaBatchDto>) rawData;
-            } else if (rawData instanceof String) {
-                lambdaProducts = objectMapper.readValue((String) rawData, new TypeReference<List<LambdaBatchDto>>() {});
+            if (rawData != null) {
+                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
             }
             
             if (lambdaProducts != null) {
@@ -205,10 +197,8 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get(key);
             
             List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData instanceof List) {
-                lambdaProducts = (List<LambdaBatchDto>) rawData;
-            } else if (rawData instanceof String) {
-                lambdaProducts = objectMapper.readValue((String) rawData, new TypeReference<List<LambdaBatchDto>>() {});
+            if (rawData != null) {
+                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
             }
             
             if (lambdaProducts != null) {
