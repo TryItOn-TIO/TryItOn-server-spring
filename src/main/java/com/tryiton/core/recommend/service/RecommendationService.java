@@ -86,7 +86,7 @@ public class RecommendationService {
         try {
             // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData("trending")) {
-                List<Product> products = sharedDataAccessor.getSharedData("trending", List.class);
+                List<Product> products = sharedDataAccessor.getSharedData("trending", new TypeReference<List<Product>>() {});
                 if (products != null && !products.isEmpty()) {
                     return products;
                 }
