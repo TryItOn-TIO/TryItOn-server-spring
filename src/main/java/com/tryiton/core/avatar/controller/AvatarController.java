@@ -115,13 +115,15 @@ public class AvatarController {
         summary = "아바타 리셋",
         description = "아바타를 원본 베이스 이미지로 리셋합니다."
     )
-    @PutMapping("/reset")
+    @PutMapping(value = "/reset", produces = "application/json")
     public ResponseEntity<ResetAvatarResponse> resetAvatar(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails
     ) {
         Member member = customUserDetails.getUser();
         ResetAvatarResponse response = avatarService.resetAvatar(member);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(response);
     }
 
     @Operation(
