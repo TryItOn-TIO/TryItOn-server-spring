@@ -340,7 +340,7 @@ public class AvatarServiceImpl implements AvatarService {
     }
 
     /**
-     * Python FastAPI 서버에 작업을 요청하고 Celery Task ID를 받아옵니다
+     * Python FastAPI 서버에 작업을 요청하고 Celery Task ID를 받아옵니다.
      */
     private String requestTaskToFastApi(String uri, Object requestBody) {
         try {
