@@ -70,9 +70,8 @@ public class RecommendationService {
             if (lambdaProducts != null && !lambdaProducts.isEmpty()) {
                 log.info("트렌딩 상품 조회 데이터 존재");
                 
-                // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
-                String dataToSave = objectMapper.writeValueAsString(lambdaProducts);
-                sharedDataAccessor.saveSharedData("trending", dataToSave);
+                // 공유 데이터로 저장
+                sharedDataAccessor.saveSharedData("trending", lambdaProducts);
                 
                 return convertLambdaProductsToResponseDto(lambdaProducts, userId);
             }
@@ -104,9 +103,8 @@ public class RecommendationService {
             }
             
             if (products != null && !products.isEmpty()) {
-                // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
-                String dataToSave = objectMapper.writeValueAsString(products);
-                sharedDataAccessor.saveSharedData("trending", dataToSave);
+                // 공유 데이터로 저장
+                sharedDataAccessor.saveSharedData("trending", products);
                 
                 return products;
             }
@@ -143,9 +141,8 @@ public class RecommendationService {
             }
             
             if (lambdaProducts != null) {
-                // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
-                String dataToSave = objectMapper.writeValueAsString(lambdaProducts);
-                sharedDataAccessor.saveSharedData(sharedKey, dataToSave);
+                // 공유 데이터로 저장
+                sharedDataAccessor.saveSharedData(sharedKey, lambdaProducts);
                 
                 return convertLambdaProductsToResponseDto(lambdaProducts, userId);
             }
@@ -181,9 +178,8 @@ public class RecommendationService {
             }
             
             if (lambdaProducts != null) {
-                // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
-                String dataToSave = objectMapper.writeValueAsString(lambdaProducts);
-                sharedDataAccessor.saveSharedData(sharedKey, dataToSave);
+                // 공유 데이터로 저장
+                sharedDataAccessor.saveSharedData(sharedKey, lambdaProducts);
                 
                 return convertLambdaProductsToResponseDto(lambdaProducts, userId);
             }
@@ -219,9 +215,8 @@ public class RecommendationService {
             }
             
             if (lambdaProducts != null) {
-                // 공유 데이터로 저장 (sharedDataAccessor는 String을 기대하므로 변환)
-                String dataToSave = objectMapper.writeValueAsString(lambdaProducts);
-                sharedDataAccessor.saveSharedData(sharedKey, dataToSave);
+                // 공유 데이터로 저장
+                sharedDataAccessor.saveSharedData(sharedKey, lambdaProducts);
                 
                 return convertLambdaProductsToResponseDto(lambdaProducts, userId);
             }
