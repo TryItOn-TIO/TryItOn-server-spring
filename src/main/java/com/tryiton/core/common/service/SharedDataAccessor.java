@@ -32,7 +32,11 @@ public class SharedDataAccessor {
     public void saveSharedData(String key, Object value) {
         String prefixedKey = "shared:" + key;
         try {
-            cacheRedisTemplate.opsForValue().set(prefixedKey, value);
+            if (value instanceof String) {
+                cacheRedisTemplate.opsForValue().set(prefixedKey, value);
+            } else {
+                cacheRedisTemplate.opsForValue().set(prefixedKey, objectMapper.writeValueAsString(value));
+            }
             log.debug("공유 데이터 저장 성공: {}", prefixedKey);
         } catch (Exception e) {
             log.error("공유 데이터 저장 실패: {}, 오류: {}", prefixedKey, e.getMessage(), e);
@@ -50,7 +54,11 @@ public class SharedDataAccessor {
     public void saveSharedData(String key, Object value, long timeout, TimeUnit unit) {
         String prefixedKey = "shared:" + key;
         try {
-            cacheRedisTemplate.opsForValue().set(prefixedKey, value, timeout, unit);
+            if (value instanceof String) {
+                cacheRedisTemplate.opsForValue().set(prefixedKey, value, timeout, unit);
+            } else {
+                cacheRedisTemplate.opsForValue().set(prefixedKey, objectMapper.writeValueAsString(value), timeout, unit);
+            }
             log.debug("공유 데이터 저장 성공 (TTL 설정): {}, TTL: {} {}", prefixedKey, timeout, unit);
         } catch (Exception e) {
             log.error("공유 데이터 저장 실패: {}, 오류: {}", prefixedKey, e.getMessage(), e);
@@ -75,14 +83,7 @@ public class SharedDataAccessor {
             }
             
             // 타입 변환 처리
-            if (value instanceof String && type != String.class) {
-                try {
-                    return objectMapper.readValue((String) value, type);
-                } catch (Exception e) {
-                    log.error("데이터 변환 오류: {}, 오류: {}", prefixedKey, e.getMessage(), e);
-                    throw new RuntimeException("데이터 변환 오류", e);
-                }
-            } else if (type.isInstance(value)) {
+            if (type.isInstance(value)) {
                 return type.cast(value);
             } else {
                 log.debug("타입 변환 시도: {} -> {}", value.getClass().getName(), type.getName());

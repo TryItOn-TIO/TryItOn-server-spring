@@ -12,6 +12,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
+import io.lettuce.core.resource.DefaultClientResources;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,19 +65,29 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     @Value("${spring.data.redis.ssl.enabled:false}")
     private boolean sslEnabled;
 
-    // 공통 연결 팩토리 생성 메서드
-    private RedisConnectionFactory createConnectionFactory(String host, int port, boolean useSsl) {
-        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
-        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder();
-
-        // CLIENT setinfo 명령 비활성화를 위한 ClientOptions 설정
-        ClientOptions clientOptions = ClientOptions.builder()
+    @Bean
+    public ClientOptions clientOptions() {
+        return ClientOptions.builder()
             .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
             .autoReconnect(true)
             .socketOptions(SocketOptions.builder().keepAlive(true).build())
             .build();
-        
-        clientConfigBuilder.clientOptions(clientOptions);
+    }
+
+    @Bean
+    public DefaultClientResources clientResources() {
+        return DefaultClientResources.builder()
+            .ioThreadPoolSize(4)
+            .computationThreadPoolSize(4)
+            .build();
+    }
+
+    // 공통 연결 팩토리 생성 메서드
+    private RedisConnectionFactory createConnectionFactory(String host, int port, boolean useSsl) {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder()
+            .clientOptions(clientOptions())
+            .clientResources(clientResources());
 
         if (useSsl) {
             clientConfigBuilder.useSsl();
