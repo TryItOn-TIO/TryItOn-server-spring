@@ -198,7 +198,10 @@ public class AvatarServiceImpl implements AvatarService {
                 profile.setUserBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
                 profile.setAvatarBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
                 
-                log.info("프로필 이미지 업데이트: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                // 프로필 변경사항 명시적으로 저장
+                profileRepository.save(profile);
+                
+                log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
                         oldUserBaseImageUrl, avatarCreateRequest.getTryOnImgUrl(),
                         oldAvatarBaseImageUrl, avatarCreateRequest.getTryOnImgUrl());
             }
@@ -438,7 +441,11 @@ public class AvatarServiceImpl implements AvatarService {
             String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
             profile.setUserBaseImageUrl(request.getNewBaseImageUrl());
             profile.setAvatarBaseImageUrl(request.getNewBaseImageUrl());
-            log.info("프로필 이미지 업데이트: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+            
+            // 프로필 변경사항 명시적으로 저장
+            profileRepository.save(profile);
+            
+            log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
                     oldBaseImageUrl, request.getNewBaseImageUrl(),
                     oldAvatarBaseImageUrl, request.getNewBaseImageUrl());
 
@@ -628,7 +635,10 @@ public class AvatarServiceImpl implements AvatarService {
             profile.setUserBaseImageUrl(request.getNewAvatarImageUrl());
             profile.setAvatarBaseImageUrl(request.getNewAvatarImageUrl());
             
-            log.info("프로필 이미지 업데이트: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+            // 프로필 변경사항 명시적으로 저장
+            profileRepository.save(profile);
+            
+            log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
                     oldBaseImageUrl, request.getNewAvatarImageUrl(),
                     oldAvatarBaseImageUrl, request.getNewAvatarImageUrl());
 
