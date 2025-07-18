@@ -192,7 +192,15 @@ public class AvatarServiceImpl implements AvatarService {
             // 프로필에 베이스 이미지 URL 업데이트
             Profile profile = member.getProfile();
             if (profile != null) {
+                String oldUserBaseImageUrl = profile.getUserBaseImageUrl();
+                String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
+                
                 profile.setUserBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+                profile.setAvatarBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+                
+                log.info("프로필 이미지 업데이트: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                        oldUserBaseImageUrl, avatarCreateRequest.getTryOnImgUrl(),
+                        oldAvatarBaseImageUrl, avatarCreateRequest.getTryOnImgUrl());
             }
 
             log.info("아바타 생성 및 DB 저장 완료 - userId: {}", member.getId());
@@ -398,8 +406,12 @@ public class AvatarServiceImpl implements AvatarService {
             deleteOldAvatarAssets(member.getId());
 
             // 4. 프로필의 베이스 이미지 URL 업데이트
+            String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
             profile.setUserBaseImageUrl(request.getNewBaseImageUrl());
-            log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewBaseImageUrl());
+            profile.setAvatarBaseImageUrl(request.getNewBaseImageUrl());
+            log.info("프로필 이미지 업데이트: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                    oldBaseImageUrl, request.getNewBaseImageUrl(),
+                    oldAvatarBaseImageUrl, request.getNewBaseImageUrl());
 
             // 5. 새로운 베이스 이미지로 아바타 에셋 생성 (마스크, 포즈 이미지)
             AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
@@ -581,8 +593,15 @@ public class AvatarServiceImpl implements AvatarService {
             }
             
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
+            String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
+            
+            // userBaseImageUrl과 avatarBaseImageUrl 모두 업데이트
             profile.setUserBaseImageUrl(request.getNewAvatarImageUrl());
-            log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewAvatarImageUrl());
+            profile.setAvatarBaseImageUrl(request.getNewAvatarImageUrl());
+            
+            log.info("프로필 이미지 업데이트: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                    oldBaseImageUrl, request.getNewAvatarImageUrl(),
+                    oldAvatarBaseImageUrl, request.getNewAvatarImageUrl());
 
             // 2. 아바타 생성 (회원가입과 동일한 방식)
             AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
