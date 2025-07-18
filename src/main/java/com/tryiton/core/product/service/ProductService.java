@@ -35,7 +35,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final RecommendBehaviorLogService recommendBehaviorLogService;
 
-    @Cacheable(value = "productDetail", key = "#productId", unless = "#result == null")
+    @Cacheable(value = "productDetail", key = "'product:' + #productId", unless = "#result == null")
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
         Product product = productRepository.findByIdWithCategoryAndVariants(productId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
@@ -55,7 +55,7 @@ public class ProductService {
         return new ProductDetailResponseDto(product, variantDto, liked);
     }
 
-    @Cacheable(value = "categoryProducts", key = "#category.id + '_' + #page + '_' + #size")
+    @Cacheable(value = "categoryProducts", key = "'category:' + #category.id + ':page:' + #page + ':size:' + #size")
     public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, 
             Sort.by("wishlistCount").descending().and(Sort.by("createAt").descending()));
@@ -73,7 +73,7 @@ public class ProductService {
         return products.map(product -> new ProductResponseDto(product, false));
     }
 
-    @Cacheable(value = "mainProducts", key = "'main'", unless = "#result == null")
+    @Cacheable(value = "mainProducts", key = "'main:products'", unless = "#result == null")
     public MainProductGuestResponse getMainPageProductsForGuest() {
         List<Product> allProducts = productRepository.findTop4ProductsPerCategory();
         Map<Category, List<Product>> productsByCategory = allProducts.stream()
@@ -98,7 +98,7 @@ public class ProductService {
         return MainProductGuestResponse.success(categoryGroups);
     }
 
-    @CacheEvict(value = {"productDetail", "categoryProducts", "mainProducts"}, key = "#product.id")
+    @CacheEvict(value = {"productDetail", "categoryProducts", "mainProducts"}, key = "'product:' + #product.id")
     @Transactional
     public void updateProduct(Product product) {
         productRepository.save(product);
