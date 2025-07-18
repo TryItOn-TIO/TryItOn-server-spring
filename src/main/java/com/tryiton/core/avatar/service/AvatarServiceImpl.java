@@ -1,41 +1,33 @@
 package com.tryiton.core.avatar.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tryiton.core.avatar.dto.request.AvatarBaseImageUpdateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarCreateRequest;
 import com.tryiton.core.avatar.dto.request.AvatarImageUploadCompleteRequest;
 import com.tryiton.core.avatar.dto.request.AvatarTryOnRequest;
-import com.tryiton.core.avatar.dto.request.FastApiGenerateRequest;
 import com.tryiton.core.avatar.dto.request.FastApiTryOnRequest;
-import com.tryiton.core.avatar.dto.request.InitialAvatarRequest;
-import com.tryiton.core.avatar.dto.request.TryonAvatarTogetherNodeRequest;
 import com.tryiton.core.avatar.dto.response.AvatarBaseImageUpdateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarCreateResponse;
 import com.tryiton.core.avatar.dto.response.AvatarImageUploadCompleteResponse;
 import com.tryiton.core.avatar.dto.response.AvatarTryOnResponse;
+import com.tryiton.core.avatar.dto.response.CeleryTaskResultDto;
 import com.tryiton.core.avatar.dto.response.FastApiTryOnResponse;
 import com.tryiton.core.avatar.dto.response.InitialAvatarResponse;
 import com.tryiton.core.avatar.dto.response.ResetAvatarResponse;
-import com.tryiton.core.avatar.dto.response.TryonAvatarTogetherNodeResponse;
+import com.tryiton.core.avatar.dto.response.TaskResponse;
 import com.tryiton.core.avatar.entity.Avatar;
 import com.tryiton.core.avatar.entity.AvatarItem;
-import com.tryiton.core.avatar.repository.AvatarItemRepository;
 import com.tryiton.core.avatar.repository.AvatarRepository;
 import com.tryiton.core.common.enums.RecommendAction;
 import com.tryiton.core.common.exception.BusinessException;
-import com.tryiton.core.common.service.AsyncTaskService;
 import com.tryiton.core.common.service.S3Service;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.member.entity.Profile;
-import com.tryiton.core.member.repository.MemberRepository;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
 import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,16 +47,13 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 public class AvatarServiceImpl implements AvatarService {
 
     private final AvatarRepository avatarRepository;
-    private final AvatarItemRepository avatarItemRepository;
-    private final MemberRepository memberRepository;
     private final WebClient fastApiWebClient;
     private final ProductRepository productRepository;
     private final S3Client s3Client;
     private final S3Service s3Service;
-    private final AsyncTaskService asyncTaskService;
     private final ObjectMapper objectMapper;
-
     private final RecommendBehaviorLogService recommendBehaviorLogService;
+    private final com.tryiton.core.member.repository.ProfileRepository profileRepository;
 
     @Value("${server.url}")
     private String springServerUrl;
@@ -85,8 +74,8 @@ public class AvatarServiceImpl implements AvatarService {
     private String generateSingleItemCacheKey(Long userId, Product product) {
         String garmentType = determineGarmentType(product);
         String cacheKey = String.format("cache/tryon/%d/%s-%d.png", userId, garmentType, product.getId());
-        log.info("캐시 키 생성 - userId: {}, productId: {}, garmentType: {}, 키: {}", 
-                userId, product.getId(), garmentType, cacheKey);
+        log.info("캐시 키 생성 - userId: {}, productId: {}, garmentType: {}, 키: {}",
+            userId, product.getId(), garmentType, cacheKey);
         return cacheKey;
     }
 
@@ -96,7 +85,7 @@ public class AvatarServiceImpl implements AvatarService {
     private String generateCombinationCacheKey(Long userId, Long topId, Long bottomId) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append("cache/tryon/").append(userId).append("/");
-        
+
         if (topId != null && bottomId != null) {
             keyBuilder.append("top-").append(topId).append("_bottom-").append(bottomId);
         } else if (topId != null) {
@@ -106,12 +95,12 @@ public class AvatarServiceImpl implements AvatarService {
         } else {
             keyBuilder.append("base");
         }
-        
+
         keyBuilder.append(".png");
-        
+
         String cacheKey = keyBuilder.toString();
-        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}", 
-                userId, topId, bottomId, cacheKey);
+        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}",
+            userId, topId, bottomId, cacheKey);
         return cacheKey;
     }
 
@@ -121,12 +110,12 @@ public class AvatarServiceImpl implements AvatarService {
     private boolean existsInS3(String key) {
         try {
             log.info("S3 캐시 확인 시작 - 키: {}", key);
-            
+
             HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
-            
+
             s3Client.headObject(headObjectRequest);
             log.info("S3 캐시 확인 성공 - 키: {}", key);
             return true;
@@ -174,46 +163,54 @@ public class AvatarServiceImpl implements AvatarService {
             .build();
     }
 
-    /**
-     * 원본 이미지를 받아 마스크, 포즈 이미지를 생성하고 DB에 저장합니다. (비동기 콜백 방식)
-     */
     @Override
     @Transactional
     public AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest) {
-        String taskId = asyncTaskService.registerTask();
-        String callbackUrl = springServerUrl + "/api/callbacks/vton";
+        log.info("아바타 생성 요청 시작 - userId: {}", member.getId());
 
-        String originalImgUrl = avatarCreateRequest.getTryOnImgUrl();
-        FastApiGenerateRequest fastApiRequest = new FastApiGenerateRequest(originalImgUrl, member.getId(), taskId, callbackUrl);
+        // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
+        String celeryTaskId = requestTaskToFastApi("/generate", avatarCreateRequest);
 
-        fastApiWebClient.post()
-            .uri("/generate")
-            .bodyValue(fastApiRequest)
-            .retrieve()
-            .bodyToMono(Void.class)
-            .doOnError(e -> log.error("FastAPI /generate 호출 실패", e))
-            .subscribe();
+        // 2. 작업 완료될 때까지 폴링하며 대기
+        CeleryTaskResultDto taskResult = pollForResult(celeryTaskId);
 
+        // 3. 받은 결과로 후속 처리
         try {
-            CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-            JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS); // 60초 타임아웃
-            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(resultNode, InitialAvatarResponse.class);
+            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), InitialAvatarResponse.class);
 
             if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null) {
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 유효한 응답을 받지 못했습니다.");
             }
 
+            // 아바타 DB 저장
             Avatar newAvatar = Avatar.builder()
                 .member(member)
-                .avatarImg(originalImgUrl)
+                .avatarImg(avatarCreateRequest.getTryOnImgUrl())
                 .build();
-
             Avatar savedAvatar = avatarRepository.save(newAvatar);
 
+            // 프로필에 베이스 이미지 URL 업데이트
+            Profile profile = member.getProfile();
+            if (profile != null) {
+                String oldUserBaseImageUrl = profile.getUserBaseImageUrl();
+                String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
+                
+                profile.setUserBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+                profile.setAvatarBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+                
+                // 프로필 변경사항 명시적으로 저장
+                profileRepository.save(profile);
+                
+                log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                        oldUserBaseImageUrl, avatarCreateRequest.getTryOnImgUrl(),
+                        oldAvatarBaseImageUrl, avatarCreateRequest.getTryOnImgUrl());
+            }
+
+            log.info("아바타 생성 및 DB 저장 완료 - userId: {}", member.getId());
             return AvatarCreateResponse.fromEntity(savedAvatar);
 
         } catch (Exception e) {
-            log.error("아바타 생성 작업 대기 중 오류 발생", e);
+            log.error("아바타 생성 결과 처리 중 오류 발생", e);
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "아바타 생성에 실패했습니다: " + e.getMessage());
         }
     }
@@ -236,136 +233,157 @@ public class AvatarServiceImpl implements AvatarService {
         Product newGarment = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
-        // 현재 착용 중인 상의와 하의 확인
+        // 현재 착용 중인 상의와 하의 확인 (더 명확하게 로깅)
         Long currentTopId = null;
         Long currentBottomId = null;
+        Product currentTop = null;
+        Product currentBottom = null;
         
         for (AvatarItem item : avatar.getItems()) {
             Product product = item.getProduct();
             if (product.isUpperGarment()) {
                 currentTopId = product.getId();
+                currentTop = product;
+                log.info("현재 착용 중인 상의: ID={}, 이름={}", currentTopId, product.getProductName());
             } else if (product.isLowerGarment()) {
                 currentBottomId = product.getId();
+                currentBottom = product;
+                log.info("현재 착용 중인 하의: ID={}, 이름={}", currentBottomId, product.getProductName());
             }
         }
-        
-        // 새 상품이 상의인지 하의인지 확인
+
         boolean isNewGarmentTop = newGarment.isUpperGarment();
+        log.info("새로 입히는 의류: ID={}, 이름={}, 타입={}", 
+             newGarment.getId(), newGarment.getProductName(), 
+             isNewGarmentTop ? "상의" : "하의");
         
-        // 캐시 키 생성 (상의+하의 조합 고려)
+        // 캐시 키 생성
         String cacheKey;
         if (isNewGarmentTop) {
-            // 새 상품이 상의인 경우
+            // 상의인 경우: 현재 하의 ID 유지
             cacheKey = generateCombinationCacheKey(userId, productId, currentBottomId);
         } else {
-            // 새 상품이 하의인 경우
+            // 하의인 경우: 현재 상의 ID 유지
             cacheKey = generateCombinationCacheKey(userId, currentTopId, productId);
         }
         
-        String finalImageUrl = null;
-
-        // 캐시 확인
+        // 캐시 확인 - S3에 해당 키로 파일이 존재하는지 확인
         boolean cacheExists = existsInS3(cacheKey);
-        log.info("캐시 확인 결과 - userId: {}, 상의ID: {}, 하의ID: {}, 존재여부: {}", 
-                userId, isNewGarmentTop ? productId : currentTopId, 
-                isNewGarmentTop ? currentBottomId : productId, cacheExists);
-                
-        if (cacheExists) {
-            // 캐시 HIT: S3에서 바로 URL 반환
-            finalImageUrl = buildS3PublicUrl(cacheKey);
-            log.info("캐시 히트 - 기존 이미지 사용: {}", finalImageUrl);
-            
-            // 타임스탬프 추가하여 브라우저 캐시 방지
-            finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
-            log.info("타임스탬프 추가된 최종 URL: {}", finalImageUrl);
-        } else {
-            // 캐시 MISS: 비동기 처리로 FastAPI 호출
-            log.info("캐시 미스 - FastAPI 호출");
-            
-            String taskId = asyncTaskService.registerTask();
-            log.info(">>> 비동기 작업 등록 완료, Task ID: {}", taskId);
-            String callbackUrl = springServerUrl + "/api/callbacks/vton";
+        
+        // 캐시 로깅 추가
+        log.info("캐시 확인 - 키: {}, 존재여부: {}", cacheKey, cacheExists);
 
-            // 베이스 이미지 선택 (중요!)
+        String finalImageUrl;
+
+        if (cacheExists) {
+            // 캐시 HIT
+            finalImageUrl = buildS3PublicUrl(cacheKey) + "?t=" + System.currentTimeMillis();
+            log.info("캐시 히트! 기존 이미지 사용: {}", finalImageUrl);
+        } else {
+            // 캐시 MISS: FastAPI에 비동기 작업 요청 및 폴링
+            log.info("캐시 미스! FastAPI 호출 시작");
+
+            // 베이스 이미지 선택 로직
             String baseImageUrl;
             
-            if (isNewGarmentTop && currentBottomId != null) {
-                // 상의를 입히는데 이미 하의를 입고 있는 경우
-                // 하의가 입혀진 이미지를 베이스로 사용
-                baseImageUrl = avatar.getAvatarImg();
-                log.info("하의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
-            } else if (!isNewGarmentTop && currentTopId != null) {
-                // 하의를 입히는데 이미 상의를 입고 있는 경우
-                // 상의가 입혀진 이미지를 베이스로 사용
-                baseImageUrl = avatar.getAvatarImg();
-                log.info("상의가 입혀진 이미지를 베이스로 사용: {}", baseImageUrl);
-            } else {
-                // 그 외의 경우 원본 베이스 이미지 사용
-                baseImageUrl = member.getProfile().getUserBaseImageUrl();
-                log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
-            }
+            // 항상 프로필에서 최신 베이스 이미지 URL을 가져옴 (DB에서 최신 상태 조회)
+            Profile freshProfile = profileRepository.findById(member.getId()).orElseThrow(
+                () -> new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.")
+            );
             
-            // FastAPI 요청 객체 생성
+            // 최신 userBaseImageUrl 사용
+            String latestBaseImageUrl = freshProfile.getUserBaseImageUrl();
+            log.info("최신 베이스 이미지 URL 조회: {}", latestBaseImageUrl);
+            
+            // 중요: 상의/하의 교체 시 이미지 선택 로직 수정
+            if (isNewGarmentTop) {
+                // 상의를 입히는 경우
+                if (currentBottomId != null) {
+                    // 이미 하의를 입고 있는 경우, 현재 아바타 이미지 사용
+                    baseImageUrl = avatar.getAvatarImg();
+                    log.info("하의가 입혀진 현재 아바타 이미지를 베이스로 사용: {}", baseImageUrl);
+                } else {
+                    // 하의를 입고 있지 않은 경우, 원본 이미지 사용
+                    baseImageUrl = latestBaseImageUrl;
+                    log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
+                }
+            } else {
+                // 하의를 입히는 경우
+                if (currentTopId != null) {
+                    // 이미 상의를 입고 있는 경우, 현재 아바타 이미지 사용
+                    baseImageUrl = avatar.getAvatarImg();
+                    log.info("상의가 입혀진 현재 아바타 이미지를 베이스로 사용: {}", baseImageUrl);
+                } else {
+                    // 상의를 입고 있지 않은 경우, 원본 이미지 사용
+                    baseImageUrl = latestBaseImageUrl;
+                    log.info("원본 베이스 이미지 사용: {}", baseImageUrl);
+                }
+            }
+
             FastApiTryOnRequest fastApiRequest = new FastApiTryOnRequest(
-                baseImageUrl,
-                newGarment.getImg1(),
+                baseImageUrl, // 베이스 이미지 URL
+                newGarment.getImg1(), 
                 buildS3Url(avatar.getMaskUrl(newGarment)),
-                buildS3Url(avatar.getPoseUrl()),
-                member.getId(),
+                buildS3Url(avatar.getPoseUrl()), 
+                member.getId(), 
                 newGarment.getId(),
                 determineGarmentType(newGarment),
-                taskId,
-                callbackUrl
+                cacheKey,  // 캐시 키 추가
+                null, 
+                null // taskId, callbackUrl은 이제 사용 안함
             );
+            
+            // 캐시 키 정보도 함께 로깅
+            log.info("FastAPI 요청 생성 - baseImageUrl: {}, garmentImgUrl: {}, cacheKey: {}", 
+                    baseImageUrl, newGarment.getImg1(), cacheKey);
 
-            // 디버깅
+            // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
+            String celeryTaskId = requestTaskToFastApi("/tryon", fastApiRequest);
+
+            // 2. 작업 완료될 때까지 폴링하며 대기
+            CeleryTaskResultDto taskResult = pollForResult(celeryTaskId);
+
+            // 3. 받은 결과에서 최종 이미지 URL 추출
             try {
-                String requestBody = objectMapper.writeValueAsString(fastApiRequest);
-                log.info(">>> FastAPI(/tryon)로 요청 전송 시작");
-                log.info(">>> 요청 URL: (WebClient에 설정된 Base URL)/tryon");
-                log.info(">>> 요청 Body: {}", requestBody);
+                FastApiTryOnResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), FastApiTryOnResponse.class);
+                if (fastApiResponse == null || fastApiResponse.getTryOnImgUrl() == null) {
+                    log.error("FastAPI 응답에서 tryOnImgUrl을 찾을 수 없습니다. 응답: {}", taskResult.getResult().toString());
+                    throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅 결과 처리 중 오류가 발생했습니다.");
+                }
+                finalImageUrl = fastApiResponse.getTryOnImgUrl() + "?t=" + System.currentTimeMillis();
+                log.info("폴링 성공. 최종 이미지 URL: {}", finalImageUrl);
             } catch (Exception e) {
-                log.error(">>> FastAPI 요청 Body 직렬화 실패", e);
-            }
-
-            // FastAPI 비동기 호출
-            fastApiWebClient.post()
-                .uri("/tryon")
-                .bodyValue(fastApiRequest)
-                .retrieve()
-                .bodyToMono(Void.class)
-                .doOnError(e -> log.error(">>> FastAPI /tryon 네트워크 호출 실패", e))
-                .subscribe();
-
-            try {
-                // 비동기 결과 대기
-                CompletableFuture<Object> future = asyncTaskService.getFuture(taskId);
-                JsonNode resultNode = (JsonNode) future.get(60, TimeUnit.SECONDS);
-                finalImageUrl = resultNode.get("tryOnImgUrl").asText();
-                
-                // 이미지 URL에 타임스탬프 추가하여 캐시 문제 해결
-                finalImageUrl = finalImageUrl + "?t=" + System.currentTimeMillis();
-                
-                // 캐시 저장은 FastAPI에서 자동으로 수행됨
-                log.info("FastAPI 응답 수신 완료 - 원본 이미지 URL: {}", resultNode.get("tryOnImgUrl").asText());
-                log.info("타임스탬프 추가된 최종 이미지 URL: {}", finalImageUrl);
-            } catch (Exception e) {
-                log.error("가상 피팅 작업 대기 중 오류 발생", e);
-                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅에 실패했습니다: " + e.getMessage());
+                log.error("Try-on 결과 처리 중 오류 발생", e);
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅 결과 처리 중 오류가 발생했습니다.");
             }
         }
 
-        // 아바타 업데이트
-        log.info("아바타 업데이트 시작 - 아바타 ID: {}, 상품 ID: {}", avatar.getId(), newGarment.getId());
-        avatar.wearGarment(newGarment);
+        // 공통 로직: 아바타 상태 업데이트 및 응답 생성
+        // 중요: 기존 아이템 유지 로직 수정
+        if (isNewGarmentTop) {
+            // 상의를 교체하는 경우: 기존 상의만 제거하고 하의는 유지
+            avatar.getItems().removeIf(item -> item.getProduct().isUpperGarment());
+        } else {
+            // 하의를 교체하는 경우: 기존 하의만 제거하고 상의는 유지
+            avatar.getItems().removeIf(item -> !item.getProduct().isUpperGarment());
+        }
+        
+        // 새 의류 추가
+        avatar.getItems().add(new AvatarItem(avatar, newGarment));
         avatar.update(finalImageUrl);
-        log.info("아바타 업데이트 완료 - 새 이미지 URL: {}", finalImageUrl);
-
-        // 추천 로그 기록 (비동기)
+        
+        // 현재 착용 중인 아이템 로깅 (디버깅용)
+        log.info("아바타 업데이트 후 착용 아이템 수: {}", avatar.getItems().size());
+        for (AvatarItem item : avatar.getItems()) {
+            log.info("착용 아이템: ID={}, 이름={}, 타입={}", 
+                    item.getProduct().getId(), 
+                    item.getProduct().getProductName(),
+                    item.getProduct().isUpperGarment() ? "상의" : "하의");
+        }
+        
         recommendBehaviorLogService.logUserAction(userId, newGarment.getId(), RecommendAction.TRYON);
 
-        // 응답 생성
-        java.util.List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
+        List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()
             .map(item -> new AvatarTryOnResponse.ProductInfo(
                 item.getProduct().getId(),
                 item.getProduct().getProductName(),
@@ -373,24 +391,82 @@ public class AvatarServiceImpl implements AvatarService {
             ))
             .collect(Collectors.toList());
 
-        AvatarTryOnResponse response = AvatarTryOnResponse.builder()
-            .avatarId(avatar.getId())
-            .avatarImgUrl(finalImageUrl)
-            .products(productInfos)
-            .build();
-            
-        log.info("아바타 응답 생성 완료 - 아바타 ID: {}, 이미지 URL: {}, 착용 상품 수: {}", 
-            response.getAvatarId(), response.getAvatarImgUrl(), response.getProducts().size());
-            
-        return response;
+        log.info("아바타 응답 생성 완료 - 최종 이미지 URL: {}, 착용 아이템 수: {}", finalImageUrl, productInfos.size());
+        return new AvatarTryOnResponse(avatar.getId(), finalImageUrl, productInfos);
+    }
+
+    /**
+     * Python FastAPI 서버에 작업을 요청하고 Celery Task ID를 받아옵니다.
+     */
+    private String requestTaskToFastApi(String uri, Object requestBody) {
+        try {
+            TaskResponse response = fastApiWebClient.post()
+                .uri(uri)
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(TaskResponse.class)
+                .block(Duration.ofSeconds(10)); // API 서버의 응답은 즉시 오므로 짧은 타임아웃
+
+            if (response == null || response.getTask_id() == null) {
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 작업 ID를 받지 못했습니다.");
+            }
+            log.info("FastAPI 작업 요청 성공. Celery Task ID: {}", response.getTask_id());
+            return response.getTask_id();
+        } catch (Exception e) {
+            log.error("FastAPI {} 요청 실패", uri, e);
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "작업 요청에 실패했습니다.");
+        }
+    }
+
+    /**
+     * 작업이 완료될 때까지 Python FastAPI 서버의 결과 확인 API를 폴링합니다.
+     */
+    private CeleryTaskResultDto pollForResult(String celeryTaskId) {
+        long startTime = System.currentTimeMillis();
+        long timeout = 60 * 1000; // 최대 60초 대기
+
+        while (System.currentTimeMillis() - startTime < timeout) {
+            try {
+                CeleryTaskResultDto result = fastApiWebClient.get()
+                    .uri("/result/{celery_task_id}", celeryTaskId)
+                    .retrieve()
+                    .bodyToMono(CeleryTaskResultDto.class)
+                    .block(Duration.ofSeconds(5));
+
+                if (result != null) {
+                    if ("SUCCESS".equals(result.getStatus())) {
+                        log.info("작업 성공 확인. Celery Task ID: {}", celeryTaskId);
+                        return result;
+                    } else if ("FAILURE".equals(result.getStatus())) {
+                        log.error("작업 실패 확인. Celery Task ID: {}, 결과: {}", celeryTaskId, result.getResult());
+                        throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "작업 처리 중 오류가 발생했습니다.");
+                    }
+                    // "PENDING" 상태이면 계속 폴링
+                }
+
+                // 2초 대기 후 다시 시도
+                Thread.sleep(2000);
+
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "작업 대기 중 인터럽트 발생");
+            } catch (Exception e) {
+                log.error("결과 폴링 중 오류 발생. Celery Task ID: {}", celeryTaskId, e);
+                throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "결과 확인 중 오류가 발생했습니다.");
+            }
+        }
+        throw new BusinessException(HttpStatus.REQUEST_TIMEOUT, "작업 처리 시간을 초과했습니다.");
     }
 
     @Transactional
     @Override
     public ResetAvatarResponse resetAvatar(Member member) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(member.getId());
-        avatar.resetAvatar(member.getProfile().getUserBaseImageUrl());
-        return new ResetAvatarResponse();
+        String baseImageUrl = member.getProfile().getUserBaseImageUrl();
+        avatar.resetAvatar(baseImageUrl);
+        
+        // 아바타 이미지 URL을 포함한 응답 반환
+        return ResetAvatarResponse.of(baseImageUrl);
     }
 
     @Transactional
@@ -398,7 +474,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarBaseImageUpdateResponse updateAvatarBaseImage(Member member, AvatarBaseImageUpdateRequest request) {
         try {
             log.info("아바타 베이스 이미지 업데이트 시작 - userId: {}, newImageUrl: {}",
-                    member.getId(), request.getNewBaseImageUrl());
+                member.getId(), request.getNewBaseImageUrl());
 
             // 1. 사용자 프로필 조회
             Profile profile = member.getProfile();
@@ -418,8 +494,16 @@ public class AvatarServiceImpl implements AvatarService {
             deleteOldAvatarAssets(member.getId());
 
             // 4. 프로필의 베이스 이미지 URL 업데이트
+            String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
             profile.setUserBaseImageUrl(request.getNewBaseImageUrl());
-            log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewBaseImageUrl());
+            profile.setAvatarBaseImageUrl(request.getNewBaseImageUrl());
+            
+            // 프로필 변경사항 명시적으로 저장
+            profileRepository.save(profile);
+            
+            log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                    oldBaseImageUrl, request.getNewBaseImageUrl(),
+                    oldAvatarBaseImageUrl, request.getNewBaseImageUrl());
 
             // 5. 새로운 베이스 이미지로 아바타 에셋 생성 (마스크, 포즈 이미지)
             AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
@@ -441,11 +525,11 @@ public class AvatarServiceImpl implements AvatarService {
 
         } catch (BusinessException e) {
             log.error("아바타 베이스 이미지 업데이트 실패 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure(e.getMessage());
         } catch (Exception e) {
             log.error("아바타 베이스 이미지 업데이트 중 예상치 못한 오류 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure("아바타 베이스 이미지 업데이트 중 오류가 발생했습니다.");
         }
     }
@@ -524,8 +608,8 @@ public class AvatarServiceImpl implements AvatarService {
         } else {
             // 상의도 하의도 아닌 경우 (액세서리 등)
             log.warn("상품 ID {}는 상의도 하의도 아닙니다. 카테고리: {}",
-                    product.getId(),
-                    product.getCategory() != null ? product.getCategory().getCategoryName() : "null");
+                product.getId(),
+                product.getCategory() != null ? product.getCategory().getCategoryName() : "null");
             return "unknown"; // 또는 기본값 설정
         }
     }
@@ -557,18 +641,18 @@ public class AvatarServiceImpl implements AvatarService {
         try {
             // S3에서 prefix로 시작하는 객체 목록 조회
             var listRequest = software.amazon.awssdk.services.s3.model.ListObjectsV2Request.builder()
-                    .bucket(bucketName)
-                    .prefix(prefix)
-                    .build();
+                .bucket(bucketName)
+                .prefix(prefix)
+                .build();
 
             var listResponse = s3Client.listObjectsV2(listRequest);
 
             // 각 객체 삭제
             for (var s3Object : listResponse.contents()) {
                 var deleteRequest = software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(s3Object.key())
-                        .build();
+                    .bucket(bucketName)
+                    .key(s3Object.key())
+                    .build();
 
                 s3Client.deleteObject(deleteRequest);
                 log.debug("캐시 파일 삭제: {}", s3Object.key());
@@ -586,7 +670,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarImageUploadCompleteResponse processAvatarImageUploadComplete(Member member, AvatarImageUploadCompleteRequest request) {
         try {
             log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}",
-                    member.getId(), request.getNewAvatarImageUrl());
+                member.getId(), request.getNewAvatarImageUrl());
 
             // 요청 데이터 검증
             if (request.getNewAvatarImageUrl() == null || request.getNewAvatarImageUrl().trim().isEmpty()) {
@@ -599,21 +683,39 @@ public class AvatarServiceImpl implements AvatarService {
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
             }
-            
+
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
+            String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
+            
+            // userBaseImageUrl과 avatarBaseImageUrl 모두 업데이트
             profile.setUserBaseImageUrl(request.getNewAvatarImageUrl());
-            log.info("프로필 베이스 이미지 업데이트: {} -> {}", oldBaseImageUrl, request.getNewAvatarImageUrl());
+            profile.setAvatarBaseImageUrl(request.getNewAvatarImageUrl());
+            
+            // 프로필 변경사항 명시적으로 저장
+            profileRepository.save(profile);
+            
+            log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                    oldBaseImageUrl, request.getNewAvatarImageUrl(),
+                    oldAvatarBaseImageUrl, request.getNewAvatarImageUrl());
 
             // 2. 아바타 생성 (회원가입과 동일한 방식)
             AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
                 member.getId().toString(),
                 request.getNewAvatarImageUrl()
             );
-            
+
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
 
             // 3. 기존 캐시 무효화
             invalidateUserCache(member.getId());
+            
+            // 4. 상태 확인 - 최종 확인을 위해 DB에서 다시 조회
+            Profile updatedProfile = profileRepository.findById(member.getId()).orElseThrow(
+                () -> new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.")
+            );
+            
+            log.info("아바타 업로드 완료 후 최종 상태 확인 - userBaseImageUrl: {}, avatarBaseImageUrl: {}", 
+                    updatedProfile.getUserBaseImageUrl(), updatedProfile.getAvatarBaseImageUrl());
 
             log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
 
@@ -624,11 +726,11 @@ public class AvatarServiceImpl implements AvatarService {
 
         } catch (BusinessException e) {
             log.error("아바타 이미지 업로드 완료 처리 실패 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarImageUploadCompleteResponse.failure(e.getMessage());
         } catch (Exception e) {
             log.error("아바타 이미지 업로드 완료 처리 중 예상치 못한 오류 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarImageUploadCompleteResponse.failure("아바타 이미지 업로드 완료 처리 중 오류가 발생했습니다.");
         }
     }

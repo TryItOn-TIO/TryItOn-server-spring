@@ -3,6 +3,7 @@ package com.tryiton.core.recommend.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tryiton.core.common.service.SharedDataAccessor;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
@@ -33,6 +34,7 @@ public class PersonalizedService {
     private final RecommendationService fallbackService;
     private final ProductRepository productRepository;
     private final WishlistRepository wishlistRepository;
+    private final SharedDataAccessor sharedDataAccessor;
 
     @Value("${aws.lambda.personalized-recommendation.url:}")
     private String lambdaUrl;
@@ -44,7 +46,8 @@ public class PersonalizedService {
         ObjectMapper objectMapper,
         RecommendationService fallbackService,
         ProductRepository productRepository,
-        WishlistRepository wishlistRepository) {
+        WishlistRepository wishlistRepository,
+        SharedDataAccessor sharedDataAccessor) {
         this.webClient = webClientBuilder
             .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
             .build();
@@ -52,6 +55,7 @@ public class PersonalizedService {
         this.fallbackService = fallbackService;
         this.productRepository = productRepository;
         this.wishlistRepository = wishlistRepository;
+        this.sharedDataAccessor = sharedDataAccessor;
     }
 
     /**
@@ -64,6 +68,18 @@ public class PersonalizedService {
         }
 
         try {
+            // 공유 데이터 접근자를 통해 먼저 조회 시도
+            String sharedKey = "personalized:" + userId;
+            if (sharedDataAccessor.hasSharedData(sharedKey)) {
+                log.info("공유 데이터 접근자를 통해 개인화 추천 조회: 사용자 {}", userId);
+                PersonalizedRecommendationResponse cachedResult = sharedDataAccessor.getSharedData(sharedKey, PersonalizedRecommendationResponse.class);
+                if (cachedResult != null && cachedResult.isSuccess()) {
+                    log.info("캐시된 개인화 추천 사용: 사용자 {}, {}개 상품", 
+                        userId, cachedResult.getRecommendations().size());
+                    return convertLambdaProductsToResponseDto(cachedResult.getRecommendations(), userId);
+                }
+            }
+            
             log.info("실시간 개인화 추천 요청: 사용자 {}, 개수 {}", userId, limit);
 
             Map<String, Object> payload = createPayload(userId, limit);
@@ -85,7 +101,10 @@ public class PersonalizedService {
             if (result != null && result.isSuccess()) {
                 log.info("개인화 추천 성공: 사용자 {}, {}개 상품, 캐시: {}",
                     userId, result.getRecommendations().size(), result.isFromCache());
-
+                
+                // 공유 데이터로 저장 (5분 TTL)
+                sharedDataAccessor.saveSharedData(sharedKey, result, 5, java.util.concurrent.TimeUnit.MINUTES);
+                
                 return convertLambdaProductsToResponseDto(result.getRecommendations(), userId);
             }
 
@@ -105,6 +124,10 @@ public class PersonalizedService {
         }
 
         try {
+            // 공유 데이터 캐시 삭제
+            String sharedKey = "personalized:" + userId;
+            sharedDataAccessor.deleteSharedData(sharedKey);
+            
             Map<String, Object> payload = new HashMap<>();
             payload.put("action", "invalidate_cache");
             payload.put("user_id", userId);
@@ -326,5 +349,4 @@ public class PersonalizedService {
             return Collections.emptySet();
         }
     }
-
 }
