@@ -86,8 +86,9 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     private RedisConnectionFactory createConnectionFactory(String host, int port, boolean useSsl) {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
         LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder()
-            .clientOptions(clientOptions())
-            .clientResources(clientResources());
+                .clientOptions(clientOptions())
+                .clientResources(clientResources())
+                .clientName("tryiton-client");
 
         if (useSsl) {
             clientConfigBuilder.useSsl();
@@ -129,7 +130,6 @@ public class UnifiedRedisConfig implements CachingConfigurer {
             }
         ));
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
         return objectMapper;
     }
 
