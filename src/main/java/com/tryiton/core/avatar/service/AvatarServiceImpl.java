@@ -74,8 +74,8 @@ public class AvatarServiceImpl implements AvatarService {
     private String generateSingleItemCacheKey(Long userId, Product product) {
         String garmentType = determineGarmentType(product);
         String cacheKey = String.format("cache/tryon/%d/%s-%d.png", userId, garmentType, product.getId());
-        log.info("캐시 키 생성 - userId: {}, productId: {}, garmentType: {}, 키: {}", 
-                userId, product.getId(), garmentType, cacheKey);
+        log.info("캐시 키 생성 - userId: {}, productId: {}, garmentType: {}, 키: {}",
+            userId, product.getId(), garmentType, cacheKey);
         return cacheKey;
     }
 
@@ -85,7 +85,7 @@ public class AvatarServiceImpl implements AvatarService {
     private String generateCombinationCacheKey(Long userId, Long topId, Long bottomId) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append("cache/tryon/").append(userId).append("/");
-        
+
         if (topId != null && bottomId != null) {
             keyBuilder.append("top-").append(topId).append("_bottom-").append(bottomId);
         } else if (topId != null) {
@@ -95,12 +95,12 @@ public class AvatarServiceImpl implements AvatarService {
         } else {
             keyBuilder.append("base");
         }
-        
+
         keyBuilder.append(".png");
-        
+
         String cacheKey = keyBuilder.toString();
-        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}", 
-                userId, topId, bottomId, cacheKey);
+        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}",
+            userId, topId, bottomId, cacheKey);
         return cacheKey;
     }
 
@@ -110,12 +110,12 @@ public class AvatarServiceImpl implements AvatarService {
     private boolean existsInS3(String key) {
         try {
             log.info("S3 캐시 확인 시작 - 키: {}", key);
-            
+
             HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
                 .bucket(bucketName)
                 .key(key)
                 .build();
-            
+
             s3Client.headObject(headObjectRequest);
             log.info("S3 캐시 확인 성공 - 키: {}", key);
             return true;
@@ -176,7 +176,7 @@ public class AvatarServiceImpl implements AvatarService {
 
         // 3. 받은 결과로 후속 처리
         try {
-            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult().get("result"), InitialAvatarResponse.class);
+            InitialAvatarResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), InitialAvatarResponse.class);
 
             if (fastApiResponse == null || fastApiResponse.getPoseImgUrl() == null) {
                 throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "FastAPI로부터 유효한 응답을 받지 못했습니다.");
@@ -284,7 +284,11 @@ public class AvatarServiceImpl implements AvatarService {
 
             // 3. 받은 결과에서 최종 이미지 URL 추출
             try {
-                FastApiTryOnResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult().get("result"), FastApiTryOnResponse.class);
+                FastApiTryOnResponse fastApiResponse = objectMapper.treeToValue(taskResult.getResult(), FastApiTryOnResponse.class);
+                if (fastApiResponse == null || fastApiResponse.getTryOnImgUrl() == null) {
+                    log.error("FastAPI 응답에서 tryOnImgUrl을 찾을 수 없습니다. 응답: {}", taskResult.getResult().toString());
+                    throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "가상 피팅 결과 처리 중 오류가 발생했습니다.");
+                }
                 finalImageUrl = fastApiResponse.getTryOnImgUrl() + "?t=" + System.currentTimeMillis();
                 log.info("폴링 성공. 최종 이미지 URL: {}", finalImageUrl);
             } catch (Exception e) {
@@ -386,7 +390,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarBaseImageUpdateResponse updateAvatarBaseImage(Member member, AvatarBaseImageUpdateRequest request) {
         try {
             log.info("아바타 베이스 이미지 업데이트 시작 - userId: {}, newImageUrl: {}",
-                    member.getId(), request.getNewBaseImageUrl());
+                member.getId(), request.getNewBaseImageUrl());
 
             // 1. 사용자 프로필 조회
             Profile profile = member.getProfile();
@@ -433,11 +437,11 @@ public class AvatarServiceImpl implements AvatarService {
 
         } catch (BusinessException e) {
             log.error("아바타 베이스 이미지 업데이트 실패 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure(e.getMessage());
         } catch (Exception e) {
             log.error("아바타 베이스 이미지 업데이트 중 예상치 못한 오류 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarBaseImageUpdateResponse.failure("아바타 베이스 이미지 업데이트 중 오류가 발생했습니다.");
         }
     }
@@ -516,8 +520,8 @@ public class AvatarServiceImpl implements AvatarService {
         } else {
             // 상의도 하의도 아닌 경우 (액세서리 등)
             log.warn("상품 ID {}는 상의도 하의도 아닙니다. 카테고리: {}",
-                    product.getId(),
-                    product.getCategory() != null ? product.getCategory().getCategoryName() : "null");
+                product.getId(),
+                product.getCategory() != null ? product.getCategory().getCategoryName() : "null");
             return "unknown"; // 또는 기본값 설정
         }
     }
@@ -549,18 +553,18 @@ public class AvatarServiceImpl implements AvatarService {
         try {
             // S3에서 prefix로 시작하는 객체 목록 조회
             var listRequest = software.amazon.awssdk.services.s3.model.ListObjectsV2Request.builder()
-                    .bucket(bucketName)
-                    .prefix(prefix)
-                    .build();
+                .bucket(bucketName)
+                .prefix(prefix)
+                .build();
 
             var listResponse = s3Client.listObjectsV2(listRequest);
 
             // 각 객체 삭제
             for (var s3Object : listResponse.contents()) {
                 var deleteRequest = software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(s3Object.key())
-                        .build();
+                    .bucket(bucketName)
+                    .key(s3Object.key())
+                    .build();
 
                 s3Client.deleteObject(deleteRequest);
                 log.debug("캐시 파일 삭제: {}", s3Object.key());
@@ -578,7 +582,7 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarImageUploadCompleteResponse processAvatarImageUploadComplete(Member member, AvatarImageUploadCompleteRequest request) {
         try {
             log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}",
-                    member.getId(), request.getNewAvatarImageUrl());
+                member.getId(), request.getNewAvatarImageUrl());
 
             // 요청 데이터 검증
             if (request.getNewAvatarImageUrl() == null || request.getNewAvatarImageUrl().trim().isEmpty()) {
@@ -591,7 +595,7 @@ public class AvatarServiceImpl implements AvatarService {
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
             }
-            
+
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
             String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
             
@@ -608,7 +612,7 @@ public class AvatarServiceImpl implements AvatarService {
                 member.getId().toString(),
                 request.getNewAvatarImageUrl()
             );
-            
+
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
 
             // 3. 기존 캐시 무효화
@@ -623,11 +627,11 @@ public class AvatarServiceImpl implements AvatarService {
 
         } catch (BusinessException e) {
             log.error("아바타 이미지 업로드 완료 처리 실패 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarImageUploadCompleteResponse.failure(e.getMessage());
         } catch (Exception e) {
             log.error("아바타 이미지 업로드 완료 처리 중 예상치 못한 오류 - userId: {}, error: {}",
-                    member.getId(), e.getMessage());
+                member.getId(), e.getMessage());
             return AvatarImageUploadCompleteResponse.failure("아바타 이미지 업로드 완료 처리 중 오류가 발생했습니다.");
         }
     }
