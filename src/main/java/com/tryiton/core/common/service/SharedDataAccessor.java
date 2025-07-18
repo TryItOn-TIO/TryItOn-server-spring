@@ -32,11 +32,7 @@ public class SharedDataAccessor {
     public void saveSharedData(String key, Object value) {
         String prefixedKey = "shared:" + key;
         try {
-            if (value instanceof String) {
-                cacheRedisTemplate.opsForValue().set(prefixedKey, value);
-            } else {
-                cacheRedisTemplate.opsForValue().set(prefixedKey, objectMapper.writeValueAsString(value));
-            }
+            cacheRedisTemplate.opsForValue().set(prefixedKey, value);
             log.debug("공유 데이터 저장 성공: {}", prefixedKey);
         } catch (Exception e) {
             log.error("공유 데이터 저장 실패: {}, 오류: {}", prefixedKey, e.getMessage(), e);
@@ -54,11 +50,7 @@ public class SharedDataAccessor {
     public void saveSharedData(String key, Object value, long timeout, TimeUnit unit) {
         String prefixedKey = "shared:" + key;
         try {
-            if (value instanceof String) {
-                cacheRedisTemplate.opsForValue().set(prefixedKey, value, timeout, unit);
-            } else {
-                cacheRedisTemplate.opsForValue().set(prefixedKey, objectMapper.writeValueAsString(value), timeout, unit);
-            }
+            cacheRedisTemplate.opsForValue().set(prefixedKey, value, timeout, unit);
             log.debug("공유 데이터 저장 성공 (TTL 설정): {}, TTL: {} {}", prefixedKey, timeout, unit);
         } catch (Exception e) {
             log.error("공유 데이터 저장 실패: {}, 오류: {}", prefixedKey, e.getMessage(), e);
