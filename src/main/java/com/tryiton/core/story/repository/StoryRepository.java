@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface StoryRepository extends JpaRepository<Story, Long> {
 
@@ -29,9 +30,9 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
             "LEFT JOIN s.author a " +
             "LEFT JOIN a.profile p " +
             "LEFT JOIN s.closetAvatar ca " +
-            "WHERE s.id < :currentStoryId " +
+            "WHERE s.id < :storyId " +
             "ORDER BY s.id DESC")
-    List<StorySummaryDto> findNextStorySummaries(Long currentStoryId, Pageable pageable);
+    List<StorySummaryDto> findNextStorySummaries(@Param("storyId") Long storyId, Pageable pageable);
 
     @Query("SELECT new com.tryiton.core.story.dto.StorySummaryDto(" +
             "s.id, s.storyImageUrl, s.contents, s.likeCount, s.createdAt, " +
@@ -52,9 +53,9 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
             "LEFT JOIN s.author a " +
             "LEFT JOIN a.profile p " +
             "LEFT JOIN s.closetAvatar ca " +
-            "WHERE s.likeCount < :currentLikeCount OR (s.likeCount = :currentLikeCount AND s.id < :currentStoryId) " +
+            "WHERE s.likeCount < :likeCount OR (s.likeCount = :likeCount AND s.id < :storyId) " +
             "ORDER BY s.likeCount DESC, s.id DESC")
-    List<StorySummaryDto> findNextPopularStorySummaries(Long currentStoryId, int currentLikeCount, Pageable pageable);
+    List<StorySummaryDto> findNextPopularStorySummaries(@Param("storyId") Long storyId, @Param("likeCount") int likeCount, Pageable pageable);
 
     @Query("SELECT s.id FROM Story s ORDER BY s.id DESC")
     List<Long> findStoryIdsByOrderByIdDesc(Pageable pageable);
@@ -112,4 +113,3 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
             "ORDER BY s.id DESC")
     List<Story> findByAuthorIdWithAllAssociations(Long userId);
 }
-
