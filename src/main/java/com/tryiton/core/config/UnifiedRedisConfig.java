@@ -104,20 +104,6 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return createConnectionFactory(cacheRedisHost, cacheRedisPort, sslEnabled);
     }
 
-    @Bean
-    @Qualifier("cacheObjectMapper")
-    public ObjectMapper cacheObjectMapper() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
-
-        SimpleModule module = new SimpleModule();
-        module.addDeserializer(PageImpl.class, new PageImplDeserializer());
-        objectMapper.registerModule(module);
-
-        return objectMapper;
-    }
-
     @Bean(name = "redisTemplate")
     @Primary
     public RedisTemplate<String, String> redisTemplate(
@@ -134,12 +120,10 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     @Bean(name = "recommendRedisTemplate")
     public RedisTemplate<String, Object> recommendRedisTemplate(
             @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper) { // Spring 기본 ObjectMapper 주입
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
-
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
         template.setHashKeySerializer(new StringRedisSerializer());
@@ -149,11 +133,17 @@ public class UnifiedRedisConfig implements CachingConfigurer {
 
     @Bean(name = "cacheRedisTemplate")
     public RedisTemplate<String, Object> cacheRedisTemplate(
-            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory,
-            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
+            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
+        // 캐시 전용 ObjectMapper 인스턴스 생성 및 설정
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(PageImpl.class, new PageImplDeserializer());
+        objectMapper.registerModule(module);
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         template.setKeySerializer(new StringRedisSerializer());
@@ -165,9 +155,15 @@ public class UnifiedRedisConfig implements CachingConfigurer {
 
     @Bean
     public RedisCacheManager cacheManager(
-            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory,
-            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
+            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
 
+        // 캐시 전용 ObjectMapper 인스턴스 생성 및 설정
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(PageImpl.class, new PageImplDeserializer());
+        objectMapper.registerModule(module);
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
