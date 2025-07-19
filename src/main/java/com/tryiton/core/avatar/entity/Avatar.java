@@ -96,7 +96,17 @@ public class Avatar extends BaseTimeEntity {
         if (this.member == null || this.member.getId() == null) {
             throw new IllegalStateException("아바타에 유저 정보가 할당되지 않아 S3 키를 생성할 수 없습니다.");
         }
+        
+        // 항상 사용자별 경로 사용 (기본 아바타 여부와 관계없이)
         return "users/" + this.member.getId() + "/";
+    }
+    
+    /**
+     * 현재 아바타가 베이스 아바타인지 확인합니다.
+     * 베이스 아바타는 avatarImg URL에 "base/default_avatar.png"가 포함됩니다.
+     */
+    public boolean isBaseAvatar() {
+        return avatarImg != null && avatarImg.contains("base/default_avatar");
     }
 
     public void resetAvatar(String baseUrl) {
