@@ -27,7 +27,8 @@ echo "> 새 애플리케이션 배포: $JAR_PATH" >> $DEPLOY_LOG
 rm -f $ERROR_LOG
 
 # Spring Boot 애플리케이션 로그를 별도의 파일로 리다이렉션합니다.
-nohup java -Djava.security.egd=file:/dev/./urandom \
+nohup java -Xms5g -Xmx5g -XX:+UseG1GC -XX:MaxGCPauseMillis=100 \
+           -Djava.security.egd=file:/dev/./urandom \
            -Dspring.profiles.active=dev \
            -Dserver.address=0.0.0.0 \
            -Djava.net.preferIPv4Stack=true \

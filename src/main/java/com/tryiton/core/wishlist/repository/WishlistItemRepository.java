@@ -28,4 +28,18 @@ public interface WishlistItemRepository extends JpaRepository<WishlistItem, Long
         @Param("wishlistId") Long wishlistId,
         @Param("parentCategoryId") Long parentCategoryId
     );
+
+    // 쿼리 최적화: userId로 직접 조회하여 DB 왕복 1회로 줄임
+    @Query("""
+            SELECT wi FROM WishlistItem wi
+            JOIN FETCH wi.product p
+            JOIN p.category c
+            WHERE wi.wishlist.user.id = :userId
+            AND c.parentCategory.id = :parentCategoryId
+            ORDER BY wi.createdAt DESC
+        """)
+    List<WishlistItem> findByUserIdAndProductParentCategoryIdWithProduct(
+        @Param("userId") Long userId,
+        @Param("parentCategoryId") Long parentCategoryId
+    );
 }

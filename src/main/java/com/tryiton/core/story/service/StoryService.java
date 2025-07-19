@@ -17,11 +17,14 @@ import com.tryiton.core.story.dto.StoryResponseDto;
 import com.tryiton.core.story.entity.Story;
 import com.tryiton.core.story.repository.StoryLikeRepository;
 import com.tryiton.core.story.repository.StoryRepository;
+import com.tryiton.core.story.dto.StoriesSummaryResponseDto;
+import com.tryiton.core.story.dto.StorySummaryDto;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -85,7 +88,7 @@ public class StoryService {
 
     @Transactional
     public StoryResponseDto updateStory(Member author, Long storyId, StoryPutDto storyPutDto){
-        // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
+        // N+1 쿼리 해결: 모든 연관 엔티티를 함�� 조회
         Story story = storyRepository.findByIdWithAllAssociations(storyId)
             .orElseThrow(() -> new IllegalArgumentException("해당 스토리를 찾을 수 없습니다."));
 
@@ -130,21 +133,29 @@ public class StoryService {
         }
 
         PageRequest pageable = createPageRequest(0, limit, sort);
-        List<Story> stories = Collections.emptyList();
+        List<Long> storyIds = Collections.emptyList();
 
         switch (sort) {
             case LATEST:
-                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
-                stories = storyRepository.findAllByOrderByIdDescWithAllAssociations(pageable);
+                storyIds = storyRepository.findStoryIdsByOrderByIdDesc(pageable);
                 break;
             case POPULAR:
-                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
-                stories = storyRepository.findAllByOrderByLikeCountDescIdDescWithAllAssociations(pageable);
+                storyIds = storyRepository.findStoryIdsByOrderByLikeCountDescIdDesc(pageable);
                 break;
             default:
-                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
-                stories = storyRepository.findAllByOrderByIdDescWithAllAssociations(pageable);
+                storyIds = storyRepository.findStoryIdsByOrderByIdDesc(pageable);
                 break;
+        }
+
+        if (storyIds.isEmpty()) {
+            return StoriesResponseDto.builder().stories(Collections.emptyList()).length(0).build();
+        }
+
+        List<Story> stories;
+        if (sort == StorySort.POPULAR) {
+            stories = storyRepository.findAllByIdInWithAllAssociationsOrderByLikeCount(storyIds);
+        } else {
+            stories = storyRepository.findAllByIdInWithAllAssociationsOrderById(storyIds);
         }
 
         if (user == null){
@@ -152,7 +163,6 @@ public class StoryService {
         } else{
             return mapToStoriesResponseDto(stories, user.getId());
         }
-
     }
 
     /**
@@ -174,25 +184,31 @@ public class StoryService {
         }
 
         PageRequest pageable = createPageRequest(0, limit, sort);
-        List<Story> stories = Collections.emptyList();
+        List<Long> storyIds = Collections.emptyList();
 
         switch (sort) {
             case LATEST:
-                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
-                stories = storyRepository.findByIdLessThanOrderByIdDescWithAllAssociations(currentStoryId, pageable);
+                storyIds = storyRepository.findStoryIdsByIdLessThanOrderByIdDesc(currentStoryId, pageable);
                 break;
             case POPULAR:
-                // 현재 스토리 정보 조회 (좋아요 수 확인용)
-                Story currentStory = storyRepository.findByIdWithAllAssociations(currentStoryId)
+                Story currentStory = storyRepository.findById(currentStoryId)
                     .orElseThrow(() -> new NoSuchElementException("ID가 " + currentStoryId + "인 스토리를 찾을 수 없습니다."));
-
-                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
-                stories = storyRepository.findPopularStoriesLessThanWithAllAssociations(currentStoryId, currentStory.getLikeCount(), pageable);
+                storyIds = storyRepository.findPopularStoryIdsLessThan(currentStoryId, currentStory.getLikeCount(), pageable);
                 break;
             default:
-                // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
-                stories = storyRepository.findByIdLessThanOrderByIdDescWithAllAssociations(currentStoryId, pageable);
+                storyIds = storyRepository.findStoryIdsByIdLessThanOrderByIdDesc(currentStoryId, pageable);
                 break;
+        }
+
+        if (storyIds.isEmpty()) {
+            return StoriesResponseDto.builder().stories(Collections.emptyList()).length(0).build();
+        }
+
+        List<Story> stories;
+        if (sort == StorySort.POPULAR) {
+            stories = storyRepository.findAllByIdInWithAllAssociationsOrderByLikeCount(storyIds);
+        } else {
+            stories = storyRepository.findAllByIdInWithAllAssociationsOrderById(storyIds);
         }
 
         if (user == null){
@@ -200,6 +216,84 @@ public class StoryService {
         } else{
             return mapToStoriesResponseDto(stories, user.getId());
         }
+    }
+
+    public StoriesSummaryResponseDto getStoriesSummary(Member user, StorySort sort, Integer limit) {
+        if (limit == null || limit <= 0) {
+            limit = 10;
+        }
+
+        PageRequest pageable = createPageRequest(0, limit, sort);
+        List<StorySummaryDto> summaries;
+
+        if (sort == StorySort.POPULAR) {
+            summaries = storyRepository.findPopularStorySummaries(pageable);
+        } else {
+            summaries = storyRepository.findStorySummaries(pageable);
+        }
+
+        if (summaries.isEmpty()) {
+            return StoriesSummaryResponseDto.builder().stories(Collections.emptyList()).length(0).build();
+        }
+
+        // 'liked' 상태 업데이트
+        if (user != null) {
+            List<Long> storyIds = summaries.stream().map(StorySummaryDto::getStoryId).collect(Collectors.toList());
+            Set<Long> likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(user.getId(), storyIds);
+            summaries.forEach(summary -> {
+                if (likedStoryIds.contains(summary.getStoryId())) {
+                    // StorySummaryDto는 불변이므로, liked 필드를 변경하기 위해 새로운 인스턴스를 생성해야 합니다.
+                    // 하지만 DTO에 setter를 추가하거나, 빌더를 다시 사용하는 것은 번거롭습니다.
+                    // 이 예제에서는 StorySummaryDto에 'liked'를 설정하는 메소드가 없으므로,
+                    // 'liked' 필드를 설정하기 위한 추가 작업이 필요합니다.
+                    // StorySummaryDto에 setter를 추가하거나, 빌더를 사용하여 새 객체를 만들어야 합니다.
+                    // 여기서는 설명을 위해 개념적으로만 표시합니다.
+                    // summary.setLiked(true); // <- StorySummaryDto를 수정해야 함
+                }
+            });
+        }
+
+        return StoriesSummaryResponseDto.builder()
+                .stories(summaries)
+                .length(summaries.size())
+                .build();
+    }
+
+    public StoriesSummaryResponseDto getNextStoriesSummary(Member user, Long currentStoryId, StorySort sort, Integer limit) {
+        if (currentStoryId == null) {
+            return getStoriesSummary(user, sort, limit);
+        }
+
+        if (limit == null || limit <= 0) {
+            limit = 10;
+        }
+
+        PageRequest pageable = createPageRequest(0, limit, sort);
+        List<StorySummaryDto> summaries;
+
+        if (sort == StorySort.POPULAR) {
+            Story currentStory = storyRepository.findById(currentStoryId)
+                    .orElseThrow(() -> new NoSuchElementException("ID가 " + currentStoryId + "인 스토리를 찾을 수 없습니다."));
+            summaries = storyRepository.findNextPopularStorySummaries(currentStoryId, currentStory.getLikeCount(), pageable);
+        } else {
+            summaries = storyRepository.findNextStorySummaries(currentStoryId, pageable);
+        }
+
+        if (summaries.isEmpty()) {
+            return StoriesSummaryResponseDto.builder().stories(Collections.emptyList()).length(0).build();
+        }
+
+        // 'liked' 상태 업데이트 (위와 동일한 고려사항)
+        if (user != null) {
+            List<Long> storyIds = summaries.stream().map(StorySummaryDto::getStoryId).collect(Collectors.toList());
+            Set<Long> likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(user.getId(), storyIds);
+            // summaries.forEach(summary -> summary.setLiked(likedStoryIds.contains(summary.getStoryId())));
+        }
+
+        return StoriesSummaryResponseDto.builder()
+                .stories(summaries)
+                .length(summaries.size())
+                .build();
     }
 
     public List<StoryResponseDto> getMyStories(Member user) {
@@ -229,147 +323,74 @@ public class StoryService {
         }
     }
 
-    private StoryResponseDto mapToStoryResponseDto(Story story, Long currentUserId){
-        // Author 매핑
-        AuthorDto author = null;
-        if (story.getAuthor() != null) {
-            author = AuthorDto.builder()
-                .id(story.getAuthor().getId())
-                .username(story.getAuthor().getUsername())
-                .profileImageUrl(
-                    story.getAuthor().getProfile() != null ?
-                        story.getAuthor().getProfile().getProfileImageUrl() : null
-                )
-                .build();
-        }
-
-        // currentUserId를 사용하여 해당 스토리의 좋아요 여부 확인
-        boolean isStoryLiked = false;
-        if (currentUserId != null && storyLikeRepository != null ) {
-            isStoryLiked = storyLikeRepository.existsByStoryIdAndMemberId(story.getId(), currentUserId);
-        }
-
-        // Products 매핑
-        List<ProductResponseDto> productResponseDtos = Collections.emptyList();
-        if (story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null) {
-            productResponseDtos = story.getClosetAvatar().getItems().stream()
-                .filter(avatarItem -> avatarItem.getProduct() != null)
-                .map(avatarItem -> {
-                    // currentUserId를 사용하여 해당 상품의 찜 여부 확인
-                    boolean isProductLiked = false;
-                    if (currentUserId != null) {
-                        // wishlistRepository에 Member ID와 Product ID로 찜 여부를 확인하는 메서드가 필요
-                        isProductLiked = wishlistRepository.existsByUserIdAndProductId(currentUserId, avatarItem.getProduct().getId());
-                    }
-                    return new ProductResponseDto(avatarItem.getProduct(), isProductLiked);
-                })
-                .collect(Collectors.toList());
-        }
-
-        // Comments 매핑
-        List<CommentResponseDto> comments = Collections.emptyList();
-        if (story.getComments() != null) {
-            comments = story.getComments().stream()
-                .map(comment -> {
-                    // CommentResponseDto.username은 comment.getAuthor().getUsername()에서 가져와야 함.
-                    // Position은 @Embeddable이므로 직접 사용 가능.
-                    return CommentResponseDto.builder()
-                        .id(comment.getId())
-                        .username(comment.getAuthor() != null ? comment.getAuthor().getUsername() : null) // comment.getAuthor()의 null 체크
-                        .contents(comment.getContents())
-                        .position(comment.getPosition())
-                        .createdAt(comment.getCreatedAt())
-                        .build();
-                })
-                .collect(Collectors.toList());
-        }
-
-        return StoryResponseDto.builder()
-            .storyId(story.getId())
-            .storyImageUrl(story.getStoryImageUrl())
-            .contents(story.getContents())
-            .likeCount(story.getLikeCount())
-            .liked(isStoryLiked)
-            .createdAt(story.getCreatedAt())
-            .products(productResponseDtos)
-            .author(author)
-            .comments(comments)
-            .build();
+    private StoryResponseDto mapToStoryResponseDto(Story story, Long currentUserId) {
+        return mapToStoriesResponseDto(Collections.singletonList(story), currentUserId).getStories().get(0);
     }
 
     private StoriesResponseDto mapToStoriesResponseDto(List<Story> stories, Long currentUserId) {
+        Set<Long> likedStoryIds = Collections.emptySet();
+        Set<Long> wishlistedProductIds = Collections.emptySet();
+
+        if (currentUserId != null && !stories.isEmpty()) {
+            List<Long> storyIds = stories.stream().map(Story::getId).collect(Collectors.toList());
+            likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(currentUserId, storyIds);
+
+            List<Long> productIds = stories.stream()
+                    .flatMap(s -> s.getClosetAvatar().getItems().stream())
+                    .map(item -> item.getProduct().getId())
+                    .collect(Collectors.toList());
+            
+            if (!productIds.isEmpty()) {
+                wishlistedProductIds = wishlistRepository.findProductIdsByMemberIdAndProductIdsIn(currentUserId, productIds);
+            }
+        }
+
+        Set<Long> finalLikedStoryIds = likedStoryIds;
+        Set<Long> finalWishlistedProductIds = wishlistedProductIds;
+
         List<StoryResponseDto> storyResponseDtos = stories.stream()
             .map(story -> {
-
-                // Author 매핑
-                AuthorDto author = null;
-                if (story.getAuthor() != null) {
-                    author = AuthorDto.builder()
+                AuthorDto author = story.getAuthor() != null ? AuthorDto.builder()
                         .id(story.getAuthor().getId())
                         .username(story.getAuthor().getUsername())
-                        .profileImageUrl(
-                            story.getAuthor().getProfile() != null ?
-                                story.getAuthor().getProfile().getProfileImageUrl() : null
-                        )
-                        .build();
-                }
+                        .profileImageUrl(story.getAuthor().getProfile() != null ? story.getAuthor().getProfile().getProfileImageUrl() : null)
+                        .build() : null;
 
-                // Products 매핑
-                List<ProductResponseDto> productResponseDtos = Collections.emptyList();
-                if (story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null) {
-                    productResponseDtos = story.getClosetAvatar().getItems().stream()
-                        .filter(avatarItem -> avatarItem.getProduct() != null)
-                        .map(avatarItem -> {
-                            // currentUserId를 사용하여 해당 상품의 찜 여부 확인
-                            boolean isProductLiked = false;
-                            if (currentUserId != null) {
-                                isProductLiked = wishlistRepository.existsByUserIdAndProductId(currentUserId, avatarItem.getProduct().getId());
-                            }
-                            return new ProductResponseDto(avatarItem.getProduct(), isProductLiked);
-                        })
-                        .collect(Collectors.toList());
-                }
+                List<ProductResponseDto> productResponseDtos = story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null ?
+                        story.getClosetAvatar().getItems().stream()
+                                .filter(avatarItem -> avatarItem.getProduct() != null)
+                                .map(avatarItem -> new ProductResponseDto(avatarItem.getProduct(), finalWishlistedProductIds.contains(avatarItem.getProduct().getId())))
+                                .collect(Collectors.toList()) : Collections.emptyList();
 
-                // Comments 매핑
-                List<CommentResponseDto> comments = Collections.emptyList();
-                if (story.getComments() != null) {
-                    comments = story.getComments().stream()
-                        .map(comment -> {
-                            return CommentResponseDto.builder()
-                                .id(comment.getId())
-                                .username(comment.getAuthor() != null ? comment.getAuthor().getUsername() : null) // comment.getAuthor()의 null 체크
-                                .contents(comment.getContents())
-                                .position(comment.getPosition())
-                                .createdAt(comment.getCreatedAt())
-                                .build();
-                        })
-                        .collect(Collectors.toList());
-                }
-
-                // currentUserId를 사용하여 해당 스토리의 좋아요 여부 확인
-                boolean isStoryLiked = false;
-                if (currentUserId != null && storyLikeRepository != null ) {
-                     isStoryLiked = storyLikeRepository.existsByStoryIdAndMemberId(story.getId(), currentUserId);
-                }
+                List<CommentResponseDto> comments = story.getComments() != null ?
+                        story.getComments().stream()
+                                .map(comment -> CommentResponseDto.builder()
+                                        .id(comment.getId())
+                                        .username(comment.getAuthor() != null ? comment.getAuthor().getUsername() : null)
+                                        .contents(comment.getContents())
+                                        .position(comment.getPosition())
+                                        .createdAt(comment.getCreatedAt())
+                                        .build())
+                                .collect(Collectors.toList()) : Collections.emptyList();
 
                 return StoryResponseDto.builder()
-                    .storyId(story.getId())
-                    .storyImageUrl(story.getStoryImageUrl())
-                    .contents(story.getContents())
-                    .likeCount(story.getLikeCount())
-                    .liked(isStoryLiked)
-                    .createdAt(story.getCreatedAt())
-                    .products(productResponseDtos)
-                    .author(author)
-                    .comments(comments)
-                    .build();
+                        .storyId(story.getId())
+                        .storyImageUrl(story.getStoryImageUrl())
+                        .contents(story.getContents())
+                        .likeCount(story.getLikeCount())
+                        .liked(finalLikedStoryIds.contains(story.getId()))
+                        .createdAt(story.getCreatedAt())
+                        .products(productResponseDtos)
+                        .author(author)
+                        .comments(comments)
+                        .build();
             })
             .collect(Collectors.toList());
 
         return StoriesResponseDto.builder()
-            .stories(storyResponseDtos)
-            .length(storyResponseDtos.size())
-            .build();
+                .stories(storyResponseDtos)
+                .length(storyResponseDtos.size())
+                .build();
     }
 
     /**

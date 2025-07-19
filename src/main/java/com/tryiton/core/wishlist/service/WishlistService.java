@@ -85,11 +85,8 @@ public class WishlistService {
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getWishlistProductsByParentCategory(Member user,
         Long parentCategoryId) {
-        Wishlist wishlist = wishlistRepository.findByUserId(user.getId())
-            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "찜 목록이 존재하지 않습니다."));
-
         List<WishlistItem> items = wishlistItemRepository
-            .findByWishlistIdAndProductParentCategoryId(wishlist.getWishlistId(), parentCategoryId);
+            .findByUserIdAndProductParentCategoryIdWithProduct(user.getId(), parentCategoryId);
 
         return items.stream()
             .map(item -> new ProductResponseDto(item.getProduct(), true))

@@ -57,6 +57,7 @@ public class Story {
     private List<Comment> comments;
 
     @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 10)
     private List<StoryLike> likes; // 이 스토리에 대한 좋아요 목록
 
     @Builder

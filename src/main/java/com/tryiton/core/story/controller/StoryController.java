@@ -5,6 +5,7 @@ import com.tryiton.core.common.enums.StorySort;
 import com.tryiton.core.member.entity.Member;
 import com.tryiton.core.story.dto.BackgroundRemovalResponse;
 import com.tryiton.core.story.dto.StoriesResponseDto;
+import com.tryiton.core.story.dto.StoriesSummaryResponseDto;
 import com.tryiton.core.story.dto.StoryPutDto;
 import com.tryiton.core.story.dto.StoryRequestDto;
 import com.tryiton.core.story.dto.StoryResponseDto;
@@ -67,6 +68,31 @@ public class StoryController {
         Member user = (customUserDetails != null) ? customUserDetails.getUser() : null;
         StoriesResponseDto storiesResponseDto = storyService.getNextStories(user, currentStoryId, sort, limit);
         return ResponseEntity.ok(storiesResponseDto);
+    }
+
+    @Operation(summary = "스토리 목록 요약 조회 (경량화)", description = "상품, 댓글 개수만 포함된 가벼운 스토리 목록을 조회합니다.")
+    @GetMapping("/summary")
+    public ResponseEntity<StoriesSummaryResponseDto> getStoriesSummary(
+            @AuthenticationPrincipal() CustomUserDetails customUserDetails,
+            @RequestParam StorySort sort,
+            @RequestParam Integer limit
+    ){
+        Member user = (customUserDetails != null) ? customUserDetails.getUser() : null;
+        StoriesSummaryResponseDto response = storyService.getStoriesSummary(user, sort, limit);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "다음 스토리 목록 요약 조회 (경량화)", description = "스크롤 시 다음 페이지에 해당하는 가벼운 스토리 목록을 조회합니다.")
+    @GetMapping("/summary/next")
+    public ResponseEntity<StoriesSummaryResponseDto> getNextStoriesSummary(
+            @AuthenticationPrincipal() CustomUserDetails customUserDetails,
+            @RequestParam Long currentStoryId,
+            @RequestParam StorySort sort,
+            @RequestParam Integer limit
+    ){
+        Member user = (customUserDetails != null) ? customUserDetails.getUser() : null;
+        StoriesSummaryResponseDto response = storyService.getNextStoriesSummary(user, currentStoryId, sort, limit);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/my")
