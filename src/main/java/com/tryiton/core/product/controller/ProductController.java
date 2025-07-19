@@ -1,8 +1,7 @@
 package com.tryiton.core.product.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
-import com.tryiton.core.product.dto.CategoryProductResponse;
-import com.tryiton.core.product.dto.ProductResponseDto;
+import com.tryiton.core.product.dto.ProductSummaryDto;
 import com.tryiton.core.product.dto.SearchProductResponse;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.service.CategoryService;
