@@ -1,29 +1,28 @@
 package com.tryiton.core.story.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.tryiton.core.story.dto.AuthorDto;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class StorySummaryDto {
-    private Long storyId;
-    private String storyImageUrl;
-    private String contents;
-    private int likeCount;
+    private final Long storyId;
+    private final String storyImageUrl;
+    private final String contents;
+    private final int likeCount;
+    @Setter
     private boolean liked;
-    private LocalDateTime createdAt;
-    private AuthorDto author;
-    private long productCount; // long 타입이 더 안전합니다 (COUNT 쿼리 결과)
-    private long commentCount; // long 타입이 더 안전합니다 (COUNT 쿼리 결과)
+    private final LocalDateTime createdAt;
+    private final AuthorDto author;
+    private final long productCount;
+    private final long commentCount;
 
     // JPA 프로젝션을 위한 생성자
-    public StorySummaryDto(Long storyId, String storyImageUrl, String contents, int likeCount, LocalDateTime createdAt, Long authorId, String authorUsername, String authorProfileImageUrl, long productCount, long commentCount) {
+    public StorySummaryDto(Long storyId, String storyImageUrl, String contents, int likeCount, LocalDateTime createdAt,
+                           Long authorId, String authorUsername, String authorProfileImageUrl,
+                           long productCount, long commentCount) {
         this.storyId = storyId;
         this.storyImageUrl = storyImageUrl;
         this.contents = contents;
@@ -32,6 +31,6 @@ public class StorySummaryDto {
         this.author = new AuthorDto(authorId, authorUsername, authorProfileImageUrl);
         this.productCount = productCount;
         this.commentCount = commentCount;
-        // 'liked' 필드는 서비스 레이어에서 별도로 설정해야 합니다.
+        this.liked = false; // 기본값, 서비스 레이어에서 설정 필요
     }
 }
