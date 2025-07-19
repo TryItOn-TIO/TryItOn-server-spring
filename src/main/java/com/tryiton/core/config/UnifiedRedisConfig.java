@@ -130,11 +130,12 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     // 추천 기능용 Redis 템플릿 (JSON 직렬화)
     @Bean(name = "recommendRedisTemplate")
     public RedisTemplate<String, Object> recommendRedisTemplate(
-            @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory) {
+            @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory,
+            ObjectMapper objectMapper) { // ObjectMapper 주입
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(objectMapper(), Object.class);
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
@@ -146,11 +147,12 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     // 캐시 및 JSON 데이터용 Redis 템플릿
     @Bean(name = "cacheRedisTemplate")
     public RedisTemplate<String, Object> cacheRedisTemplate(
-            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
+            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory,
+            ObjectMapper objectMapper) { // ObjectMapper 주입
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(objectMapper(), Object.class);
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
@@ -162,10 +164,10 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     // 캐시 매니저 설정
     @Bean
     public RedisCacheManager cacheManager(
-            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
+            @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory,
+            ObjectMapper objectMapper) { // ObjectMapper 주입
         
-        // PageImpl을 포함한 모든 객체를 처리할 수 있는 ObjectMapper를 사용한 Serializer 생성
-        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper());
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
             .entryTtl(Duration.ofMinutes(30))
