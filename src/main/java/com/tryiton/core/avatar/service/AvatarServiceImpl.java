@@ -84,7 +84,18 @@ public class AvatarServiceImpl implements AvatarService {
      */
     private String generateCombinationCacheKey(Long userId, Long topId, Long bottomId) {
         StringBuilder keyBuilder = new StringBuilder();
-        keyBuilder.append("cache/tryon/").append(userId).append("/");
+        
+        // 베이스 아바타인 경우 base 폴더에 저장
+        Profile profile = profileRepository.findById(userId).orElse(null);
+        boolean isBaseAvatar = profile != null && 
+                               profile.getUserBaseImageUrl() != null && 
+                               profile.getUserBaseImageUrl().contains("base/default_avatar");
+        
+        if (isBaseAvatar) {
+            keyBuilder.append("cache/tryon/base/");
+        } else {
+            keyBuilder.append("cache/tryon/").append(userId).append("/");
+        }
 
         if (topId != null && bottomId != null) {
             keyBuilder.append("top-").append(topId).append("_bottom-").append(bottomId);
@@ -99,8 +110,8 @@ public class AvatarServiceImpl implements AvatarService {
         keyBuilder.append(".png");
 
         String cacheKey = keyBuilder.toString();
-        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 키: {}",
-            userId, topId, bottomId, cacheKey);
+        log.info("조합 캐시 키 생성 - userId: {}, topId: {}, bottomId: {}, 베이스아바타: {}, 키: {}",
+            userId, topId, bottomId, isBaseAvatar, cacheKey);
         return cacheKey;
     }
 
@@ -167,6 +178,45 @@ public class AvatarServiceImpl implements AvatarService {
     @Transactional
     public AvatarCreateResponse createAvatar(Member member, AvatarCreateRequest avatarCreateRequest) {
         log.info("아바타 생성 요청 시작 - userId: {}", member.getId());
+        
+        // 기본 아바타 URL인지 확인
+        boolean isDefaultAvatar = avatarCreateRequest.getTryOnImgUrl().contains("base/default_avatar");
+        
+        // 기본 아바타인 경우 FastAPI 호출 없이 기본 에셋 사용
+        if (isDefaultAvatar) {
+            log.info("기본 아바타 사용 - userId: {}", member.getId());
+            
+            // 기본 에셋 파일을 사용자 폴더로 복사
+            copyDefaultAvatarAssets(member.getId());
+            
+            // 아바타 DB 저장
+            Avatar newAvatar = Avatar.builder()
+                .member(member)
+                .avatarImg(avatarCreateRequest.getTryOnImgUrl())
+                .build();
+                
+            Avatar savedAvatar = avatarRepository.save(newAvatar);
+            
+            // 프로필에 베이스 이미지 URL 업데이트
+            Profile profile = member.getProfile();
+            if (profile != null) {
+                String oldUserBaseImageUrl = profile.getUserBaseImageUrl();
+                String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
+                
+                profile.setUserBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+                profile.setAvatarBaseImageUrl(avatarCreateRequest.getTryOnImgUrl());
+                
+                // 프로필 변경사항 명시적으로 저장
+                profileRepository.save(profile);
+                
+                log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
+                        oldUserBaseImageUrl, avatarCreateRequest.getTryOnImgUrl(),
+                        oldAvatarBaseImageUrl, avatarCreateRequest.getTryOnImgUrl());
+            }
+            
+            log.info("기본 아바타 생성 및 DB 저장 완료 - userId: {}, 마스크/포즈 URL 설정됨", member.getId());
+            return AvatarCreateResponse.fromEntity(savedAvatar);
+        }
 
         // 1. Python API에 작업 요청 보내고 Celery Task ID 받기
         String celeryTaskId = requestTaskToFastApi("/generate", avatarCreateRequest);
@@ -625,8 +675,9 @@ public class AvatarServiceImpl implements AvatarService {
             // S3에서 해당 사용자의 캐시 파일들을 삭제
             String cachePrefix = "cache/tryon/" + userId + "/";
             deleteS3ObjectsWithPrefix(cachePrefix);
-
-            log.info("사용자 캐시 무효화 완료 - userId: {}", userId);
+            
+            // base 폴더는 삭제하지 않음 (공유 리소스이므로)
+            log.info("사용자 캐시 무효화 완료 - userId: {} (base 폴더는 유지됨)", userId);
 
         } catch (Exception e) {
             log.warn("캐시 무효화 중 오류 발생 - userId: {}, error: {}", userId, e.getMessage());
@@ -669,16 +720,16 @@ public class AvatarServiceImpl implements AvatarService {
     @Override
     public AvatarImageUploadCompleteResponse processAvatarImageUploadComplete(Member member, AvatarImageUploadCompleteRequest request) {
         try {
-            log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}",
-                member.getId(), request.getNewAvatarImageUrl());
+            log.info("아바타 이미지 업로드 완료 처리 시작 - userId: {}, newImageUrl: {}, 설정하지 않음: {}",
+                member.getId(), request.getNewAvatarImageUrl(), request.isSkipAvatarSetup());
 
-            // 요청 데이터 검증
-            if (request.getNewAvatarImageUrl() == null || request.getNewAvatarImageUrl().trim().isEmpty()) {
+            // "설정하지 않음" 옵션이 아닌 경우에만 URL 검증
+            if (!request.isSkipAvatarSetup() && (request.getNewAvatarImageUrl() == null || request.getNewAvatarImageUrl().trim().isEmpty())) {
                 log.error("새 아바타 이미지 URL이 비어있습니다 - userId: {}", member.getId());
                 return AvatarImageUploadCompleteResponse.failure("새 아바타 이미지 URL이 제공되지 않았습니다.");
             }
 
-            // 1. 프로필의 베이스 이미지 URL 업데이트 (회원가입과 동일)
+            // 1. 프로필의 베이스 이미지 URL 업데이트
             Profile profile = member.getProfile();
             if (profile == null) {
                 throw new BusinessException(HttpStatus.NOT_FOUND, "사용자 프로필을 찾을 수 없습니다.");
@@ -686,22 +737,36 @@ public class AvatarServiceImpl implements AvatarService {
 
             String oldBaseImageUrl = profile.getUserBaseImageUrl();
             String oldAvatarBaseImageUrl = profile.getAvatarBaseImageUrl();
+            String newAvatarImageUrl;
+            
+            // "설정하지 않음" 선택 시 base 아바타 사용
+            if (request.isSkipAvatarSetup()) {
+                // 기본 아바타 URL 설정 (S3에 저장된 기본 아바타 이미지 URL)
+                newAvatarImageUrl = "https://" + bucketName + ".s3." + region + ".amazonaws.com/base/default_avatar.png";
+                log.info("기본 아바타 사용 - URL: {}", newAvatarImageUrl);
+                
+                // 기본 마스크 파일들을 사용자 폴더로 복사
+                copyDefaultAvatarAssets(member.getId());
+            } else {
+                // 사용자가 업로드한 이미지 사용
+                newAvatarImageUrl = request.getNewAvatarImageUrl();
+            }
             
             // userBaseImageUrl과 avatarBaseImageUrl 모두 업데이트
-            profile.setUserBaseImageUrl(request.getNewAvatarImageUrl());
-            profile.setAvatarBaseImageUrl(request.getNewAvatarImageUrl());
+            profile.setUserBaseImageUrl(newAvatarImageUrl);
+            profile.setAvatarBaseImageUrl(newAvatarImageUrl);
             
             // 프로필 변경사항 명시적으로 저장
             profileRepository.save(profile);
             
             log.info("프로필 이미지 업데이트 및 저장 완료: userBaseImageUrl: {} -> {}, avatarBaseImageUrl: {} -> {}", 
-                    oldBaseImageUrl, request.getNewAvatarImageUrl(),
-                    oldAvatarBaseImageUrl, request.getNewAvatarImageUrl());
+                    oldBaseImageUrl, newAvatarImageUrl,
+                    oldAvatarBaseImageUrl, newAvatarImageUrl);
 
-            // 2. 아바타 생성 (회원가입과 동일한 방식)
+            // 2. 아바타 생성
             AvatarCreateRequest avatarCreateRequest = new AvatarCreateRequest(
                 member.getId().toString(),
-                request.getNewAvatarImageUrl()
+                newAvatarImageUrl
             );
 
             AvatarCreateResponse avatarCreateResponse = createAvatar(member, avatarCreateRequest);
@@ -720,7 +785,7 @@ public class AvatarServiceImpl implements AvatarService {
             log.info("아바타 이미지 업로드 완료 처리 완료 - userId: {}", member.getId());
 
             return AvatarImageUploadCompleteResponse.success(
-                request.getNewAvatarImageUrl(),
+                newAvatarImageUrl,
                 avatarCreateResponse.getTryOnImgUrl()
             );
 
@@ -734,5 +799,47 @@ public class AvatarServiceImpl implements AvatarService {
             return AvatarImageUploadCompleteResponse.failure("아바타 이미지 업로드 완료 처리 중 오류가 발생했습니다.");
         }
     }
-
+    
+    /**
+     * 기본 아바타 에셋(마스크, 포즈 이미지)을 사용자 폴더로 복사합니다.
+     * 회원가입 시 아바타 설정을 건너뛰는 경우 호출됩니다.
+     */
+    private void copyDefaultAvatarAssets(Long userId) {
+        try {
+            log.info("기본 아바타 에셋 복사 시작 - userId: {}", userId);
+            
+            // 기본 에셋 파일 목록
+            String[] assetFiles = {
+                "pose.png",
+                "upper_mask.png",
+                "lower_mask.png"
+            };
+            
+            // 각 파일을 복사
+            for (String assetFile : assetFiles) {
+                // 소스 키 (기본 아바타 에셋)
+                String sourceKey = "users/base/" + assetFile;
+                
+                // 대상 키 (사용자별 폴더)
+                String destinationKey = "users/" + userId + "/" + assetFile;
+                
+                // S3 복사 요청
+                software.amazon.awssdk.services.s3.model.CopyObjectRequest copyRequest = 
+                    software.amazon.awssdk.services.s3.model.CopyObjectRequest.builder()
+                        .sourceBucket(bucketName)
+                        .sourceKey(sourceKey)
+                        .destinationBucket(bucketName)
+                        .destinationKey(destinationKey)
+                        .build();
+                
+                s3Client.copyObject(copyRequest);
+                log.info("에셋 파일 복사 완료: {} -> {}", sourceKey, destinationKey);
+            }
+            
+            log.info("기본 아바타 에셋 복사 완료 - userId: {}", userId);
+        } catch (Exception e) {
+            log.error("기본 아바타 에셋 복사 실패 - userId: {}, error: {}", userId, e.getMessage());
+            // 복사 실패해도 진행은 계속함 (중요하지 않은 오류로 처리)
+        }
+    }
 }
