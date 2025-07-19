@@ -6,12 +6,11 @@ import com.tryiton.core.common.service.SharedDataAccessor;
 import com.tryiton.core.product.dto.ProductResponseDto;
 import com.tryiton.core.product.entity.Product;
 import com.tryiton.core.product.repository.ProductRepository;
+import com.tryiton.core.recommend.dto.CachedProductDto;
 import com.tryiton.core.recommend.dto.CollaborativeFilteringMatrix;
-import com.tryiton.core.recommend.dto.LambdaBatchDto;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,7 @@ public class RecommendationService {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
-    private final ProductRepository productRepository;
+    private final ProductRepository productRepository; // 호환성을 위해 유지
     private final WishlistRepository wishlistRepository;
     private final SharedDataAccessor sharedDataAccessor;
 
@@ -46,63 +45,30 @@ public class RecommendationService {
     // 트렌딩 상품 조회 - ProductResponseDto 반환
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getTrendingProducts(Long userId) {
+        final String cacheKey = "recommend:trending";
+        final String sharedKey = "trending";
         try {
             // 공유 데이터 접근자를 통해 먼저 조회 시도
-            if (sharedDataAccessor.hasSharedData("trending")) {
+            if (sharedDataAccessor.hasSharedData(sharedKey)) {
                 log.info("공유 데이터 접근자를 통해 트렌딩 상품 조회");
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData("trending", new TypeReference<List<LambdaBatchDto>>() {});
-                if (lambdaProducts != null && !lambdaProducts.isEmpty()) {
-                    return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+                List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
+                if (cachedProducts != null && !cachedProducts.isEmpty()) {
+                    return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
             
-            // 기존 방식으로 조회
-            Object rawData = redisTemplate.opsForValue().get("recommend:trending");
-            log.info("트렌딩 상품 조회 데이터 타입: {}", rawData != null ? rawData.getClass().getName() : "null");
+            Object rawData = redisTemplate.opsForValue().get(cacheKey);
+            if (rawData == null) return Collections.emptyList();
+
+            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
             
-            List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData != null) {
-                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
-            }
-            
-            if (lambdaProducts != null && !lambdaProducts.isEmpty()) {
+            if (cachedProducts != null && !cachedProducts.isEmpty()) {
                 log.info("트렌딩 상품 조회 데이터 존재");
-                
-                // 공유 데이터로 저장
-                sharedDataAccessor.saveSharedData("trending", lambdaProducts);
-                
-                return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+                sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
+                return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
             log.error("트렌딩 상품 조회 실패: {}", e.getMessage(), e);
-        }
-        return Collections.emptyList();
-    }
-
-    // 기존 호환성을 위한 메서드 (Product 엔티티 반환)
-    public List<Product> getTrendingProductsAsEntity() {
-        try {
-            // 공유 데이터 접근자를 통해 먼저 조회 시도
-            if (sharedDataAccessor.hasSharedData("trending")) {
-                List<Product> products = sharedDataAccessor.getSharedData("trending", new TypeReference<List<Product>>() {});
-                if (products != null && !products.isEmpty()) {
-                    return products;
-                }
-            }
-            
-            // 기존 방식으로 조회
-            Object rawData = redisTemplate.opsForValue().get("recommend:trending");
-            
-            List<Product> products = null;
-            if (rawData != null) {
-                products = objectMapper.convertValue(rawData, new TypeReference<List<Product>>() {});
-            }
-            
-            if (products != null && !products.isEmpty()) {
-                return products;
-            }
-        } catch (Exception e) {
-            log.error("트렌딩 상품 조회 실패", e);
         }
         return Collections.emptyList();
     }
@@ -115,27 +81,21 @@ public class RecommendationService {
         String sharedKey = String.format("age_group:%s:%s", ageRange, genderKey);
         
         try {
-            // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<List<LambdaBatchDto>>() {});
-                if (lambdaProducts != null) {
-                    return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+                List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
+                if (cachedProducts != null) {
+                    return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
             
-            // 기존 방식으로 조회
             Object rawData = redisTemplate.opsForValue().get(key);
+            if (rawData == null) return Collections.emptyList();
+
+            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
             
-            List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData != null) {
-                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
-            }
-            
-            if (lambdaProducts != null) {
-                // 공유 데이터로 저장
-                sharedDataAccessor.saveSharedData(sharedKey, lambdaProducts);
-                
-                return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+            if (cachedProducts != null) {
+                sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
+                return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
             log.error("연령대별 추천 파싱 오류", e);
@@ -150,27 +110,21 @@ public class RecommendationService {
         String sharedKey = "similar_to:" + productId;
         
         try {
-            // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<List<LambdaBatchDto>>() {});
-                if (lambdaProducts != null) {
-                    return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+                List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
+                if (cachedProducts != null) {
+                    return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
             
-            // 기존 방식으로 조회
             Object rawData = redisTemplate.opsForValue().get(key);
+            if (rawData == null) return Collections.emptyList();
             
-            List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData != null) {
-                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
-            }
+            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
             
-            if (lambdaProducts != null) {
-                // 공유 데이터로 저장
-                sharedDataAccessor.saveSharedData(sharedKey, lambdaProducts);
-                
-                return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+            if (cachedProducts != null) {
+                sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
+                return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
             log.error("유사 상품 추천 파싱 오류", e);
@@ -185,27 +139,21 @@ public class RecommendationService {
         String sharedKey = "tryon_based:" + userId;
         
         try {
-            // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                List<LambdaBatchDto> lambdaProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<List<LambdaBatchDto>>() {});
-                if (lambdaProducts != null) {
-                    return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+                List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
+                if (cachedProducts != null) {
+                    return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
             
-            // 기존 방식으로 조회
             Object rawData = redisTemplate.opsForValue().get(key);
+            if (rawData == null) return Collections.emptyList();
+
+            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
             
-            List<LambdaBatchDto> lambdaProducts = null;
-            if (rawData != null) {
-                lambdaProducts = objectMapper.convertValue(rawData, new TypeReference<List<LambdaBatchDto>>() {});
-            }
-            
-            if (lambdaProducts != null) {
-                // 공유 데이터로 저장
-                sharedDataAccessor.saveSharedData(sharedKey, lambdaProducts);
-                
-                return convertLambdaProductsToResponseDto(lambdaProducts, userId);
+            if (cachedProducts != null) {
+                sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
+                return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
             log.error("Try-on 추천 파싱 오류", e);
@@ -213,18 +161,80 @@ public class RecommendationService {
         return Collections.emptyList();
     }
 
+    /**
+     * 캐시된 상품 정보 리스트를 최종 응답 DTO 리스트로 변환합니다.
+     * 이 메소드는 DB에서 상품 정보를 조회하지 않습니다.
+     * @param cachedProducts Redis에서 가져온 상품 정보 리스트
+     * @param userId 현재 사용자 ID
+     * @return 프론트엔드로 보낼 최종 DTO 리스트
+     */
+    private List<ProductResponseDto> convertCachedProductsToResponseDto(List<CachedProductDto> cachedProducts, Long userId) {
+        if (cachedProducts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 찜 목록만 DB에서 조회합니다.
+        Set<Long> likedProductIds = getUserLikedProductIds(userId);
+
+        return cachedProducts.stream()
+            .map(cachedProduct -> new ProductResponseDto(cachedProduct, likedProductIds.contains(cachedProduct.getProductId())))
+            .collect(Collectors.toList());
+    }
+
+    // 사용자 찜 목록 조회
+    private Set<Long> getUserLikedProductIds(Long userId) {
+        try {
+            if (userId == null) {
+                return Collections.emptySet();
+            }
+            List<Long> likedProductIds = wishlistRepository.findProductIdsByUserId(userId);
+            return likedProductIds.stream().collect(Collectors.toSet());
+        } catch (Exception e) {
+            log.warn("사용자 {}의 찜 목록 조회 실패: {}", userId, e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    // ==========================================================================================
+    // 아래는 호환성 유지를 위한 레거시 또는 관리용 메소드들입니다.
+    // ==========================================================================================
+
+    // 기존 호환성을 위한 메서드 (Product 엔티티 반환)
+    public List<Product> getTrendingProductsAsEntity() {
+        try {
+            if (sharedDataAccessor.hasSharedData("trending")) {
+                List<Product> products = sharedDataAccessor.getSharedData("trending", new TypeReference<>() {});
+                if (products != null && !products.isEmpty()) {
+                    return products;
+                }
+            }
+            
+            Object rawData = redisTemplate.opsForValue().get("recommend:trending");
+            
+            List<Product> products = null;
+            if (rawData != null) {
+                products = objectMapper.convertValue(rawData, new TypeReference<>() {});
+            }
+            
+            if (products != null && !products.isEmpty()) {
+                return products;
+            }
+        } catch (Exception e) {
+            log.error("트렌딩 상품 조회 실패", e);
+        }
+        return Collections.emptyList();
+    }
+    
     // 협업필터링 매트릭스 조회
     public CollaborativeFilteringMatrix getCFMatrix() {
         String key = "recommend:cf_matrix";
         String sharedKey = "cf_matrix";
         
         try {
-            // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
                 return sharedDataAccessor.getSharedData(sharedKey, CollaborativeFilteringMatrix.class);
             }
             
-            // 기존 방식으로 조회
             Object rawData = redisTemplate.opsForValue().get(key);
             
             CollaborativeFilteringMatrix matrix = null;
@@ -235,9 +245,7 @@ public class RecommendationService {
             }
             
             if (matrix != null) {
-                // 공유 데이터로 저장
                 sharedDataAccessor.saveSharedData(sharedKey, matrix);
-                
                 return matrix;
             }
         } catch (Exception e) {
@@ -246,6 +254,7 @@ public class RecommendationService {
         return null;
     }
 
+    /*
     // Redis 데이터를 ProductResponseDto로 변환하는 공통 메서드
     private List<ProductResponseDto> parseRedisDataToProductResponseDto(String data, Long userId) {
         try {
@@ -305,23 +314,10 @@ public class RecommendationService {
                 null  // categoryName
             );
         } catch (Exception e) {
-            log.error("Lambda 데이터로 ProductResponseDto 생성 실패: productId={}, error={}", 
+            log.error("Lambda 데이터로 ProductResponseDto 생성 실패: productId={}, error={}",
                 lambdaProduct.getProductId(), e.getMessage());
             return null;
         }
     }
-
-    // 사용자 찜 목록 조회
-    private Set<Long> getUserLikedProductIds(Long userId) {
-        try {
-            if (userId == null) {
-                return Collections.emptySet();
-            }
-            List<Long> likedProductIds = wishlistRepository.findProductIdsByUserId(userId);
-            return likedProductIds.stream().collect(Collectors.toSet());
-        } catch (Exception e) {
-            log.warn("사용자 {}의 찜 목록 조회 실패: {}", userId, e.getMessage());
-            return Collections.emptySet();
-        }
-    }
+    */
 }

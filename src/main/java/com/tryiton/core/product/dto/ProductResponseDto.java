@@ -1,6 +1,7 @@
 package com.tryiton.core.product.dto;
 
 import com.tryiton.core.product.entity.Product;
+import com.tryiton.core.recommend.dto.CachedProductDto;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -35,7 +36,7 @@ public class ProductResponseDto {
         this.categoryId = product.getCategory().getId();
         this.categoryName = product.getCategory().getCategoryName();
         
-        // 할인된 가격 계산
+        // ���인된 가격 계산
         if (product.getSale() > 0) {
             this.salePrice = (int) Math.round(product.getPrice() * (100.0 - product.getSale()) / 100.0);
         } else {
@@ -43,22 +44,24 @@ public class ProductResponseDto {
         }
     }
 
-    // Lambda 데이터로부터 ProductResponseDto 생성하는 생성자
-    public ProductResponseDto(Long id, String productName, String img1, int price, int sale, 
-                             int salePrice, boolean liked, String brand, int wishlistCount, 
-                             LocalDateTime createdAt, Long categoryId, String categoryName) {
-        this.id = id;
-        this.productName = productName;
-        this.img1 = img1;
-        this.price = price;
-        this.sale = sale;
-        this.salePrice = salePrice;
+    /**
+     * 캐시된 상품 정보로부터 응답 DTO를 생성하는 생성자
+     * @param cachedProduct Redis에 캐시되어 있던 상품 정보
+     * @param liked 현재 사용자의 찜 여부
+     */
+    public ProductResponseDto(CachedProductDto cachedProduct, boolean liked) {
+        this.id = cachedProduct.getProductId();
+        this.productName = cachedProduct.getProductName();
+        this.img1 = cachedProduct.getImageUrl();
+        this.price = cachedProduct.getPrice();
+        this.sale = cachedProduct.getSale();
+        this.salePrice = cachedProduct.getSalePrice();
         this.liked = liked;
-        this.brand = brand;
-        this.wishlistCount = wishlistCount;
-        this.createdAt = createdAt;
-        this.categoryId = categoryId;
-        this.categoryName = categoryName;
+        this.brand = cachedProduct.getBrand();
+        this.wishlistCount = (int) cachedProduct.getWishlistCount();
+        this.createdAt = cachedProduct.getCreatedAt();
+        this.categoryId = cachedProduct.getCategoryId();
+        this.categoryName = cachedProduct.getCategoryName();
     }
 
     public static ProductResponseDto from(Product product, boolean liked) {
