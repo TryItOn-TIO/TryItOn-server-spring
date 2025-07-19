@@ -56,25 +56,24 @@ public class ProductService {
     }
 
     @Cacheable(value = "categoryProducts", key = "'category:' + #category.id + ':page:' + #page + ':size:' + #size")
-    public Page<ProductResponseDto> getProductsByCategory(Long userId, Category category, int page, int size) {
+    public Page<ProductSummaryDto> getProductsByCategory(Long userId, Category category, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, 
             Sort.by("wishlistCount").descending().and(Sort.by("createAt").descending()));
 
-        Page<Product> products = productRepository.findByCategoryHierarchyAndDeletedFalse(
+        Page<ProductSummaryDto> products = productRepository.findSummaryByCategoryHierarchy(
             category.getId(), pageable);
 
-        if (products == null) {
+        if (products == null || !products.hasContent()) {
             return Page.empty();
         }
 
         if (userId != null) {
             Set<Long> likedProductIds = new HashSet<>(
                 wishlistRepository.findProductIdsByUserId(userId));
-            return products.map(product -> 
-                new ProductResponseDto(product, likedProductIds.contains(product.getId())));
+            products.forEach(dto -> dto.setLiked(likedProductIds.contains(dto.getId())));
         }
 
-        return products.map(product -> new ProductResponseDto(product, false));
+        return products;
     }
 
     @Cacheable(value = "mainProducts", key = "'main:products'", unless = "#result == null")

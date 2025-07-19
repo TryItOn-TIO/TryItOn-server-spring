@@ -23,7 +23,7 @@ public class ProductController {
     private final CategoryService categoryService;
 
     @GetMapping("/category")
-    public ResponseEntity<CategoryProductResponse> getCategoryProducts(
+    public ResponseEntity<Page<ProductSummaryDto>> getCategoryProducts(
         @AuthenticationPrincipal() CustomUserDetails customUserDetails,
         @RequestParam Long categoryId,
         @RequestParam(defaultValue = "0") int page,
@@ -33,11 +33,11 @@ public class ProductController {
         Long userId = (customUserDetails != null) ? customUserDetails.getUser().getId() : null;
 
         Category category = categoryService.findByIdWithChildren(categoryId);
-        Page<ProductResponseDto> products = productService.getProductsByCategory(userId, category,
+        Page<ProductSummaryDto> products = productService.getProductsByCategory(userId, category,
             page,
             size);
 
-        return ResponseEntity.ok(new CategoryProductResponse(products));
+        return ResponseEntity.ok(products);
     }
 
     // 검색 기능
