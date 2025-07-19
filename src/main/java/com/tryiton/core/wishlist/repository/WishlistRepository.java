@@ -5,6 +5,7 @@ import com.tryiton.core.wishlist.entity.Wishlist;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,4 +21,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
 
     @Query("SELECT COUNT(wi) > 0 FROM WishlistItem wi WHERE wi.wishlist.user.id = :userId AND wi.product.id = :productId")
     boolean existsByUserIdAndProductId(@Param("userId") Long userId, @Param("productId") Long productId);
+
+    @Query("SELECT wi.product.id FROM WishlistItem wi WHERE wi.wishlist.user.id = :userId AND wi.product.id IN :productIds")
+    Set<Long> findProductIdsByMemberIdAndProductIdsIn(@Param("userId") Long userId, @Param("productIds") List<Long> productIds);
 }

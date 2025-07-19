@@ -4,6 +4,7 @@ import com.tryiton.core.common.exception.BusinessException;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ public class CategoryService {
                 "Category not found with id: " + categoryId));
     }
 
+    @Cacheable(value = "categories", key = "#categoryId")
     public Category findByIdWithChildren(Long categoryId) {
         return categoryRepository.findByIdWithChildren(categoryId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,

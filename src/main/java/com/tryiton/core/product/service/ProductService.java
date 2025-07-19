@@ -63,6 +63,10 @@ public class ProductService {
         Page<Product> products = productRepository.findByCategoryHierarchyAndDeletedFalse(
             category.getId(), pageable);
 
+        if (products == null) {
+            return Page.empty();
+        }
+
         if (userId != null) {
             Set<Long> likedProductIds = new HashSet<>(
                 wishlistRepository.findProductIdsByUserId(userId));
