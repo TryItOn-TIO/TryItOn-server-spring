@@ -111,28 +111,7 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return createConnectionFactory(cacheRedisHost, cacheRedisPort, sslEnabled);
     }
 
-    // JSON 직렬화를 위한 ObjectMapper 설정
-    private ObjectMapper objectMapper() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule()); // Java 8 날짜/시간 타입 지원
-        objectMapper.registerModule(new SimpleModule().addDeserializer(
-            PageImpl.class,
-            new JsonDeserializer<PageImpl>() {
-                @Override
-                public PageImpl deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-                    JsonNode node = p.getCodec().readTree(p);
-                    List content = new ObjectMapper().readValue(node.get("content").traverse(), new com.fasterxml.jackson.core.type.TypeReference<List<Object>>() {});
-                    JsonNode pageableNode = node.get("pageable");
-                    int number = pageableNode.get("pageNumber").asInt();
-                    int size = pageableNode.get("pageSize").asInt();
-                    long total = node.get("totalElements").asLong();
-                    return new PageImpl<>(content, PageRequest.of(number, size), total);
-                }
-            }
-        ));
-        objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        return objectMapper;
-    }
+    
 
     // 일반 Redis 템플릿 (문자열 직렬화)
     @Bean(name = "redisTemplate")
