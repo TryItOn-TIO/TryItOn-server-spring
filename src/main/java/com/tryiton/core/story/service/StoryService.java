@@ -88,7 +88,7 @@ public class StoryService {
 
     @Transactional
     public StoryResponseDto updateStory(Member author, Long storyId, StoryPutDto storyPutDto){
-        // N+1 쿼리 해결: 모든 연관 엔티티를 함�� 조회
+        // N+1 쿼리 해결: 모든 연관 엔티티를 함께 조회
         Story story = storyRepository.findByIdWithAllAssociations(storyId)
             .orElseThrow(() -> new IllegalArgumentException("해당 스토리를 찾을 수 없습니다."));
 
@@ -236,23 +236,7 @@ public class StoryService {
             return StoriesSummaryResponseDto.builder().stories(Collections.emptyList()).length(0).build();
         }
 
-        // 'liked' 상태 업데이트
-        if (user != null) {
-            List<Long> storyIds = summaries.stream().map(StorySummaryDto::getStoryId).collect(Collectors.toList());
-            Set<Long> likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(user.getId(), storyIds);
-            summaries.forEach(summary -> {
-                if (likedStoryIds.contains(summary.getStoryId())) {
-                    // StorySummaryDto는 불변이므로, liked 필드를 변경하기 위해 새로운 인스턴스를 생성해야 합니다.
-                    // 하지만 DTO에 setter를 추가하거나, 빌더를 다시 사용하는 것은 번거롭습니다.
-                    // 이 예제에서는 StorySummaryDto에 'liked'를 설정하는 메소드가 없으므로,
-                    // 'liked' 필드를 설정하기 위한 추가 작업이 필요합니다.
-                    // StorySummaryDto에 setter를 추가하거나, 빌더를 사용하여 새 객체를 만들어야 합니다.
-                    // 여기서는 설명을 위해 개념적으로만 표시합니다.
-                    // summary.setLiked(true); // <- StorySummaryDto를 수정해야 함
-                }
-            });
-        }
-
+        updateLikedStatus(user, summaries);
         return StoriesSummaryResponseDto.builder()
                 .stories(summaries)
                 .length(summaries.size())
@@ -283,17 +267,19 @@ public class StoryService {
             return StoriesSummaryResponseDto.builder().stories(Collections.emptyList()).length(0).build();
         }
 
-        // 'liked' 상태 업데이트 (위와 동일한 고려사항)
-        if (user != null) {
-            List<Long> storyIds = summaries.stream().map(StorySummaryDto::getStoryId).collect(Collectors.toList());
-            Set<Long> likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(user.getId(), storyIds);
-            // summaries.forEach(summary -> summary.setLiked(likedStoryIds.contains(summary.getStoryId())));
-        }
-
+        updateLikedStatus(user, summaries);
         return StoriesSummaryResponseDto.builder()
                 .stories(summaries)
                 .length(summaries.size())
                 .build();
+    }
+
+    private void updateLikedStatus(Member user, List<StorySummaryDto> summaries) {
+        if (user != null) {
+            List<Long> storyIds = summaries.stream().map(StorySummaryDto::getStoryId).collect(Collectors.toList());
+            Set<Long> likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(user.getId(), storyIds);
+            summaries.forEach(summary -> summary.setLiked(likedStoryIds.contains(summary.getStoryId())));
+        }
     }
 
     public List<StoryResponseDto> getMyStories(Member user) {
