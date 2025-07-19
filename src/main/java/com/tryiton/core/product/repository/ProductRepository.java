@@ -1,5 +1,6 @@
 package com.tryiton.core.product.repository;
 
+import com.tryiton.core.product.dto.ProductSummaryDto;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
 import java.util.List;
