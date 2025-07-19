@@ -134,7 +134,7 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     @Bean(name = "recommendRedisTemplate")
     public RedisTemplate<String, Object> recommendRedisTemplate(
             @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory,
-            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
+            ObjectMapper objectMapper) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
