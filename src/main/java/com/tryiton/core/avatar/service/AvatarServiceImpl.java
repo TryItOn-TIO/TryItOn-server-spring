@@ -143,9 +143,9 @@ public class AvatarServiceImpl implements AvatarService {
     public AvatarTryOnResponse getLatestAvatarWithProducts(Long userId) {
         Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
 
-        // 아바타가 없을 때는?
+        // 아바타가 없을 때는 빈 응답을 반환하여 프론트엔드 오류 방지
         if (avatar == null) {
-            return null;
+            return new AvatarTryOnResponse(null, null, java.util.Collections.emptyList());
         }
 
         List<AvatarTryOnResponse.ProductInfo> productInfos = avatar.getItems().stream()

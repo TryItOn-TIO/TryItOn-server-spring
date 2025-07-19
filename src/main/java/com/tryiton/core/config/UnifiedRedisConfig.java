@@ -84,8 +84,7 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
         LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder()
                 .clientOptions(clientOptions())
-                .clientResources(clientResources())
-                .clientName("tryiton-client");
+                .clientResources(clientResources());
 
         if (useSsl) {
             clientConfigBuilder.useSsl();
