@@ -84,8 +84,7 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
         LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder()
                 .clientOptions(clientOptions())
-                .clientResources(clientResources())
-                .clientName("tryiton-client");
+                .clientResources(clientResources());
 
         if (useSsl) {
             clientConfigBuilder.useSsl();
@@ -135,7 +134,7 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     @Bean(name = "recommendRedisTemplate")
     public RedisTemplate<String, Object> recommendRedisTemplate(
             @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory,
-            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
+            ObjectMapper objectMapper) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
