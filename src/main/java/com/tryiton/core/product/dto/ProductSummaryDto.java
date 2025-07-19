@@ -16,12 +16,14 @@ public class ProductSummaryDto {
     private String brand;
     private int wishlistCount;
     private LocalDateTime createdAt;
+    private Long categoryId;
+    private String categoryName;
 
     @Setter
     private boolean liked;
 
     // JPQL 프로젝션을 위한 생성자
-    public ProductSummaryDto(Long id, String productName, String img1, int price, int sale, String brand, int wishlistCount, LocalDateTime createdAt) {
+    public ProductSummaryDto(Long id, String productName, String img1, int price, int sale, String brand, int wishlistCount, LocalDateTime createdAt, Long categoryId, String categoryName) {
         this.id = id;
         this.productName = productName;
         this.img1 = img1;
@@ -30,6 +32,8 @@ public class ProductSummaryDto {
         this.brand = brand;
         this.wishlistCount = wishlistCount;
         this.createdAt = createdAt;
+        this.categoryId = categoryId;
+        this.categoryName = categoryName;
 
         if (sale > 0) {
             this.salePrice = (int) Math.round(price * (100.0 - sale) / 100.0);

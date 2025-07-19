@@ -8,6 +8,6 @@ import org.springframework.data.domain.Page;
 @AllArgsConstructor
 public class CategoryProductResponse {
 
-    private Page<ProductResponseDto> products;
+    private Page<ProductSummaryDto> products;
     // private AvatarProductInfoDto avatarInfo;
 }
