@@ -215,8 +215,8 @@ public class UnifiedRedisConfig implements CachingConfigurer {
 
             List<?> content = objectMapper.convertValue(jsonNode.get("content"), List.class);
             JsonNode pageableNode = jsonNode.get("pageable");
-            int page = pageableNode.get("pageNumber").asInt();
-            int size = pageableNode.get("pageSize").asInt();
+            int page = pageableNode.has("pageNumber") ? pageableNode.get("pageNumber").asInt() : jsonNode.get("number").asInt();
+            int size = pageableNode.has("pageSize") ? pageableNode.get("pageSize").asInt() : jsonNode.get("size").asInt();
             long total = jsonNode.get("totalElements").asLong();
 
             return new PageImpl<>(content, PageRequest.of(page, size), total);
