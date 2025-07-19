@@ -8,6 +8,6 @@ import java.util.List;
 @Getter
 @Builder
 public class StoriesSummaryResponseDto {
-    private final List<StorySummaryDto> stories;
-    private final int length;
+    private List<StorySummaryDto> stories;
+    private int length;
 }
