@@ -185,7 +185,8 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     public RedisCacheManager cacheManager(
             @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory) {
         
-        Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(objectMapper(), Object.class);
+        // PageImpl을 포함한 모든 객체를 처리할 수 있는 ObjectMapper를 사용한 Serializer 생성
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper());
 
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
             .entryTtl(Duration.ofMinutes(30))
