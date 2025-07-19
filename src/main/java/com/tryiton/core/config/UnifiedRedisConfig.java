@@ -1,15 +1,13 @@
 package com.tryiton.core.config;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import io.lettuce.core.resource.DefaultClientResources;
@@ -33,7 +31,6 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -68,22 +65,21 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     @Bean
     public ClientOptions clientOptions() {
         return ClientOptions.builder()
-            .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
-            .autoReconnect(true)
-            .socketOptions(SocketOptions.builder().keepAlive(true).build())
-            .build();
+                .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
+                .autoReconnect(true)
+                .socketOptions(SocketOptions.builder().keepAlive(true).build())
+                .build();
     }
 
     @Bean
     public io.lettuce.core.resource.ClientResources clientResources() {
         return DefaultClientResources.builder()
-            .ioThreadPoolSize(4)
-            .computationThreadPoolSize(4)
-            .commandLatencyCollector(io.lettuce.core.metrics.DefaultCommandLatencyCollector.disabled())
-            .build();
+                .ioThreadPoolSize(4)
+                .computationThreadPoolSize(4)
+                .commandLatencyCollector(io.lettuce.core.metrics.DefaultCommandLatencyCollector.disabled())
+                .build();
     }
 
-    // 공통 연결 팩토리 생성 메서드
     private RedisConnectionFactory createConnectionFactory(String host, int port, boolean useSsl) {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration(host, port);
         LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder()
@@ -98,22 +94,31 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return new LettuceConnectionFactory(redisConfig, clientConfigBuilder.build());
     }
 
-    // 일반 Redis 연결 팩토리
     @Bean(name = "redisConnectionFactory")
     @Primary
     public RedisConnectionFactory redisConnectionFactory() {
         return createConnectionFactory(redisHost, redisPort, sslEnabled);
     }
 
-    // 캐시 Redis 연결 팩토리
     @Bean(name = "cacheRedisConnectionFactory")
     public RedisConnectionFactory cacheRedisConnectionFactory() {
         return createConnectionFactory(cacheRedisHost, cacheRedisPort, sslEnabled);
     }
 
-    
+    @Bean
+    @Qualifier("cacheObjectMapper")
+    public ObjectMapper cacheObjectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
 
-    // 일반 Redis 템플릿 (문자열 직렬화)
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(PageImpl.class, new PageImplDeserializer());
+        objectMapper.registerModule(module);
+
+        return objectMapper;
+    }
+
     @Bean(name = "redisTemplate")
     @Primary
     public RedisTemplate<String, String> redisTemplate(
@@ -127,11 +132,10 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return template;
     }
 
-    // 추천 기능용 Redis 템플릿 (JSON 직렬화)
     @Bean(name = "recommendRedisTemplate")
     public RedisTemplate<String, Object> recommendRedisTemplate(
             @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory,
-            ObjectMapper objectMapper) { // ObjectMapper 주입
+            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
@@ -144,11 +148,10 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return template;
     }
 
-    // 캐시 및 JSON 데이터용 Redis 템플릿
     @Bean(name = "cacheRedisTemplate")
     public RedisTemplate<String, Object> cacheRedisTemplate(
             @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory,
-            ObjectMapper objectMapper) { // ObjectMapper 주입
+            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
@@ -161,18 +164,17 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         return template;
     }
 
-    // 캐시 매니저 설정
     @Bean
     public RedisCacheManager cacheManager(
             @Qualifier("cacheRedisConnectionFactory") RedisConnectionFactory connectionFactory,
-            ObjectMapper objectMapper) { // ObjectMapper 주입
-        
+            @Qualifier("cacheObjectMapper") ObjectMapper objectMapper) {
+
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         RedisCacheConfiguration defaultCacheConfig = RedisCacheConfiguration.defaultCacheConfig()
-            .entryTtl(Duration.ofMinutes(30))
-            .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-            .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+                .entryTtl(Duration.ofMinutes(30))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
 
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         cacheConfigurations.put("productDetail", defaultCacheConfig.entryTtl(Duration.ofMinutes(10)));
@@ -180,12 +182,11 @@ public class UnifiedRedisConfig implements CachingConfigurer {
         cacheConfigurations.put("mainProducts", defaultCacheConfig.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(connectionFactory)
-            .cacheDefaults(defaultCacheConfig)
-            .withInitialCacheConfigurations(cacheConfigurations)
-            .build();
+                .cacheDefaults(defaultCacheConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
+                .build();
     }
 
-    // 캐시 에러 핸들러
     @Override
     public CacheErrorHandler errorHandler() {
         return new CacheErrorHandler() {
@@ -209,5 +210,21 @@ public class UnifiedRedisConfig implements CachingConfigurer {
                 log.error("Redis CLEAR Error: {}, Cache: {}", exception.getMessage(), cache.getName());
             }
         };
+    }
+
+    public static class PageImplDeserializer extends JsonDeserializer<PageImpl<?>> {
+        @Override
+        public PageImpl<?> deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+            ObjectMapper objectMapper = (ObjectMapper) jsonParser.getCodec();
+            JsonNode jsonNode = objectMapper.readTree(jsonParser);
+
+            List<?> content = objectMapper.convertValue(jsonNode.get("content"), List.class);
+            JsonNode pageableNode = jsonNode.get("pageable");
+            int page = pageableNode.get("pageNumber").asInt();
+            int size = pageableNode.get("pageSize").asInt();
+            long total = jsonNode.get("totalElements").asLong();
+
+            return new PageImpl<>(content, PageRequest.of(page, size), total);
+        }
     }
 }
