@@ -70,10 +70,10 @@ public class ProductService {
         }
 
         if (userId != null) {
-            Set<Long> likedProductIds = new HashSet<>(
-                    wishlistRepository.findProductIdsByUserId(products.stream()
+            Set<Long> likedProductIds = wishlistRepository.findProductIdsByMemberIdAndProductIdsIn(userId,
+                    products.stream()
                             .map(ProductSummaryDto::getId)
-                            .collect(Collectors.toList()), userId));
+                            .collect(Collectors.toList()));
             products.forEach(dto -> dto.setLiked(likedProductIds.contains(dto.getId())));
         }
 
