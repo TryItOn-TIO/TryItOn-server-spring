@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,14 +43,12 @@ public class RecommendationService {
         this.sharedDataAccessor = sharedDataAccessor;
     }
 
-    // 트렌딩 상품 조회 - ProductResponseDto 반환
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getTrendingProducts(Long userId) {
         final String cacheKey = "recommend:trending";
         final String sharedKey = "trending";
         try {
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
-                log.info("공유 데이터 접근자를 통해 트렌딩 상품 조회");
                 List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
                 if (cachedProducts != null && !cachedProducts.isEmpty()) {
                     return convertCachedProductsToResponseDto(cachedProducts, userId);
@@ -60,17 +59,19 @@ public class RecommendationService {
             List<CachedProductDto> cachedProducts = parseRedisData(cacheKey, rawData, new TypeReference<>() {});
 
             if (cachedProducts != null && !cachedProducts.isEmpty()) {
-                log.info("트렌딩 상품 조회 데이터 존재");
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
                 return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
-            log.error("트렌딩 상품 조회 실패: {}", e.getMessage(), e);
+            log.error("트렌딩 상품 조회 실패: {}. DB에서 폴백합니다.", e.getMessage());
         }
-        return Collections.emptyList();
+
+        // Redis 조회 실패 또는 데이터 없음 시 DB에서 직접 조회
+        log.warn("트렌딩 상품을 Redis 캐시에서 찾을 수 없어 DB에서 직접 조회합니다.");
+        List<Product> productsFromDb = productRepository.findTop100WithCategory(PageRequest.of(0, 100));
+        return convertProductsToResponseDto(productsFromDb, userId);
     }
 
-    // 연령대별 추천 - ProductResponseDto 반환
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getAgeGroupRecommendations(Long userId, String ageRange, String gender) {
         String genderKey = gender != null ? gender : "all";
@@ -80,7 +81,7 @@ public class RecommendationService {
         try {
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
                 List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
-                if (cachedProducts != null) {
+                if (cachedProducts != null && !cachedProducts.isEmpty()) {
                     return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
@@ -88,17 +89,19 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get(key);
             List<CachedProductDto> cachedProducts = parseRedisData(key, rawData, new TypeReference<>() {});
             
-            if (cachedProducts != null) {
+            if (cachedProducts != null && !cachedProducts.isEmpty()) {
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
                 return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
-            log.error("연령대별 추천 파싱 오류", e);
+            log.error("연령대별 추천 파싱 오류: {}. DB에서 폴백합니다.", e.getMessage());
         }
-        return Collections.emptyList();
+
+        log.warn("연령대별 추천 상품을 Redis 캐시에서 찾을 수 없어 DB에서 직접 조회합니다.");
+        List<Product> productsFromDb = productRepository.findTop100WithCategory(PageRequest.of(0, 50)); // 인기 상품으로 대체
+        return convertProductsToResponseDto(productsFromDb, userId);
     }
 
-    // 유사 상품 추천 - ProductResponseDto 반환
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getSimilarProducts(Long userId, Long productId) {
         String key = "recommend:similar_to:" + productId;
@@ -107,7 +110,7 @@ public class RecommendationService {
         try {
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
                 List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
-                if (cachedProducts != null) {
+                if (cachedProducts != null && !cachedProducts.isEmpty()) {
                     return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
@@ -115,17 +118,21 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get(key);
             List<CachedProductDto> cachedProducts = parseRedisData(key, rawData, new TypeReference<>() {});
             
-            if (cachedProducts != null) {
+            if (cachedProducts != null && !cachedProducts.isEmpty()) {
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
                 return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
-            log.error("유사 상품 추천 파싱 오류", e);
+            log.error("유사 상품 추천 파싱 오류: {}. DB에서 폴백합니다.", e.getMessage());
         }
-        return Collections.emptyList();
+
+        log.warn("유사 상품을 Redis 캐시에서 찾을 수 없어 DB에서 직접 조회합니다.");
+        Product product = productRepository.findByIdWithCategory(productId).orElse(null);
+        if (product == null) return Collections.emptyList();
+        List<Product> similarFromDb = productRepository.findSimilarProductsByCategory(product.getCategory().getId(), productId, 20);
+        return convertProductsToResponseDto(similarFromDb, userId);
     }
 
-    // Try-on 기반 추천 - ProductResponseDto 반환 (로그인 사용자용)
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getTryonBasedRecommendations(Long userId) {
         String key = "recommend:tryon_based:" + userId;
@@ -134,7 +141,7 @@ public class RecommendationService {
         try {
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
                 List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
-                if (cachedProducts != null) {
+                if (cachedProducts != null && !cachedProducts.isEmpty()) {
                     return convertCachedProductsToResponseDto(cachedProducts, userId);
                 }
             }
@@ -142,14 +149,17 @@ public class RecommendationService {
             Object rawData = redisTemplate.opsForValue().get(key);
             List<CachedProductDto> cachedProducts = parseRedisData(key, rawData, new TypeReference<>() {});
             
-            if (cachedProducts != null) {
+            if (cachedProducts != null && !cachedProducts.isEmpty()) {
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
                 return convertCachedProductsToResponseDto(cachedProducts, userId);
             }
         } catch (Exception e) {
-            log.error("Try-on 추천 파싱 오류", e);
+            log.error("Try-on 추천 파싱 오류: {}. DB에서 폴백합니다.", e.getMessage());
         }
-        return Collections.emptyList();
+
+        log.warn("Try-on 추천 상품을 Redis 캐시에서 찾을 수 없어 DB에서 직접 조회합니다.");
+        List<Product> productsFromDb = productRepository.findTop100WithCategory(PageRequest.of(0, 20)); // 인기 상품으로 대체
+        return convertProductsToResponseDto(productsFromDb, userId);
     }
 
     private <T> List<T> parseRedisData(String key, Object rawData, TypeReference<List<T>> typeReference) {
@@ -166,6 +176,14 @@ public class RecommendationService {
             log.error("Redis 데이터 파싱 오류. Key: {}, RawData Type: {}, Error: {}", key, rawData.getClass().getName(), e.getMessage());
             return null;
         }
+    }
+
+    private List<ProductResponseDto> convertProductsToResponseDto(List<Product> products, Long userId) {
+        if (products == null || products.isEmpty()) return Collections.emptyList();
+        Set<Long> likedProductIds = getUserLikedProductIds(userId);
+        return products.stream()
+            .map(product -> new ProductResponseDto(product, likedProductIds.contains(product.getId())))
+            .collect(Collectors.toList());
     }
 
     /**
@@ -208,24 +226,7 @@ public class RecommendationService {
 
     // 기존 호환성을 위한 메서드 (Product 엔티티 반환)
     public List<Product> getTrendingProductsAsEntity() {
-        try {
-            if (sharedDataAccessor.hasSharedData("trending")) {
-                List<Product> products = sharedDataAccessor.getSharedData("trending", new TypeReference<>() {});
-                if (products != null && !products.isEmpty()) {
-                    return products;
-                }
-            }
-            
-            Object rawData = redisTemplate.opsForValue().get("recommend:trending");
-            List<Product> products = parseRedisData("recommend:trending", rawData, new TypeReference<>() {});
-            
-            if (products != null && !products.isEmpty()) {
-                return products;
-            }
-        } catch (Exception e) {
-            log.error("트렌딩 상품 조회 실패", e);
-        }
-        return Collections.emptyList();
+        return productRepository.findTop100WithCategory(PageRequest.of(0, 100));
     }
     
     // 협업필터링 매트릭스 조회
@@ -252,7 +253,7 @@ public class RecommendationService {
                 return matrix;
             }
         } catch (Exception e) {
-            log.error("CF 매트릭스 파싱 ��류", e);
+            log.error("CF 매트릭스 파싱 오류", e);
         }
         return null;
     }
