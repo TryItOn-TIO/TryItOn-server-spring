@@ -121,9 +121,17 @@ public class UnifiedRedisConfig implements CachingConfigurer {
     public RedisTemplate<String, Object> recommendRedisTemplate(
             @Qualifier("redisConnectionFactory") RedisConnectionFactory connectionFactory,
             ObjectMapper objectMapper) { // Spring 기본 ObjectMapper 주입
+        
+        // Spring 기본 ObjectMapper를 복사하여, 전역 설정에 영향을 주지 않도록 함
+        ObjectMapper customObjectMapper = objectMapper.copy();
+        // DTO에 없는 필드는 역직렬화 시 무시하도록 설정
+        customObjectMapper.configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        // 복사된 ObjectMapper로 Serializer 생성
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(customObjectMapper);
+
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(serializer);
         template.setHashKeySerializer(new StringRedisSerializer());
