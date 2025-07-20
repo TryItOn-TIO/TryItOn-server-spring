@@ -48,7 +48,6 @@ public class RecommendationService {
         final String cacheKey = "recommend:trending";
         final String sharedKey = "trending";
         try {
-            // 공유 데이터 접근자를 통해 먼저 조회 시도
             if (sharedDataAccessor.hasSharedData(sharedKey)) {
                 log.info("공유 데이터 접근자를 통해 트렌딩 상품 조회");
                 List<CachedProductDto> cachedProducts = sharedDataAccessor.getSharedData(sharedKey, new TypeReference<>() {});
@@ -58,10 +57,8 @@ public class RecommendationService {
             }
             
             Object rawData = redisTemplate.opsForValue().get(cacheKey);
-            if (rawData == null) return Collections.emptyList();
+            List<CachedProductDto> cachedProducts = parseRedisData(cacheKey, rawData, new TypeReference<>() {});
 
-            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
-            
             if (cachedProducts != null && !cachedProducts.isEmpty()) {
                 log.info("트렌딩 상품 조회 데이터 존재");
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
@@ -89,9 +86,7 @@ public class RecommendationService {
             }
             
             Object rawData = redisTemplate.opsForValue().get(key);
-            if (rawData == null) return Collections.emptyList();
-
-            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
+            List<CachedProductDto> cachedProducts = parseRedisData(key, rawData, new TypeReference<>() {});
             
             if (cachedProducts != null) {
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
@@ -118,9 +113,7 @@ public class RecommendationService {
             }
             
             Object rawData = redisTemplate.opsForValue().get(key);
-            if (rawData == null) return Collections.emptyList();
-            
-            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
+            List<CachedProductDto> cachedProducts = parseRedisData(key, rawData, new TypeReference<>() {});
             
             if (cachedProducts != null) {
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
@@ -147,9 +140,7 @@ public class RecommendationService {
             }
             
             Object rawData = redisTemplate.opsForValue().get(key);
-            if (rawData == null) return Collections.emptyList();
-
-            List<CachedProductDto> cachedProducts = objectMapper.convertValue(rawData, new TypeReference<>() {});
+            List<CachedProductDto> cachedProducts = parseRedisData(key, rawData, new TypeReference<>() {});
             
             if (cachedProducts != null) {
                 sharedDataAccessor.saveSharedData(sharedKey, cachedProducts);
@@ -161,6 +152,22 @@ public class RecommendationService {
         return Collections.emptyList();
     }
 
+    private <T> List<T> parseRedisData(String key, Object rawData, TypeReference<List<T>> typeReference) {
+        if (rawData == null) {
+            return null;
+        }
+        try {
+            if (rawData instanceof String) {
+                return objectMapper.readValue((String) rawData, typeReference);
+            } else {
+                return objectMapper.convertValue(rawData, typeReference);
+            }
+        } catch (Exception e) {
+            log.error("Redis 데이터 파싱 오류. Key: {}, RawData Type: {}, Error: {}", key, rawData.getClass().getName(), e.getMessage());
+            return null;
+        }
+    }
+
     /**
      * 캐시된 상품 정보 리스트를 최종 응답 DTO 리스트로 변환합니다.
      * 이 메소드는 DB에서 상품 정보를 조회하지 않습니다.
@@ -169,7 +176,7 @@ public class RecommendationService {
      * @return 프론트엔드로 보낼 최종 DTO 리스트
      */
     private List<ProductResponseDto> convertCachedProductsToResponseDto(List<CachedProductDto> cachedProducts, Long userId) {
-        if (cachedProducts.isEmpty()) {
+        if (cachedProducts == null || cachedProducts.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -210,11 +217,7 @@ public class RecommendationService {
             }
             
             Object rawData = redisTemplate.opsForValue().get("recommend:trending");
-            
-            List<Product> products = null;
-            if (rawData != null) {
-                products = objectMapper.convertValue(rawData, new TypeReference<>() {});
-            }
+            List<Product> products = parseRedisData("recommend:trending", rawData, new TypeReference<>() {});
             
             if (products != null && !products.isEmpty()) {
                 return products;
@@ -249,7 +252,7 @@ public class RecommendationService {
                 return matrix;
             }
         } catch (Exception e) {
-            log.error("CF 매트릭스 파싱 오류", e);
+            log.error("CF 매트릭스 파싱 ��류", e);
         }
         return null;
     }
