@@ -8,6 +8,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class CategoryService {
@@ -25,5 +29,22 @@ public class CategoryService {
         return categoryRepository.findByIdWithChildren(categoryId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                 "Category not found with id: " + categoryId));
+    }
+
+    @Cacheable(value = "categoryTreeIds", key = "#categoryId")
+    public List<Long> getCategoryAndAllChildrenIds(Long categoryId) {
+        Category category = findByIdWithChildren(categoryId);
+        List<Long> ids = new ArrayList<>();
+        collectCategoryIds(category, ids);
+        return ids;
+    }
+
+    private void collectCategoryIds(Category category, List<Long> ids) {
+        ids.add(category.getId());
+        if (category.getChildren() != null && !category.getChildren().isEmpty()) {
+            for (Category child : category.getChildren()) {
+                collectCategoryIds(child, ids);
+            }
+        }
     }
 }

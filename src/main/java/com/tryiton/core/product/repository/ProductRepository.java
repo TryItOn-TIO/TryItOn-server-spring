@@ -57,11 +57,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         "ORDER BY p.createAt DESC")
     Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
 
-    // JPQL 프로젝션을 사용하여 ProductSummaryDto를 직접 조회
+    // JPQL 프로젝션을 사용하여 ProductSummaryDto를 직접 조회 (최적화)
     @Query("SELECT new com.tryiton.core.product.dto.ProductSummaryDto(p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id, p.category.categoryName) " +
-            "FROM Product p WHERE p.deleted = false AND " +
-            "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId)")
-    Page<ProductSummaryDto> findSummaryByCategoryHierarchy(@Param("categoryId") Long categoryId, Pageable pageable);
+            "FROM Product p JOIN p.category c WHERE p.deleted = false AND c.id IN :categoryIds")
+    Page<ProductSummaryDto> findSummaryByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
+
+    // 상품 상세 정보와 '좋아요' 여부를 한 번의 쿼리로 조회 (N+1 문제 해결)
+    @Query("SELECT p, CASE WHEN w.id IS NOT NULL THEN true ELSE false END " +
+            "FROM Product p " +
+            "LEFT JOIN p.category " +
+            "LEFT JOIN FETCH p.variants " +
+            "LEFT JOIN Wishlist w ON w.product = p AND w.member.id = :userId " +
+            "WHERE p.id = :productId AND p.deleted = false")
+    Optional<Object[]> findProductWithLikeStatus(@Param("userId") Long userId, @Param("productId") Long productId);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
     @Query(value = "SELECT * FROM product WHERE deleted = false AND category_id IN " +
