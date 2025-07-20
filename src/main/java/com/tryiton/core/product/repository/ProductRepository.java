@@ -57,10 +57,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         "ORDER BY p.createAt DESC")
     Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
 
-    // JPQL 프로젝션을 사용하여 ProductSummaryDto를 직접 조회
-    @Query("SELECT new com.tryiton.core.product.dto.ProductSummaryDto(p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id, p.category.categoryName) " +
-            "FROM Product p WHERE p.deleted = false AND " +
-            "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId)")
+    @Query(
+            value = """
+            (SELECT p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id as categoryId, c.categoryName
+            FROM Product p JOIN p.category c
+            WHERE p.deleted = false AND p.category.id = :categoryId)
+            UNION ALL
+            (SELECT p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id as categoryId, c.categoryName
+            FROM Product p JOIN p.category c
+            WHERE p.deleted = false AND c.parentCategory.id = :categoryId AND p.category.id != :categoryId)
+            """,
+            countQuery = "SELECT COUNT(p.id) FROM Product p JOIN p.category c WHERE p.deleted = false AND (p.category.id = :categoryId OR c.parentCategory.id = :categoryId)",
+            nativeQuery = false) // JPQL을 유지하면서 UNION을 사용해 봅니다.
     Page<ProductSummaryDto> findSummaryByCategoryHierarchy(@Param("categoryId") Long categoryId, Pageable pageable);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
