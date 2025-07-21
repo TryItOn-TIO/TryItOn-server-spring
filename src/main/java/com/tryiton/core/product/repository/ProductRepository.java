@@ -81,6 +81,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // N+1 쿼리 해결: 상품 상세 조회 시 category와 variants를 함께 조회
     @Query("SELECT p FROM Product p JOIN FETCH p.category LEFT JOIN FETCH p.variants WHERE p.id = :id AND p.deleted = false")
     Optional<Product> findByIdWithDetails(@Param("id") Long id);
+
+    // N+1 쿼리 해결: ID 목록으로 상품 조회 시 category와 variants를 함께 조회
+    @Query("SELECT p FROM Product p JOIN FETCH p.category LEFT JOIN FETCH p.variants WHERE p.id IN :ids AND p.deleted = false")
+    List<Product> findByIdsWithDetails(@Param("ids") List<Long> ids);
+
+    // 추천 등 폴백 로직을 위한 최상위 N개 상품 ID 조회 (페이징 적용)
+    @Query(value = "SELECT p.id FROM Product p WHERE p.deleted = false ORDER BY p.wishlistCount DESC, p.createAt DESC")
+    Page<Long> findTopNProductIds(Pageable pageable);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
     @Query(value = "SELECT * FROM product WHERE deleted = false AND category_id IN " +
@@ -126,17 +134,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 각 카테고리별 상위 4개 상품 조회
     @Query(value = """
             WITH RankedProducts AS (
-                SELECT p.*,
+                SELECT p.product_id, p.product_name, p.brand, p.price, p.sale, p.img1, p.wishlist_count, p.create_at, p.category_id, c.category_name,
                        ROW_NUMBER() OVER (PARTITION BY p.category_id
                                         ORDER BY p.wishlist_count DESC, p.create_at DESC) as rn
                 FROM product p
+                JOIN category c ON p.category_id = c.category_id
                 WHERE p.deleted = false
             )
-            SELECT * FROM RankedProducts
+            SELECT product_id, product_name, brand, price, sale, img1, wishlist_count, category_id, category_name
+            FROM RankedProducts
             WHERE rn <= 4
             ORDER BY category_id, wishlist_count DESC, create_at DESC
             """, nativeQuery = true)
-    List<Product> findTop4ProductsPerCategory();
+    List<Object[]> findTop4ProductsPerCategory();
 
     // 카테고리 계층 구조와 찜 여부를 한 번의 재귀 쿼리로 조회하여 성능 최적화
     @Query(value = "WITH RECURSIVE category_tree AS ( " +

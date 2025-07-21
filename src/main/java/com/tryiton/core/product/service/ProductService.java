@@ -86,28 +86,49 @@ public class ProductService {
 
     @Cacheable(value = "mainProducts", key = "'main:products'", unless = "#result == null")
     public MainProductGuestResponse getMainPageProductsForGuest() {
-        List<Product> allProducts = productRepository.findTop4ProductsPerCategory();
-        Map<Category, List<Product>> productsByCategory = allProducts.stream()
-                .collect(Collectors.groupingBy(Product::getCategory));
+        List<Object[]> results = productRepository.findTop4ProductsPerCategory();
 
-        List<CategoryProductGroup> categoryGroups = productsByCategory.entrySet().stream()
-                .map(entry -> {
-                    Category category = entry.getKey();
-                    List<Product> products = entry.getValue();
-                    List<ProductSummary> productSummaries = products.stream()
-                            .map(this::convertToProductSummary)
-                            .collect(Collectors.toList());
-                    return new CategoryProductGroup(
-                        category.getId(),
-                        category.getCategoryName(),
-                        productSummaries
+        Map<CategoryInfo, List<ProductSummary>> groupedByCategory = results.stream()
+                .map(row -> {
+                    int price = (row[3] != null) ? ((Number) row[3]).intValue() : 0;
+                    int sale = (row[4] != null) ? ((Number) row[4]).intValue() : 0;
+                    int salePrice = (sale > 0) ? (int) Math.round(price * (100.0 - sale) / 100.0) : price;
+
+                    ProductSummary summary = new ProductSummary(
+                            ((Number) row[0]).longValue(),      // productId
+                            (String) row[1],                    // productName
+                            (String) row[2],                    // brand
+                            price,
+                            sale,
+                            salePrice,
+                            (String) row[5],                    // img1
+                            (String) row[8],                    // categoryName
+                            (row[6] != null) ? ((Number) row[6]).intValue() : 0 // wishlistCount
                     );
+                    CategoryInfo categoryInfo = new CategoryInfo(
+                            ((Number) row[7]).longValue(),      // categoryId
+                            (String) row[8]                     // categoryName
+                    );
+                    return new AbstractMap.SimpleEntry<>(categoryInfo, summary);
                 })
-                .filter(group -> !group.getProducts().isEmpty())
+                .collect(Collectors.groupingBy(
+                        Map.Entry::getKey,
+                        LinkedHashMap::new,
+                        Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+                ));
+
+        List<CategoryProductGroup> categoryGroups = groupedByCategory.entrySet().stream()
+                .map(entry -> new CategoryProductGroup(
+                        entry.getKey().id(),
+                        entry.getKey().name(),
+                        entry.getValue()
+                ))
                 .collect(Collectors.toList());
 
         return MainProductGuestResponse.success(categoryGroups);
     }
+
+    private record CategoryInfo(Long id, String name) {}
 
     @CacheEvict(value = {"productDetail", "categoryProducts", "mainProducts"}, key = "'product:' + #product.id")
     @Transactional
