@@ -57,12 +57,29 @@ public class ProductService {
         return new ProductDetailResponseDto(product, variantDto, liked);
     }
 
-    @Cacheable(value = "hierarchicalCategoryProducts", key = "{#categoryId, #userId, #page, #size}")
     public Page<ProductHierarchyDto> getProductsByCategory(Long userId, Long categoryId, int page, int size) {
+        Page<ProductHierarchyDto> products = getPublicProductsByCategory(categoryId, page, size);
+
+        if (userId != null) {
+            List<Long> productIds = products.getContent().stream()
+                    .map(ProductHierarchyDto::getProductId)
+                    .collect(Collectors.toList());
+
+            if (!productIds.isEmpty()) {
+                Set<Long> likedProductIds = new HashSet<>(wishlistRepository.findProductIdsByUserIdAndProductIds(userId, productIds));
+                products.getContent().forEach(p -> p.setIsLiked(likedProductIds.contains(p.getProductId())));
+            }
+        }
+        return products;
+    }
+
+    @Cacheable(value = "hierarchicalCategoryProducts", key = "{#categoryId, #page, #size}")
+    public Page<ProductHierarchyDto> getPublicProductsByCategory(Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("wishlist_count").descending().and(Sort.by("create_at").descending()));
 
-        Page<Object[]> results = productRepository.findHierarchyByCategoryRaw(userId, categoryId, pageable);
+        // userId를 null로 전달하여 '찜' 여부는 기본값(false)으로 조회
+        Page<Object[]> results = productRepository.findHierarchyByCategoryRaw(null, categoryId, pageable);
 
         return results.map(obj -> new ProductHierarchyDto(
                 (Number) obj[0],

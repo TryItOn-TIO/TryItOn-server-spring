@@ -334,7 +334,7 @@ public class StoryService {
                 .collect(Collectors.toList());
 
         Set<Long> wishlistedProductIds = (currentUserId != null && !productIds.isEmpty()) ?
-                wishlistRepository.findProductIdsByMemberIdAndProductIdsIn(currentUserId, productIds) :
+                new java.util.HashSet<>(wishlistRepository.findProductIdsByUserIdAndProductIds(currentUserId, productIds)) :
                 Collections.emptySet();
 
         Map<Long, List<CommentResponseDto>> commentsMap = commentRepository.findByStoryIdIn(storyIds).stream()
