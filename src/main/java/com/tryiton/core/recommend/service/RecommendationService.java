@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -98,7 +99,8 @@ public class RecommendationService {
         }
 
         log.warn("연령대별 추천 상품을 Redis 캐시에서 찾을 수 없어 DB에서 직접 조회합니다.");
-        List<Product> productsFromDb = productRepository.findTop100WithCategory(PageRequest.of(0, 50)); // 인기 상품으로 대체
+        Page<Long> productIds = productRepository.findTopNProductIds(PageRequest.of(0, 50)); // 인기 상품으로 대체
+        List<Product> productsFromDb = productRepository.findByIdsWithDetails(productIds.getContent());
         return convertProductsToResponseDto(productsFromDb, userId);
     }
 
@@ -158,7 +160,8 @@ public class RecommendationService {
         }
 
         log.warn("Try-on 추천 상품을 Redis 캐시에서 찾을 수 없어 DB에서 직접 조회합니다.");
-        List<Product> productsFromDb = productRepository.findTop100WithCategory(PageRequest.of(0, 20)); // 인기 상품으로 대체
+        Page<Long> productIds = productRepository.findTopNProductIds(PageRequest.of(0, 20)); // 인기 상품으로 대체
+        List<Product> productsFromDb = productRepository.findByIdsWithDetails(productIds.getContent());
         return convertProductsToResponseDto(productsFromDb, userId);
     }
 
