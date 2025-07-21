@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -58,42 +59,35 @@ public class ProductService {
     }
 
     public Page<ProductHierarchyDto> getProductsByCategory(Long userId, Long categoryId, int page, int size) {
-        Page<ProductHierarchyDto> products = getPublicProductsByCategory(categoryId, page, size);
+        // 1. 캐시된 전체 상품 ID 목록을 가져옴
+        List<Long> allProductIds = getSortedProductIdsForCategory(categoryId);
 
-        if (userId != null) {
-            List<Long> productIds = products.getContent().stream()
-                    .map(ProductHierarchyDto::getProductId)
-                    .collect(Collectors.toList());
+        // 2. 메모리에서 페이지네이션 수행
+        Pageable pageable = PageRequest.of(page, size);
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allProductIds.size());
 
-            if (!productIds.isEmpty()) {
-                Set<Long> likedProductIds = new HashSet<>(wishlistRepository.findProductIdsByUserIdAndProductIds(userId, productIds));
-                products.getContent().forEach(p -> p.setIsLiked(likedProductIds.contains(p.getProductId())));
-            }
+        if (start >= allProductIds.size()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, allProductIds.size());
         }
-        return products;
+        List<Long> pagedProductIds = allProductIds.subList(start, end);
+
+        // 3. 현재 페이지의 상품 상세 정보만 DB에서 조회
+        List<ProductHierarchyDto> products = productRepository.findProductDetailsByProductIds(userId, pagedProductIds);
+
+        // 4. DB에서 조회된 결과는 정렬되어 있지 않으므로, 원래 ID 목록의 순서대로 정렬
+        Map<Long, ProductHierarchyDto> productMap = products.stream()
+                .collect(Collectors.toMap(ProductHierarchyDto::getProductId, p -> p));
+        List<ProductHierarchyDto> sortedProducts = pagedProductIds.stream()
+                .map(productMap::get)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(sortedProducts, pageable, allProductIds.size());
     }
 
-    @Cacheable(value = "hierarchicalCategoryProducts", key = "{#categoryId, #page, #size}")
-    public Page<ProductHierarchyDto> getPublicProductsByCategory(Long categoryId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size,
-                Sort.by("wishlist_count").descending().and(Sort.by("create_at").descending()));
-
-        // userId를 null로 전달하여 '찜' 여부는 기본값(false)으로 조회
-        Page<Object[]> results = productRepository.findHierarchyByCategoryRaw(null, categoryId, pageable);
-
-        return results.map(obj -> new ProductHierarchyDto(
-                (Number) obj[0],
-                (String) obj[1],
-                (String) obj[2],
-                (Integer) obj[3],
-                (Integer) obj[4],
-                (String) obj[5],
-                (Number) obj[6],
-                (java.sql.Timestamp) obj[7],
-                (Number) obj[8],
-                (String) obj[9],
-                (Number) obj[10]
-        ));
+    @Cacheable(value = "sortedCategoryProductIds", key = "#categoryId")
+    public List<Long> getSortedProductIdsForCategory(Long categoryId) {
+        return productRepository.findSortedProductIdsByHierarchicalCategory(categoryId);
     }
 
     @Cacheable(value = "mainProducts", key = "'main:products'", unless = "#result == null")
