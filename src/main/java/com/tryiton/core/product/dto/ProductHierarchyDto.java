@@ -7,17 +7,21 @@ import java.time.LocalDateTime;
 @Getter
 public class ProductHierarchyDto {
     @JsonProperty("id")
-    private final Long productId;
-    private final String productName;
-    private final String img1;
-    private final Integer price;
-    private final Integer sale;
-    private final String brand;
-    private final Long wishlistCount;
-    private final LocalDateTime createAt;
-    private final Long categoryId;
-    private final String categoryName;
-    private final Boolean isLiked;
+    private Long productId;
+    private String productName;
+    private String img1;
+    private Integer price;
+    private Integer sale;
+    private String brand;
+    private Long wishlistCount;
+    private LocalDateTime createAt;
+    private Long categoryId;
+    private String categoryName;
+    private Boolean isLiked;
+
+    public void setIsLiked(boolean isLiked) {
+        this.isLiked = isLiked;
+    }
 
     public ProductHierarchyDto(
         Number productId, String productName, String img1,
