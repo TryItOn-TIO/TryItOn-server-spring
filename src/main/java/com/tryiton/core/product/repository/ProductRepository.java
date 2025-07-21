@@ -51,17 +51,32 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query(value = "SELECT DISTINCT product_id FROM product_tag WHERE tag_id IN :tagIds", nativeQuery = true)
     List<Long> findProductIdsByTagIds(@Param("tagIds") List<Long> tagIds);
 
-    // 🔧 상위 카테고리와 모든 하위 카테고리의 상품을 함께 조회
-    @Query("SELECT p FROM Product p WHERE p.deleted = false AND " +
-        "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
-        "ORDER BY p.createAt DESC")
-    Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
+    @Query(value = "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, c.category_id, c.category_name " +
+            "FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND p.category_id = :categoryId " +
+            "UNION " +
+            "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, c.category_id, c.category_name " +
+            "FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND c.parent_category_id = :categoryId",
+            countQuery = "SELECT COUNT(*) FROM ( " +
+                "SELECT p.product_id FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND p.category_id = :categoryId " +
+                "UNION " +
+                "SELECT p.product_id FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND c.parent_category_id = :categoryId" +
+                ") AS sub",
+            nativeQuery = true)
+    Page<Object[]> findProductSummariesByCategoryHierarchy(@Param("categoryId") Long categoryId, Pageable pageable);
 
-    // JPQL 프로젝션을 사용하여 ProductSummaryDto를 직접 조회
+    // JPQL 프로젝션을 사용하여 ProductSummaryDto를 직접 조회 (최적화)
     @Query("SELECT new com.tryiton.core.product.dto.ProductSummaryDto(p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id, p.category.categoryName) " +
-            "FROM Product p WHERE p.deleted = false AND " +
-            "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId)")
-    Page<ProductSummaryDto> findSummaryByCategoryHierarchy(@Param("categoryId") Long categoryId, Pageable pageable);
+            "FROM Product p JOIN p.category c WHERE p.deleted = false AND c.id IN :categoryIds")
+    Page<ProductSummaryDto> findSummaryByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
+
+    // 상품 상세 정보와 '좋아요' 여부를 한 번의 쿼리로 조회 (N+1 문제 해결)
+    @Query("SELECT p, CASE WHEN w.id IS NOT NULL THEN true ELSE false END " +
+            "FROM Product p " +
+            "LEFT JOIN p.category " +
+            "LEFT JOIN FETCH p.variants " +
+            "LEFT JOIN WishlistItem w ON w.product = p AND w.wishlist.user.id = :userId " +
+            "WHERE p.id = :productId AND p.deleted = false")
+    Optional<Object[]> findProductWithLikeStatus(@Param("userId") Long userId, @Param("productId") Long productId);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
     @Query(value = "SELECT * FROM product WHERE deleted = false AND category_id IN " +
@@ -118,4 +133,26 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             ORDER BY category_id, wishlist_count DESC, create_at DESC
             """, nativeQuery = true)
     List<Product> findTop4ProductsPerCategory();
+
+    // 카테고리 계층 구조와 찜 여부를 한 번의 재귀 쿼리로 조회하여 성능 최적화
+    @Query(value = "WITH RECURSIVE category_tree AS ( " +
+            "  SELECT category_id FROM category WHERE category_id = :categoryId " +
+            "  UNION ALL " +
+            "  SELECT c.category_id FROM category c JOIN category_tree ct ON c.parent_category_id = ct.category_id " +
+            ") " +
+            "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, p.category_id, c.category_name, " +
+            "CASE WHEN w.wishlist_item_id IS NOT NULL THEN true ELSE false END AS is_liked " +
+            "FROM product p " +
+            "JOIN category_tree ct ON p.category_id = ct.category_id " +
+            "JOIN category c ON p.category_id = c.category_id " +
+            "LEFT JOIN wishlist_item w ON w.product_id = p.product_id AND w.wishlist_id = (SELECT ww.wishlist_id FROM wishlist ww WHERE ww.user_id = :userId) " +
+            "WHERE p.deleted = false",
+            countQuery = "WITH RECURSIVE category_tree AS ( " +
+                    "  SELECT category_id FROM category WHERE category_id = :categoryId " +
+                    "  UNION ALL " +
+                    "  SELECT c.category_id FROM category c JOIN category_tree ct ON c.parent_category_id = ct.category_id " +
+                    ") " +
+                    "SELECT count(p.product_id) FROM product p JOIN category_tree ct ON p.category_id = ct.category_id WHERE p.deleted = false",
+            nativeQuery = true)
+    Page<Object[]> findProductsByHierarchicalCategoryNative(@Param("userId") Long userId, @Param("categoryId") Long categoryId, Pageable pageable);
 }

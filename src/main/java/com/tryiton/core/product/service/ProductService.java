@@ -32,48 +32,54 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final TagRepository tagRepository;
     private final WishlistRepository wishlistRepository;
-    private final CategoryRepository categoryRepository;
+    private final CategoryService categoryService;
     private final RecommendBehaviorLogService recommendBehaviorLogService;
 
-    @Cacheable(value = "productDetail", key = "'product:' + #productId", unless = "#result == null")
+    @Cacheable(value = "productDetail", key = "{'user:' + #userId, 'product:' + #productId}", unless = "#result == null")
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
-        Product product = productRepository.findByIdWithCategoryAndVariants(productId)
-            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
-                "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
+        Object[] result = productRepository.findProductWithLikeStatus(userId, productId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
-        boolean liked = userId != null && 
-            wishlistRepository.existsByUserIdAndProductId(userId, productId);
+        Product product = (Product) result[0];
+        boolean liked = (boolean) result[1];
 
         List<ProductVariantDto> variantDto = product.getVariants().stream()
-            .map(ProductVariantDto::new)
-            .toList();
+                .map(ProductVariantDto::new)
+                .toList();
 
-        if(userId != null) {
+        if (userId != null) {
             recommendBehaviorLogService.logUserAction(userId, productId, RecommendAction.CLICK);
         }
 
         return new ProductDetailResponseDto(product, variantDto, liked);
     }
 
-    @Cacheable(value = "categoryProducts", key = "'category:' + #category.id + ':page:' + #page + ':size:' + #size")
+    @Cacheable(value = "categoryProducts", key = "{'category:' + #category.id, 'user:' + #userId, 'page:' + #page, 'size:' + #size}")
     public Page<ProductSummaryDto> getProductsByCategory(Long userId, Category category, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, 
-            Sort.by("wishlistCount").descending().and(Sort.by("createAt").descending()));
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by("wishlist_count").descending().and(Sort.by("create_at").descending()));
 
-        Page<ProductSummaryDto> products = productRepository.findSummaryByCategoryHierarchy(
-            category.getId(), pageable);
+        Page<Object[]> results = productRepository.findProductsByHierarchicalCategoryNative(userId, category.getId(), pageable);
 
-        if (products == null || !products.hasContent()) {
-            return Page.empty();
-        }
-
-        if (userId != null) {
-            Set<Long> likedProductIds = new HashSet<>(
-                wishlistRepository.findProductIdsByUserId(userId));
-            products.forEach(dto -> dto.setLiked(likedProductIds.contains(dto.getId())));
-        }
-
-        return products;
+        return results.map(obj -> {
+            ProductSummaryDto dto = new ProductSummaryDto(
+                    ((Number) obj[0]).longValue(),
+                    (String) obj[1],
+                    (String) obj[2],
+                    (obj[3] != null) ? ((Number) obj[3]).intValue() : 0,
+                    (obj[4] != null) ? ((Number) obj[4]).intValue() : 0,
+                    (String) obj[5],
+                    (obj[6] != null) ? ((Number) obj[6]).intValue() : 0,
+                    (obj[7] != null) ? ((java.sql.Timestamp) obj[7]).toLocalDateTime() : null,
+                    ((Number) obj[8]).longValue(),
+                    (String) obj[9]
+            );
+            if (userId != null) {
+                dto.setLiked(obj[10] != null && ((Number) obj[10]).intValue() == 1);
+            }
+            return dto;
+        });
     }
 
     @Cacheable(value = "mainProducts", key = "'main:products'", unless = "#result == null")
