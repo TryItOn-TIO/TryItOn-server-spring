@@ -70,13 +70,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<ProductSummaryDto> findSummaryByCategoryIds(@Param("categoryIds") List<Long> categoryIds, Pageable pageable);
 
     // 상품 상세 정보와 '좋아요' 여부를 한 번의 쿼리로 조회 (N+1 문제 해결)
-    @Query("SELECT p, CASE WHEN w.id IS NOT NULL THEN true ELSE false END " +
-            "FROM Product p " +
-            "LEFT JOIN p.category " +
-            "LEFT JOIN FETCH p.variants " +
-            "LEFT JOIN WishlistItem w ON w.product = p AND w.wishlist.user.id = :userId " +
-            "WHERE p.id = :productId AND p.deleted = false")
-    Optional<Object[]> findProductWithLikeStatus(@Param("userId") Long userId, @Param("productId") Long productId);
+//    @Query("SELECT p, CASE WHEN w.id IS NOT NULL THEN true ELSE false END " +
+//            "FROM Product p " +
+//            "LEFT JOIN p.category " +
+//            "LEFT JOIN FETCH p.variants " +
+//            "LEFT JOIN WishlistItem w ON w.product = p AND w.wishlist.user.id = :userId " +
+//            "WHERE p.id = :productId AND p.deleted = false")
+//    Optional<Object[]> findProductWithLikeStatus(@Param("userId") Long userId, @Param("productId") Long productId);
+
+    // N+1 쿼리 해결: 상품 상세 조회 시 category와 variants를 함께 조회
+    @Query("SELECT p FROM Product p JOIN FETCH p.category LEFT JOIN FETCH p.variants WHERE p.id = :id AND p.deleted = false")
+    Optional<Product> findByIdWithDetails(@Param("id") Long id);
     
     // 시드 기반 랜덤 정렬로 페이지네이션 지원
     @Query(value = "SELECT * FROM product WHERE deleted = false AND category_id IN " +
