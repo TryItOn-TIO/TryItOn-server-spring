@@ -37,12 +37,14 @@ public class ProductService {
 
     @Cacheable(value = "productDetail", key = "{'user:' + #userId, 'product:' + #productId}", unless = "#result == null")
     public ProductDetailResponseDto getProductDetail(Long userId, Long productId) {
-        Object[] result = productRepository.findProductWithLikeStatus(userId, productId)
+        Product product = productRepository.findByIdWithDetails(productId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                         "ID " + productId + "에 해당하는 상품을 찾을 수 없습니다."));
 
-        Product product = (Product) result[0];
-        boolean liked = (boolean) result[1];
+        boolean liked = false;
+        if (userId != null) {
+            liked = wishlistRepository.existsByUserIdAndProductId(userId, productId);
+        }
 
         List<ProductVariantDto> variantDto = product.getVariants().stream()
                 .map(ProductVariantDto::new)
