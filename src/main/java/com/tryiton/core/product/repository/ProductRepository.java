@@ -51,11 +51,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query(value = "SELECT DISTINCT product_id FROM product_tag WHERE tag_id IN :tagIds", nativeQuery = true)
     List<Long> findProductIdsByTagIds(@Param("tagIds") List<Long> tagIds);
 
-    // 🔧 상위 카테고리와 모든 하위 카테고리의 상품을 함께 조회
-    @Query("SELECT p FROM Product p WHERE p.deleted = false AND " +
-        "(p.category.id = :categoryId OR p.category.parentCategory.id = :categoryId) " +
-        "ORDER BY p.createAt DESC")
-    Page<Product> findByCategoryHierarchyAndDeletedFalse(@Param("categoryId") Long categoryId, Pageable pageable);
+    @Query(value = "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, c.category_id, c.category_name " +
+            "FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND p.category_id = :categoryId " +
+            "UNION " +
+            "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, c.category_id, c.category_name " +
+            "FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND c.parent_category_id = :categoryId",
+            countQuery = "SELECT COUNT(*) FROM ( " +
+                "SELECT p.product_id FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND p.category_id = :categoryId " +
+                "UNION " +
+                "SELECT p.product_id FROM product p JOIN category c ON p.category_id = c.category_id WHERE p.deleted = false AND c.parent_category_id = :categoryId" +
+                ") AS sub",
+            nativeQuery = true)
+    Page<Object[]> findProductSummariesByCategoryHierarchy(@Param("categoryId") Long categoryId, Pageable pageable);
 
     // JPQL 프로젝션을 사용하여 ProductSummaryDto를 직접 조회 (최적화)
     @Query("SELECT new com.tryiton.core.product.dto.ProductSummaryDto(p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id, p.category.categoryName) " +

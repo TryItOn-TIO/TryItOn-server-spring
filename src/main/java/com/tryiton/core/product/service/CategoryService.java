@@ -33,18 +33,6 @@ public class CategoryService {
 
     @Cacheable(value = "categoryTreeIds", key = "#categoryId")
     public List<Long> getCategoryAndAllChildrenIds(Long categoryId) {
-        Category category = findByIdWithChildren(categoryId);
-        List<Long> ids = new ArrayList<>();
-        collectCategoryIds(category, ids);
-        return ids;
-    }
-
-    private void collectCategoryIds(Category category, List<Long> ids) {
-        ids.add(category.getId());
-        if (category.getChildren() != null && !category.getChildren().isEmpty()) {
-            for (Category child : category.getChildren()) {
-                collectCategoryIds(child, ids);
-            }
-        }
+        return categoryRepository.findAllChildrenIdsByParentId(categoryId);
     }
 }
