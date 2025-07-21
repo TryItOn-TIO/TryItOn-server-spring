@@ -17,12 +17,14 @@ import com.tryiton.core.story.dto.StoryResponseDto;
 import com.tryiton.core.story.entity.Story;
 import com.tryiton.core.story.repository.StoryLikeRepository;
 import com.tryiton.core.story.repository.StoryRepository;
+import com.tryiton.core.story.repository.CommentRepository;
 import com.tryiton.core.story.dto.StoriesSummaryResponseDto;
 import com.tryiton.core.story.dto.StorySummaryDto;
 import com.tryiton.core.wishlist.repository.WishlistRepository;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,6 +46,7 @@ public class StoryService {
     private final ClosetAvatarRepository closetAvatarRepository;
     private final WishlistRepository wishlistRepository;
     private final StoryLikeRepository storyLikeRepository;
+    private final CommentRepository commentRepository;
     private final WebClient userServiceWebClient;
 
     @Value("${cloud.aws.s3.bucket}")
@@ -54,11 +57,12 @@ public class StoryService {
 
     public StoryService(StoryRepository storyRepository, ClosetAvatarRepository closetAvatarRepository,
         WishlistRepository wishlistRepository, StoryLikeRepository storyLikeRepository,
-        WebClient userServiceWebClient) {
+        CommentRepository commentRepository, WebClient userServiceWebClient) {
         this.storyRepository = storyRepository;
         this.closetAvatarRepository = closetAvatarRepository;
         this.wishlistRepository = wishlistRepository;
         this.storyLikeRepository = storyLikeRepository;
+        this.commentRepository = commentRepository;
         this.userServiceWebClient = userServiceWebClient;
     }
 
@@ -314,64 +318,67 @@ public class StoryService {
     }
 
     private StoriesResponseDto mapToStoriesResponseDto(List<Story> stories, Long currentUserId) {
-        Set<Long> likedStoryIds = Collections.emptySet();
-        Set<Long> wishlistedProductIds = Collections.emptySet();
-
-        if (currentUserId != null && !stories.isEmpty()) {
-            List<Long> storyIds = stories.stream().map(Story::getId).collect(Collectors.toList());
-            likedStoryIds = storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(currentUserId, storyIds);
-
-            List<Long> productIds = stories.stream()
-                    .flatMap(s -> s.getClosetAvatar().getItems().stream())
-                    .map(item -> item.getProduct().getId())
-                    .collect(Collectors.toList());
-            
-            if (!productIds.isEmpty()) {
-                wishlistedProductIds = wishlistRepository.findProductIdsByMemberIdAndProductIdsIn(currentUserId, productIds);
-            }
+        if (stories.isEmpty()) {
+            return StoriesResponseDto.builder().stories(Collections.emptyList()).length(0).build();
         }
 
-        Set<Long> finalLikedStoryIds = likedStoryIds;
-        Set<Long> finalWishlistedProductIds = wishlistedProductIds;
+        List<Long> storyIds = stories.stream().map(Story::getId).collect(Collectors.toList());
 
-        List<StoryResponseDto> storyResponseDtos = stories.stream()
-            .map(story -> {
-                AuthorDto author = story.getAuthor() != null ? AuthorDto.builder()
-                        .id(story.getAuthor().getId())
-                        .username(story.getAuthor().getUsername())
-                        .profileImageUrl(story.getAuthor().getProfile() != null ? story.getAuthor().getProfile().getProfileImageUrl() : null)
-                        .build() : null;
+        Set<Long> likedStoryIds = (currentUserId != null) ?
+                storyLikeRepository.findStoryIdsByMemberIdAndStoryIdsIn(currentUserId, storyIds) :
+                Collections.emptySet();
 
-                List<ProductResponseDto> productResponseDtos = story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null ?
-                        story.getClosetAvatar().getItems().stream()
-                                .filter(avatarItem -> avatarItem.getProduct() != null)
-                                .map(avatarItem -> new ProductResponseDto(avatarItem.getProduct(), finalWishlistedProductIds.contains(avatarItem.getProduct().getId())))
-                                .collect(Collectors.toList()) : Collections.emptyList();
+        List<Long> productIds = stories.stream()
+                .flatMap(s -> s.getClosetAvatar().getItems().stream())
+                .map(item -> item.getProduct().getId())
+                .collect(Collectors.toList());
 
-                List<CommentResponseDto> comments = story.getComments() != null ?
-                        story.getComments().stream()
-                                .map(comment -> CommentResponseDto.builder()
+        Set<Long> wishlistedProductIds = (currentUserId != null && !productIds.isEmpty()) ?
+                wishlistRepository.findProductIdsByMemberIdAndProductIdsIn(currentUserId, productIds) :
+                Collections.emptySet();
+
+        Map<Long, List<CommentResponseDto>> commentsMap = commentRepository.findByStoryIdIn(storyIds).stream()
+                .collect(Collectors.groupingBy(
+                        comment -> comment.getStory().getId(),
+                        Collectors.mapping(
+                                comment -> CommentResponseDto.builder()
                                         .id(comment.getId())
                                         .username(comment.getAuthor() != null ? comment.getAuthor().getUsername() : null)
                                         .contents(comment.getContents())
                                         .position(comment.getPosition())
                                         .createdAt(comment.getCreatedAt())
-                                        .build())
-                                .collect(Collectors.toList()) : Collections.emptyList();
+                                        .build(),
+                                Collectors.toList()
+                        )
+                ));
 
-                return StoryResponseDto.builder()
-                        .storyId(story.getId())
-                        .storyImageUrl(story.getStoryImageUrl())
-                        .contents(story.getContents())
-                        .likeCount(story.getLikeCount())
-                        .liked(finalLikedStoryIds.contains(story.getId()))
-                        .createdAt(story.getCreatedAt())
-                        .products(productResponseDtos)
-                        .author(author)
-                        .comments(comments)
-                        .build();
-            })
-            .collect(Collectors.toList());
+        List<StoryResponseDto> storyResponseDtos = stories.stream()
+                .map(story -> {
+                    AuthorDto author = story.getAuthor() != null ? AuthorDto.builder()
+                            .id(story.getAuthor().getId())
+                            .username(story.getAuthor().getUsername())
+                            .profileImageUrl(story.getAuthor().getProfile() != null ? story.getAuthor().getProfile().getProfileImageUrl() : null)
+                            .build() : null;
+
+                    List<ProductResponseDto> productResponseDtos = story.getClosetAvatar() != null && story.getClosetAvatar().getItems() != null ?
+                            story.getClosetAvatar().getItems().stream()
+                                    .filter(avatarItem -> avatarItem.getProduct() != null)
+                                    .map(avatarItem -> new ProductResponseDto(avatarItem.getProduct(), wishlistedProductIds.contains(avatarItem.getProduct().getId())))
+                                    .collect(Collectors.toList()) : Collections.emptyList();
+
+                    return StoryResponseDto.builder()
+                            .storyId(story.getId())
+                            .storyImageUrl(story.getStoryImageUrl())
+                            .contents(story.getContents())
+                            .likeCount(story.getLikeCount())
+                            .liked(likedStoryIds.contains(story.getId()))
+                            .createdAt(story.getCreatedAt())
+                            .products(productResponseDtos)
+                            .author(author)
+                            .comments(commentsMap.getOrDefault(story.getId(), Collections.emptyList()))
+                            .build();
+                })
+                .collect(Collectors.toList());
 
         return StoriesResponseDto.builder()
                 .stories(storyResponseDtos)
