@@ -1,13 +1,15 @@
 package com.tryiton.core.product.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.data.domain.Page;
 
 @Getter
-@AllArgsConstructor
 public class CategoryProductResponse {
+    private CategoryResponseDto category;
+    private Page<ProductHierarchyDto> products;
 
-    private Page<ProductSummaryDto> products;
-    // private AvatarProductInfoDto avatarInfo;
+    public CategoryProductResponse(CategoryResponseDto category, Page<ProductHierarchyDto> products) {
+        this.category = category;
+        this.products = products;
+    }
 }

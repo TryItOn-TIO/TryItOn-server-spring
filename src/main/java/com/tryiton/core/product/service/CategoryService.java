@@ -1,19 +1,20 @@
 package com.tryiton.core.product.service;
 
 import com.tryiton.core.common.exception.BusinessException;
+import com.tryiton.core.product.dto.CategoryResponseDto;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
@@ -25,10 +26,11 @@ public class CategoryService {
     }
 
     @Cacheable(value = "categories", key = "#categoryId")
-    public Category findByIdWithChildren(Long categoryId) {
-        return categoryRepository.findByIdWithChildren(categoryId)
-            .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
-                "Category not found with id: " + categoryId));
+    public CategoryResponseDto findByIdWithChildren(Long categoryId) {
+        Category category = categoryRepository.findByIdWithChildren(categoryId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "Category not found with id: " + categoryId));
+        return CategoryResponseDto.from(category);
     }
 
     @Cacheable(value = "categoryTreeIds", key = "#categoryId")

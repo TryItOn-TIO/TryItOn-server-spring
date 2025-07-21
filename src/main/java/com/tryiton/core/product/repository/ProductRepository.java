@@ -155,7 +155,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "  SELECT c.category_id FROM category c JOIN category_tree ct ON c.parent_category_id = ct.category_id " +
             ") " +
             "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, p.category_id, c.category_name, " +
-            "CASE WHEN w.wishlist_item_id IS NOT NULL THEN true ELSE false END AS is_liked " +
+            "CASE WHEN w.wishlist_item_id IS NOT NULL THEN 1 ELSE 0 END " +
             "FROM product p " +
             "JOIN category_tree ct ON p.category_id = ct.category_id " +
             "JOIN category c ON p.category_id = c.category_id " +
@@ -168,5 +168,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                     ") " +
                     "SELECT count(p.product_id) FROM product p JOIN category_tree ct ON p.category_id = ct.category_id WHERE p.deleted = false",
             nativeQuery = true)
-    Page<Object[]> findProductsByHierarchicalCategoryNative(@Param("userId") Long userId, @Param("categoryId") Long categoryId, Pageable pageable);
+    Page<Object[]> findHierarchyByCategoryRaw(
+            @Param("userId") Long userId,
+            @Param("categoryId") Long categoryId,
+            Pageable pageable
+    );
 }

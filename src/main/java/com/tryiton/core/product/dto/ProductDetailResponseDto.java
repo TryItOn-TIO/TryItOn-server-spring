@@ -34,11 +34,12 @@ public class ProductDetailResponseDto {
         this.variant = variant;
         this.liked = liked;
         
-        // 할인된 가격 계산
-        if (product.getSale() > 0) {
-            this.salePrice = (int) Math.round(product.getPrice() * (100.0 - product.getSale()) / 100.0);
+        // 할인된 가격 계산 (정수 연산으로 변경하여 NaN 방지)
+        if (product.getSale() > 0 && product.getSale() <= 100) {
+            // (가격 * (100 - 할인율)) / 100
+            this.salePrice = (product.getPrice() * (100 - product.getSale())) / 100;
         } else {
-            this.salePrice = product.getPrice(); // 할인이 없으면 정가와 동일
+            this.salePrice = product.getPrice(); // 할인이 없거나 비정상적일 경우 정가와 동일
         }
 
         // 이미지 필드를 List로 구성
