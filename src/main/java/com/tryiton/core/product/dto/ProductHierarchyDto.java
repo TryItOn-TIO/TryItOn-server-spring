@@ -24,21 +24,22 @@ public class ProductHierarchyDto {
     }
 
     public ProductHierarchyDto(
-        Number productId, String productName, String img1,
+        Long productId, String productName, String img1,
         Integer price, Integer sale, String brand,
-        Number wishlistCount, java.sql.Timestamp createAt,
-        Number categoryId, String categoryName, Number isLiked
+        Integer wishlistCount, // Long -> Integer로 변경
+        LocalDateTime createAt,
+        Long categoryId, String categoryName, Integer isLiked
     ) {
-        this.productId = productId.longValue();
+        this.productId = productId;
         this.productName = productName;
         this.img1 = img1;
         this.price = price;
         this.sale = sale;
         this.brand = brand;
-        this.wishlistCount = wishlistCount.longValue();
-        this.createAt = (createAt != null) ? createAt.toLocalDateTime() : null;
-        this.categoryId = categoryId.longValue();
+        this.wishlistCount = wishlistCount != null ? wishlistCount.longValue() : 0L; // 내부에서 Long으로 변환
+        this.createAt = createAt;
+        this.categoryId = categoryId;
         this.categoryName = categoryName;
-        this.isLiked = isLiked.intValue() == 1;
+        this.isLiked = isLiked != null && isLiked == 1;
     }
 }

@@ -1,5 +1,6 @@
 package com.tryiton.core.product.repository;
 
+import com.tryiton.core.product.dto.ProductHierarchyDto;
 import com.tryiton.core.product.dto.ProductSummaryDto;
 import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.entity.Product;
@@ -148,29 +149,25 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             """, nativeQuery = true)
     List<Object[]> findTop4ProductsPerCategory();
 
-    // 카테고리 계층 구조와 찜 여부를 한 번의 재귀 쿼리로 조회하여 성능 최적화
     @Query(value = "WITH RECURSIVE category_tree AS ( " +
             "  SELECT category_id FROM category WHERE category_id = :categoryId " +
             "  UNION ALL " +
             "  SELECT c.category_id FROM category c JOIN category_tree ct ON c.parent_category_id = ct.category_id " +
             ") " +
-            "SELECT p.product_id, p.product_name, p.img1, p.price, p.sale, p.brand, p.wishlist_count, p.create_at, p.category_id, c.category_name, " +
-            "CASE WHEN w.wishlist_item_id IS NOT NULL THEN 1 ELSE 0 END " +
+            "SELECT p.product_id " +
             "FROM product p " +
             "JOIN category_tree ct ON p.category_id = ct.category_id " +
-            "JOIN category c ON p.category_id = c.category_id " +
-            "LEFT JOIN wishlist_item w ON w.product_id = p.product_id AND w.wishlist_id = (SELECT ww.wishlist_id FROM wishlist ww WHERE ww.user_id = :userId) " +
-            "WHERE p.deleted = false",
-            countQuery = "WITH RECURSIVE category_tree AS ( " +
-                    "  SELECT category_id FROM category WHERE category_id = :categoryId " +
-                    "  UNION ALL " +
-                    "  SELECT c.category_id FROM category c JOIN category_tree ct ON c.parent_category_id = ct.category_id " +
-                    ") " +
-                    "SELECT count(p.product_id) FROM product p JOIN category_tree ct ON p.category_id = ct.category_id WHERE p.deleted = false",
+            "WHERE p.deleted = false " +
+            "ORDER BY p.wishlist_count DESC, p.create_at DESC",
             nativeQuery = true)
-    Page<Object[]> findHierarchyByCategoryRaw(
-            @Param("userId") Long userId,
-            @Param("categoryId") Long categoryId,
-            Pageable pageable
-    );
+    List<Long> findSortedProductIdsByHierarchicalCategory(@Param("categoryId") Long categoryId);
+
+    @Query("SELECT new com.tryiton.core.product.dto.ProductHierarchyDto(" +
+            "p.id, p.productName, p.img1, p.price, p.sale, p.brand, p.wishlistCount, p.createAt, p.category.id, p.category.categoryName, " +
+            "CASE WHEN w.id IS NOT NULL THEN 1 ELSE 0 END) " +
+            "FROM Product p " +
+            "JOIN p.category c " +
+            "LEFT JOIN WishlistItem w ON w.product.id = p.id AND w.wishlist.user.id = :userId " +
+            "WHERE p.id IN :productIds")
+    List<ProductHierarchyDto> findProductDetailsByProductIds(@Param("userId") Long userId, @Param("productIds") List<Long> productIds);
 }
