@@ -2,9 +2,9 @@ package com.tryiton.core.product.controller;
 
 import com.tryiton.core.auth.security.CustomUserDetails;
 import com.tryiton.core.product.dto.CategoryProductResponse;
-import com.tryiton.core.product.dto.ProductSummaryDto;
+import com.tryiton.core.product.dto.CategoryResponseDto;
+import com.tryiton.core.product.dto.ProductHierarchyDto;
 import com.tryiton.core.product.dto.SearchProductResponse;
-import com.tryiton.core.product.entity.Category;
 import com.tryiton.core.product.service.CategoryService;
 import com.tryiton.core.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -29,15 +29,14 @@ public class ProductController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
-        // 비로그인 사용자도 접근 가능하도록 수정
         Long userId = (customUserDetails != null) ? customUserDetails.getUser().getId() : null;
 
-        Category category = categoryService.findByIdWithChildren(categoryId);
-        Page<ProductSummaryDto> products = productService.getProductsByCategory(userId, category,
-            page,
-            size);
+        Page<ProductHierarchyDto> products = productService.getProductsByCategory(userId, categoryId,
+                page,
+                size);
 
-        return ResponseEntity.ok(new CategoryProductResponse(products));
+        CategoryResponseDto category = categoryService.findByIdWithChildren(categoryId);
+        return ResponseEntity.ok(new CategoryProductResponse(category, products));
     }
 
     // 검색 기능

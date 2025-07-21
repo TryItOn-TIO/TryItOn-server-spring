@@ -57,31 +57,26 @@ public class ProductService {
         return new ProductDetailResponseDto(product, variantDto, liked);
     }
 
-    @Cacheable(value = "categoryProducts", key = "{'category:' + #category.id, 'user:' + #userId, 'page:' + #page, 'size:' + #size}")
-    public Page<ProductSummaryDto> getProductsByCategory(Long userId, Category category, int page, int size) {
+    @Cacheable(value = "hierarchicalCategoryProducts", key = "{#categoryId, #userId, #page, #size}")
+    public Page<ProductHierarchyDto> getProductsByCategory(Long userId, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size,
                 Sort.by("wishlist_count").descending().and(Sort.by("create_at").descending()));
 
-        Page<Object[]> results = productRepository.findProductsByHierarchicalCategoryNative(userId, category.getId(), pageable);
+        Page<Object[]> results = productRepository.findHierarchyByCategoryRaw(userId, categoryId, pageable);
 
-        return results.map(obj -> {
-            ProductSummaryDto dto = new ProductSummaryDto(
-                    ((Number) obj[0]).longValue(),
-                    (String) obj[1],
-                    (String) obj[2],
-                    (obj[3] != null) ? ((Number) obj[3]).intValue() : 0,
-                    (obj[4] != null) ? ((Number) obj[4]).intValue() : 0,
-                    (String) obj[5],
-                    (obj[6] != null) ? ((Number) obj[6]).intValue() : 0,
-                    (obj[7] != null) ? ((java.sql.Timestamp) obj[7]).toLocalDateTime() : null,
-                    ((Number) obj[8]).longValue(),
-                    (String) obj[9]
-            );
-            if (userId != null) {
-                dto.setLiked(obj[10] != null && ((Number) obj[10]).intValue() == 1);
-            }
-            return dto;
-        });
+        return results.map(obj -> new ProductHierarchyDto(
+                (Number) obj[0],
+                (String) obj[1],
+                (String) obj[2],
+                (Integer) obj[3],
+                (Integer) obj[4],
+                (String) obj[5],
+                (Number) obj[6],
+                (java.sql.Timestamp) obj[7],
+                (Number) obj[8],
+                (String) obj[9],
+                (Number) obj[10]
+        ));
     }
 
     @Cacheable(value = "mainProducts", key = "'main:products'", unless = "#result == null")
