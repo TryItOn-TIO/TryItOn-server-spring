@@ -38,4 +38,13 @@ public interface AvatarService {
      * 기존 이미지 삭제, DB 업데이트, 새 아바타 에셋 생성을 처리합니다.
      */
     AvatarImageUploadCompleteResponse processAvatarImageUploadComplete(Member member, AvatarImageUploadCompleteRequest request);
+    
+    /**
+     * 현재 입고 있는 옷의 캐시를 삭제합니다.
+     * AI가 옷을 잘못 처리해서 뭉개지거나 하는 경우 캐시를 삭제하여 다시 렌더링할 수 있도록 합니다.
+     * 
+     * @param member 현재 로그인한 사용자
+     * @return 캐시 삭제 성공 여부와 메시지를 담은 응답 객체
+     */
+    boolean clearCurrentOutfitCache(Member member);
 }

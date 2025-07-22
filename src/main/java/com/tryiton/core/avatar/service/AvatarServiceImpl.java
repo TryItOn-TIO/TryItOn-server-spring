@@ -283,6 +283,14 @@ public class AvatarServiceImpl implements AvatarService {
         Product newGarment = productRepository.findByIdWithCategory(productId)
             .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + avatarTryOnRequest.getProductId()));
 
+        // 원피스인 경우 가상 피팅 불가 메시지 반환
+        if (newGarment.isDress()) {
+            log.warn("원피스(ID: {}, 이름: {})는 현재 가상 피팅을 지원하지 않습니다.", 
+                newGarment.getId(), newGarment.getProductName());
+            throw new BusinessException(HttpStatus.BAD_REQUEST, 
+                "원피스는 현재 가상 피팅을 지원하지 않습니다. 상의나 하의만 가상 피팅이 가능합니다.");
+        }
+
         // 현재 착용 중인 상의와 하의 확인 (더 명확하게 로깅)
         Long currentTopId = null;
         Long currentBottomId = null;
@@ -652,14 +660,37 @@ public class AvatarServiceImpl implements AvatarService {
      */
     private String determineGarmentType(Product product) {
         if (product.isUpperGarment()) {
+            log.info("상품 ID {}는 상의입니다. 카테고리: {}, 부모 카테고리 ID: {}", 
+                product.getId(), 
+                product.getCategory() != null ? product.getCategory().getCategoryName() : "null",
+                product.getCategory() != null && product.getCategory().getParentCategory() != null ? 
+                    product.getCategory().getParentCategory().getId() : "null");
             return "top";
         } else if (product.isLowerGarment()) {
+            log.info("상품 ID {}는 하의입니다. 카테고리: {}, 부모 카테고리 ID: {}, 카테고리 ID: {}", 
+                product.getId(), 
+                product.getCategory() != null ? product.getCategory().getCategoryName() : "null",
+                product.getCategory() != null && product.getCategory().getParentCategory() != null ? 
+                    product.getCategory().getParentCategory().getId() : "null",
+                product.getCategory() != null ? product.getCategory().getId() : "null");
             return "bottom";
+        } else if (product.isDress()) {
+            // 원피스는 현재 가상 피팅에서 지원하지 않음
+            log.warn("상품 ID {}는 원피스입니다. 현재 가상 피팅에서 지원하지 않습니다. 카테고리: {}, 부모 카테고리 ID: {}, 카테고리 ID: {}", 
+                product.getId(), 
+                product.getCategory() != null ? product.getCategory().getCategoryName() : "null",
+                product.getCategory() != null && product.getCategory().getParentCategory() != null ? 
+                    product.getCategory().getParentCategory().getId() : "null",
+                product.getCategory() != null ? product.getCategory().getId() : "null");
+            return "dress"; // 원피스용 타입 추가
         } else {
-            // 상의도 하의도 아닌 경우 (액세서리 등)
-            log.warn("상품 ID {}는 상의도 하의도 아닙니다. 카테고리: {}",
+            // 상의도 하의도 원피스도 아닌 경우 (액세서리 등)
+            log.warn("상품 ID {}는 상의/하의/원피스가 아닙니다. 카테고리: {}, 부모 카테고리 ID: {}, 카테고리 ID: {}",
                 product.getId(),
-                product.getCategory() != null ? product.getCategory().getCategoryName() : "null");
+                product.getCategory() != null ? product.getCategory().getCategoryName() : "null",
+                product.getCategory() != null && product.getCategory().getParentCategory() != null ? 
+                    product.getCategory().getParentCategory().getId() : "null",
+                product.getCategory() != null ? product.getCategory().getId() : "null");
             return "unknown"; // 또는 기본값 설정
         }
     }
@@ -840,6 +871,83 @@ public class AvatarServiceImpl implements AvatarService {
         } catch (Exception e) {
             log.error("기본 아바타 에셋 복사 실패 - userId: {}, error: {}", userId, e.getMessage());
             // 복사 실패해도 진행은 계속함 (중요하지 않은 오류로 처리)
+        }
+    }
+    
+    /**
+     * 현재 입고 있는 옷의 캐시를 삭제합니다.
+     * AI가 옷을 잘못 처리해서 뭉개지거나 하는 경우 캐시를 삭제하여 다시 렌더링할 수 있도록 합니다.
+     */
+    @Override
+    @Transactional
+    public boolean clearCurrentOutfitCache(Member member) {
+        try {
+            Long userId = member.getId();
+            log.info("현재 입고 있는 옷의 캐시 삭제 시작 - userId: {}", userId);
+            
+            // 1. 현재 아바타 정보 조회
+            Avatar avatar = avatarRepository.findTopByMemberIdOrderByCreatedAtDesc(userId);
+            if (avatar == null) {
+                log.warn("캐시 삭제 실패 - 아바타가 존재하지 않음 - userId: {}", userId);
+                return false;
+            }
+            
+            // 2. 현재 착용 중인 상의와 하의 ID 확인
+            Long currentTopId = null;
+            Long currentBottomId = null;
+            
+            for (AvatarItem item : avatar.getItems()) {
+                Product product = item.getProduct();
+                if (product.isUpperGarment()) {
+                    currentTopId = product.getId();
+                    log.info("현재 착용 중인 상의: ID={}, 이름={}", currentTopId, product.getProductName());
+                } else if (product.isLowerGarment()) {
+                    currentBottomId = product.getId();
+                    log.info("현재 착용 중인 하의: ID={}, 이름={}", currentBottomId, product.getProductName());
+                }
+            }
+            
+            // 3. 현재 착용 중인 옷이 없는 경우
+            if (currentTopId == null && currentBottomId == null) {
+                log.warn("캐시 삭제 실패 - 현재 착용 중인 옷이 없음 - userId: {}", userId);
+                return false;
+            }
+            
+            // 4. 캐시 키 생성
+            String cacheKey = generateCombinationCacheKey(userId, currentTopId, currentBottomId);
+            log.info("삭제할 캐시 키: {}", cacheKey);
+            
+            // 5. S3에서 캐시 파일 삭제
+            try {
+                var deleteRequest = software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(cacheKey)
+                    .build();
+                
+                s3Client.deleteObject(deleteRequest);
+                log.info("캐시 파일 삭제 성공: {}", cacheKey);
+                
+                // 6. 아바타 이미지 URL에 타임스탬프 추가하여 업데이트 (브라우저 캐시 무효화)
+                String currentImageUrl = avatar.getAvatarImg();
+                String updatedImageUrl = currentImageUrl.contains("?") 
+                    ? currentImageUrl.replaceAll("\\?t=\\d+", "?t=" + System.currentTimeMillis())
+                    : currentImageUrl + "?t=" + System.currentTimeMillis();
+                
+                avatar.update(updatedImageUrl);
+                log.info("아바타 이미지 URL 업데이트: {} -> {}", currentImageUrl, updatedImageUrl);
+                
+                return true;
+            } catch (software.amazon.awssdk.services.s3.model.NoSuchKeyException e) {
+                log.warn("캐시 파일이 이미 존재하지 않음: {}", cacheKey);
+                return true; // 이미 없는 경우도 성공으로 처리
+            } catch (Exception e) {
+                log.error("S3 캐시 파일 삭제 중 오류 발생: {}", e.getMessage(), e);
+                return false;
+            }
+            
+        } catch (Exception e) {
+            log.error("현재 입고 있는 옷의 캐시 삭제 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            return false;
         }
     }
 }

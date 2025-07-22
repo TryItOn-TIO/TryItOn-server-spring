@@ -29,6 +29,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/avatars") // API 버전 관리를 위한 경로 설정
@@ -185,6 +188,28 @@ public class AvatarController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
         }
     }
-
-
+    
+    @Operation(
+        summary = "현재 입고 있는 옷의 캐시 삭제",
+        description = "AI가 옷을 잘못 처리해서 뭉개지거나 하는 경우 현재 입고 있는 옷의 캐시를 삭제합니다. " +
+                     "캐시가 삭제되면 다음 요청 시 새로 렌더링됩니다."
+    )
+    @PostMapping("/clear-outfit-cache")
+    public ResponseEntity<Map<String, Object>> clearCurrentOutfitCache(
+        @AuthenticationPrincipal() CustomUserDetails customUserDetails
+    ) {
+        Member member = customUserDetails.getUser();
+        boolean success = avatarService.clearCurrentOutfitCache(member);
+        
+        Map<String, Object> response = new HashMap<>();
+        if (success) {
+            response.put("success", true);
+            response.put("message", "현재 입고 있는 옷의 캐시가 성공적으로 삭제되었습니다. 다시 시도해보세요.");
+            return ResponseEntity.ok(response);
+        } else {
+            response.put("success", false);
+            response.put("message", "캐시 삭제에 실패했습니다. 다시 시도하거나 관리자에게 문의하세요.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
 }

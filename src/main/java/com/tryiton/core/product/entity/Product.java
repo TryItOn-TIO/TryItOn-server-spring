@@ -120,7 +120,7 @@ public class Product {
     }
 
     /**
-     * 이 상품이 상의인지 확인합니다. (부모 카테고리 ID: 3)
+     * 이 상품이 상의인지 확인합니다. (부모 카테고리 ID: 1 또는 2)
      * @return 상의이면 true, 아니면 false
      */
     public boolean isUpperGarment() {
@@ -128,11 +128,54 @@ public class Product {
     }
 
     /**
-     * 이 상품이 하의인지 확인합니다. (부모 카테고리 ID: 1)
+     * 이 상품이 하의인지 확인합니다. (부모 카테고리 ID: 3 또는 스커트 카테고리)
+     * 스커트(404, 405, 406)는 하의로 인식하되, 원피스(401, 402, 403)는 제외합니다.
      * @return 하의이면 true, 아니면 false
      */
     public boolean isLowerGarment() {
-        return this.category != null && this.category.getParentCategory() != null && this.category.getParentCategory().getId() == 3;
+        // 부모 카테고리가 3인 경우 (바지류)
+        if (this.category != null && this.category.getParentCategory() != null && 
+            this.category.getParentCategory().getId() == 3) {
+            return true;
+        }
+        
+        // 부모 카테고리가 4인 경우 (원피스/스커트류)
+        if (this.category != null && this.category.getParentCategory() != null && 
+            this.category.getParentCategory().getId() == 4) {
+            
+            // 스커트 카테고리만 하의로 인식 (카테고리 ID: 404, 405, 406)
+            Long categoryId = this.category.getId();
+            
+            // 스커트 카테고리 ID 목록
+            return categoryId != null && (
+                categoryId == 404 || // 미니스커트
+                categoryId == 405 || // 미디스커트
+                categoryId == 406    // 롱스커트
+            );
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 이 상품이 원피스인지 확인합니다. (카테고리 ID: 401, 402, 403)
+     * 원피스는 상의와 하의가 결합된 특수한 의류이므로 별도로 처리
+     * @return 원피스이면 true, 아니면 false
+     */
+    public boolean isDress() {
+        if (this.category != null && this.category.getParentCategory() != null && 
+            this.category.getParentCategory().getId() == 4) {
+            
+            Long categoryId = this.category.getId();
+            
+            return categoryId != null && (
+                categoryId == 401 || // 미니원피스
+                categoryId == 402 || // 미디원피스
+                categoryId == 403    // 맥시원피스
+            );
+        }
+        
+        return false;
     }
 
     @Override
