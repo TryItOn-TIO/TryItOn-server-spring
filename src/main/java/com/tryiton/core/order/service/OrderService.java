@@ -46,7 +46,7 @@ public class OrderService {
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주소를 찾을 수 없습니다."));
 
         // 주소 소유자 확인
-        if (!address.getMember().getId().equals(user.getId())) {
+        if (!address.getUser().getId().equals(user.getId())) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "본인의 주소만 사용할 수 있습니다.");
         }
 
