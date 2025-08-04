@@ -13,6 +13,7 @@ import com.tryiton.core.product.entity.ProductVariant;
 import com.tryiton.core.product.repository.ProductVariantRepository;
 import com.tryiton.core.recommend.service.RecommendBehaviorLogService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,8 @@ public class OrderService {
     private final ProductVariantRepository productVariantRepository;
 
     private final RecommendBehaviorLogService recommendBehaviorLogService;
+    
+    private static final int MAX_RETRY_COUNT = 3; // 최대 재시도 횟수
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto requestDto, String userEmail) {
@@ -65,6 +68,32 @@ public class OrderService {
             }
         }
 
+        // 낙관적 락을 고려한 재시도 로직으로 주문 처리
+        return createOrderWithRetry(requestDto, user, address, 0);
+    }
+    
+    private OrderResponseDto createOrderWithRetry(OrderRequestDto requestDto, Member user, Address address, int retryCount) {
+        try {
+            return processOrder(requestDto, user, address);
+        } catch (OptimisticLockException e) {
+            if (retryCount < MAX_RETRY_COUNT) {
+                log.warn("낙관적 락 충돌 발생, 재시도 중... (시도 횟수: {}/{})", retryCount + 1, MAX_RETRY_COUNT);
+                // 짧은 대기 후 재시도
+                try {
+                    Thread.sleep(100 * (retryCount + 1)); // 점진적 백오프
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "주문 처리 중 오류가 발생했습니다.");
+                }
+                return createOrderWithRetry(requestDto, user, address, retryCount + 1);
+            } else {
+                log.error("낙관적 락 재시도 횟수 초과 - 사용자: {}", user.getEmail());
+                throw new BusinessException(HttpStatus.CONFLICT, "동시에 많은 주문이 발생하여 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
+            }
+        }
+    }
+    
+    private OrderResponseDto processOrder(OrderRequestDto requestDto, Member user, Address address) {
         //  N+1 쿼리 해결: 모든 variant를 한 번에 조회
         List<Long> variantIds = requestDto.getOrderItems().stream()
             .map(OrderRequestDto.OrderItemRequest::getVariantId)
@@ -106,7 +135,7 @@ public class OrderService {
         // 3. 프론트엔드에서 전송한 금액과 백엔드에서 계산한 금액을 비교 검증합니다.
         if (requestDto.getAmount() != null && requestDto.getAmount().compareTo(calculatedTotalAmount) != 0) {
             log.warn("주문 금액 불일치 - 사용자: {}, 요청 금액: {}, 계산된 금액: {}", 
-                userEmail, requestDto.getAmount(), calculatedTotalAmount);
+                user.getEmail(), requestDto.getAmount(), calculatedTotalAmount);
             throw new BusinessException(HttpStatus.BAD_REQUEST, 
                 "주문 금액이 일치하지 않습니다. (요청 금액: " + requestDto.getAmount() + ", 계산된 금액: " + calculatedTotalAmount + ")");
         }
@@ -127,12 +156,12 @@ public class OrderService {
         // 6. Order를 저장합니다.
         orderRepository.save(order);
         
-        // 7. 주문 성공 시 재고를 차감합니다.
+        // 7. 주문 성공 시 재고를 차감합니다. (낙관적 락이 여기서 발생할 수 있음)
         orderItems.forEach(orderItem -> {
             try {
                 ProductVariant variant = orderItem.getVariant();
                 variant.decreaseStock(orderItem.getQuantity());
-                productVariantRepository.save(variant);
+                productVariantRepository.save(variant); // 여기서 OptimisticLockException 발생 가능
             } catch (IllegalArgumentException e) {
                 log.error("재고 차감 실패 - 상품: {}, 오류: {}", 
                     orderItem.getProduct().getProductName(), e.getMessage());
@@ -160,6 +189,32 @@ public class OrderService {
         Member user = memberRepository.findByEmail(userEmail)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
         
+        // 낙관적 락을 고려한 재시도 로직으로 주문 취소 처리
+        cancelOrderWithRetry(orderId, user, 0);
+    }
+    
+    private void cancelOrderWithRetry(Long orderId, Member user, int retryCount) {
+        try {
+            processCancelOrder(orderId, user);
+        } catch (OptimisticLockException e) {
+            if (retryCount < MAX_RETRY_COUNT) {
+                log.warn("주문 취소 중 낙관적 락 충돌 발생, 재시도 중... (시도 횟수: {}/{})", retryCount + 1, MAX_RETRY_COUNT);
+                // 짧은 대기 후 재시도
+                try {
+                    Thread.sleep(100 * (retryCount + 1)); // 점진적 백오프
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "주문 취소 처리 중 오류가 발생했습니다.");
+                }
+                cancelOrderWithRetry(orderId, user, retryCount + 1);
+            } else {
+                log.error("주문 취소 중 낙관적 락 재시도 횟수 초과 - 주문 ID: {}, 사용자: {}", orderId, user.getEmail());
+                throw new BusinessException(HttpStatus.CONFLICT, "동시에 많은 요청이 발생하여 주문을 취소할 수 없습니다. 잠시 후 다시 시도해주세요.");
+            }
+        }
+    }
+    
+    private void processCancelOrder(Long orderId, Member user) {
         // 2. 주문 조회 (OrderItem도 함께 조회)
         Order order = orderRepository.findByIdWithOrderItems(orderId)
             .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."));
@@ -174,12 +229,12 @@ public class OrderService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "이미 처리된 주문은 취소할 수 없습니다.");
         }
         
-        // 5. 재고 복원
+        // 5. 재고 복원 (낙관적 락이 여기서 발생할 수 있음)
         order.getOrderItems().forEach(orderItem -> {
             try {
                 ProductVariant variant = orderItem.getVariant();
                 variant.increaseStock(orderItem.getQuantity());
-                productVariantRepository.save(variant);
+                productVariantRepository.save(variant); // 여기서 OptimisticLockException 발생 가능
                 log.debug("재고 복원 - 상품: {}, 수량: {}", variant.getProduct().getProductName(), orderItem.getQuantity());
             } catch (IllegalArgumentException e) {
                 log.error("재고 복원 실패 - 상품: {}, 오류: {}", 
