@@ -6,7 +6,7 @@ import java.util.List;
 @Getter
 public class OrderRequestDto {
     private Long addressId;
-    private BigDecimal amount; // 금액 검증을 위해 추가
+    private BigDecimal amount; // 프론트엔드에서 계산한 금액 (검증용, 선택적)
     private List<OrderItemRequest> orderItems;
     
     @Getter 
