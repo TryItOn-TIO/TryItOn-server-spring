@@ -11,6 +11,10 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByOrderUid(String orderUid);
+    
     @Query("SELECT o FROM Order o JOIN FETCH o.orderItems oi JOIN FETCH oi.product p WHERE o.user.id = :userId ORDER BY o.createdAt DESC")
     Page<Order> findOrderHistoryByUserId(@Param("userId") Long userId, Pageable pageable);
+    
+    @Query("SELECT o FROM Order o JOIN FETCH o.orderItems oi JOIN FETCH oi.variant v WHERE o.id = :orderId")
+    Optional<Order> findByIdWithOrderItems(@Param("orderId") Long orderId);
 }
