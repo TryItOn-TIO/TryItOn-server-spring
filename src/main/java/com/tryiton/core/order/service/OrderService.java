@@ -54,6 +54,16 @@ public class OrderService {
         if (requestDto.getOrderItems() == null || requestDto.getOrderItems().isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "주문할 상품이 없습니다.");
         }
+        
+        // 각 주문 아이템의 null 체크
+        for (OrderRequestDto.OrderItemRequest item : requestDto.getOrderItems()) {
+            if (item.getVariantId() == null) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "상품 옵션 ID가 누락되었습니다.");
+            }
+            if (item.getQuantity() <= 0) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "주문 수량은 1개 이상이어야 합니다.");
+            }
+        }
 
         //  N+1 쿼리 해결: 모든 variant를 한 번에 조회
         List<Long> variantIds = requestDto.getOrderItems().stream()
@@ -72,11 +82,6 @@ public class OrderService {
                     ProductVariant variant = variantMap.get(itemDto.getVariantId());
                     if (variant == null) {
                         throw new BusinessException(HttpStatus.NOT_FOUND, "상품 옵션을 찾을 수 없습니다.");
-                    }
-                    
-                    // 수량 검증
-                    if (itemDto.getQuantity() <= 0) {
-                        throw new BusinessException(HttpStatus.BAD_REQUEST, "주문 수량은 1개 이상이어야 합니다.");
                     }
                     
                     // 재고 확인
@@ -124,9 +129,15 @@ public class OrderService {
         
         // 7. 주문 성공 시 재고를 차감합니다.
         orderItems.forEach(orderItem -> {
-            ProductVariant variant = orderItem.getVariant();
-            variant.decreaseStock(orderItem.getQuantity());
-            productVariantRepository.save(variant);
+            try {
+                ProductVariant variant = orderItem.getVariant();
+                variant.decreaseStock(orderItem.getQuantity());
+                productVariantRepository.save(variant);
+            } catch (IllegalArgumentException e) {
+                log.error("재고 차감 실패 - 상품: {}, 오류: {}", 
+                    orderItem.getProduct().getProductName(), e.getMessage());
+                throw new BusinessException(HttpStatus.BAD_REQUEST, e.getMessage());
+            }
         });
 
         String orderName = createOrderName(orderItems);
@@ -165,10 +176,16 @@ public class OrderService {
         
         // 5. 재고 복원
         order.getOrderItems().forEach(orderItem -> {
-            ProductVariant variant = orderItem.getVariant();
-            variant.increaseStock(orderItem.getQuantity());
-            productVariantRepository.save(variant);
-            log.debug("재고 복원 - 상품: {}, 수량: {}", variant.getProduct().getProductName(), orderItem.getQuantity());
+            try {
+                ProductVariant variant = orderItem.getVariant();
+                variant.increaseStock(orderItem.getQuantity());
+                productVariantRepository.save(variant);
+                log.debug("재고 복원 - 상품: {}, 수량: {}", variant.getProduct().getProductName(), orderItem.getQuantity());
+            } catch (IllegalArgumentException e) {
+                log.error("재고 복원 실패 - 상품: {}, 오류: {}", 
+                    orderItem.getProduct().getProductName(), e.getMessage());
+                // 재고 복원 실패는 로그만 남기고 주문 취소는 계속 진행
+            }
         });
         
         // 6. 주문 삭제 (실제로는 상태를 CANCELLED로 변경하는 것이 좋지만, 요청에 따라 삭제)

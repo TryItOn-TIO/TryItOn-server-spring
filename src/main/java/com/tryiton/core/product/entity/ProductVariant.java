@@ -55,6 +55,9 @@ public class ProductVariant {
     
     // 재고 차감 메서드
     public void decreaseStock(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("차감할 수량은 0보다 커야 합니다.");
+        }
         if (this.quantity < amount) {
             throw new IllegalArgumentException("재고가 부족합니다. 현재 재고: " + this.quantity + ", 요청 수량: " + amount);
         }
@@ -63,6 +66,9 @@ public class ProductVariant {
     
     // 재고 증가 메서드 (주문 취소 시 사용)
     public void increaseStock(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("증가할 수량은 0보다 커야 합니다.");
+        }
         this.quantity += amount;
     }
     
